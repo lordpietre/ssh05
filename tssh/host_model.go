@@ -3,7 +3,7 @@ package tssh
 import (
 	"encoding/json"
 	"fmt"
-	"image/color"
+
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -1484,7 +1484,6 @@ func (m *hostModel) View() tea.View {
 
 	v := tea.NewView(b.String())
 	v.AltScreen = true
-	v.BackgroundColor = color.RGBA{255, 255, 255, 255}
 	return v
 }
 
