@@ -2136,7 +2136,8 @@ func (m *hostModel) renderEditView(b *strings.Builder, maxLines int) {
 		display := f.value
 		if f.kind == "password" {
 			if display != "" {
-				display = strings.Repeat("•", len([]rune(display)))
+				n := len([]rune(display))
+				display = fmt.Sprintf("•••••••• (%d)", n)
 			}
 		}
 		line := label + display
@@ -2169,7 +2170,8 @@ func (m *hostModel) renderNewHost(b *strings.Builder, maxLines int) {
 		label := fmt.Sprintf("  %s: ", f.label)
 		display := f.value
 		if f.kind == "password" && display != "" {
-			display = strings.Repeat("•", len([]rune(display)))
+			n := len([]rune(display))
+			display = fmt.Sprintf("•••••••• (%d)", n)
 		}
 		line := label + display
 		if i == m.newHost.cursor {
@@ -2706,9 +2708,18 @@ func tunnelStopProcess(entry *tunnelEntry) tea.Cmd {
 
 func buildEditFields(alias string) []editField {
 	host, port, user := resolveHostPortUser(alias)
-	pw := getExConfig(alias, "Password")
-	pwCmd := getExConfig(alias, "PasswordCommand")
-	ppCmd := getExConfig(alias, "PassphraseCommand")
+	pw := readRawExConfig(alias, "Password")
+	if pw == "" {
+		pw = getExConfig(alias, "Password")
+	}
+	pwCmd := readRawExConfig(alias, "PasswordCommand")
+	if pwCmd == "" {
+		pwCmd = getExConfig(alias, "PasswordCommand")
+	}
+	ppCmd := readRawExConfig(alias, "PassphraseCommand")
+	if ppCmd == "" {
+		ppCmd = getExConfig(alias, "PassphraseCommand")
+	}
 	group := getGroupLabels(alias)
 	idFile := getConfig(alias, "IdentityFile")
 	proxyJump := getConfig(alias, "ProxyJump")
@@ -2890,7 +2901,8 @@ func (m *hostModel) writeTsshConfig() error {
 	}
 
 	data := strings.Join(lines, "\n") + "\n"
-	return os.WriteFile(path, []byte(data), 0600)
+	backupFile(path)
+	return atomicWriteFile(path, []byte(data), 0600)
 }
 
 func (m *hostModel) renderConfigView(b *strings.Builder, maxLines int) {
@@ -3152,10 +3164,11 @@ func (m *hostModel) handleEdit(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	case "esc":
 		m.edit.active = false
 		return m, nil
-	case "backspace":
+	case "backspace", "delete", "ctrl+h":
 		f := &m.edit.fields[m.edit.cursor]
-		if len(f.value) > 0 {
-			f.value = f.value[:len(f.value)-1]
+		runes := []rune(f.value)
+		if len(runes) > 0 {
+			f.value = string(runes[:len(runes)-1])
 		}
 		return m, nil
 	case "ctrl+c", "ctrl+q":
@@ -3201,10 +3214,11 @@ func (m *hostModel) handleNewHost(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	case "esc":
 		m.newHost.active = false
 		m.newHost.err = ""
-	case "backspace":
+	case "backspace", "delete", "ctrl+h":
 		f := &m.newHost.fields[m.newHost.cursor]
-		if len(f.value) > 0 {
-			f.value = f.value[:len(f.value)-1]
+		runes := []rune(f.value)
+		if len(runes) > 0 {
+			f.value = string(runes[:len(runes)-1])
 		}
 	case "ctrl+c", "ctrl+q":
 		m.done = true
@@ -3293,19 +3307,25 @@ func (m *hostModel) saveNewHost() (tea.Model, tea.Cmd) {
 
 func writeNewHostConfig(alias, hostName, port, user, password string) {
 	path := userConfig.configPath
-	f, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
-	if err != nil {
-		return
-	}
-	defer f.Close()
+	var buf strings.Builder
 
-	fmt.Fprintf(f, "\nHost %s\n    HostName %s\n    Port %s\n    User %s\n", alias, hostName, port, user)
+	existing, err := os.ReadFile(path)
+	if err == nil {
+		buf.Write(existing)
+	}
+
+	buf.WriteString(fmt.Sprintf("\nHost %s\n    HostName %s\n    Port %s\n    User %s\n", alias, hostName, port, user))
 	if password != "" {
 		secret, err := encodeSecret([]byte(password))
 		if err != nil {
 			return
 		}
-		fmt.Fprintf(f, "    #!! encPassword %s\n    #!! encQuestionAnswer1 %s\n", secret, secret)
+		buf.WriteString(fmt.Sprintf("    #!! encPassword %s\n    #!! encQuestionAnswer1 %s\n", secret, secret))
+	}
+
+	backupFile(path)
+	if err := atomicWriteFile(path, []byte(buf.String()), 0600); err != nil {
+		warning("write new host config failed: %v", err)
 	}
 }
 
@@ -3362,14 +3382,18 @@ func (m *hostModel) saveEdit() (tea.Model, tea.Cmd) {
 
 	// Update password in extended config
 	updatePasswordConfig(origAlias, pw)
+	// Remove old encPassword/encQuestionAnswer from main config (written by writeNewHostConfig)
+	removeConfigKeys(origAlias, "encPassword", "encQuestionAnswer1")
 
 	// Update password command in extended config
-	if pwCmd != getExConfig(origAlias, "PasswordCommand") {
+	oldPwCmd := readRawExConfig(origAlias, "PasswordCommand")
+	if pwCmd != oldPwCmd {
 		updateExConfigKey(origAlias, "PasswordCommand", pwCmd)
 	}
 
 	// Update passphrase command in extended config
-	if ppCmd != getExConfig(origAlias, "PassphraseCommand") {
+	oldPpCmd := readRawExConfig(origAlias, "PassphraseCommand")
+	if ppCmd != oldPpCmd {
 		updateExConfigKey(origAlias, "PassphraseCommand", ppCmd)
 	}
 
@@ -3402,6 +3426,51 @@ func (m *hostModel) saveEdit() (tea.Model, tea.Cmd) {
 
 	m.edit.active = false
 	return m, nil
+}
+
+// atomicWriteFile writes data to a temp file and renames atomically to prevent corruption.
+func atomicWriteFile(path string, data []byte, perm os.FileMode) error {
+	dir := filepath.Dir(path)
+	tmpFile, err := os.CreateTemp(dir, ".tmp-"+filepath.Base(path))
+	if err != nil {
+		return err
+	}
+	tmpPath := tmpFile.Name()
+	if _, err := tmpFile.Write(data); err != nil {
+		tmpFile.Close()
+		os.Remove(tmpPath)
+		return err
+	}
+	if err := tmpFile.Chmod(perm); err != nil {
+		tmpFile.Close()
+		os.Remove(tmpPath)
+		return err
+	}
+	if err := tmpFile.Close(); err != nil {
+		os.Remove(tmpPath)
+		return err
+	}
+	return os.Rename(tmpPath, path)
+}
+
+// backupFile creates a .bak copy of the file at path before modification.
+func backupFile(path string) {
+	if path == "" {
+		return
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return
+	}
+	_ = os.WriteFile(path+".bak", data, 0600)
+}
+
+// resetConfigCache clears the in-memory config caches so they are re-read on next access.
+func resetConfigCache() {
+	userConfig.config = nil
+	userConfig.loadConfig = sync.Once{}
+	userConfig.exConfig = nil
+	userConfig.loadExConfig = sync.Once{}
 }
 
 func resolveHostPortUser(alias string) (string, string, string) {
@@ -3466,13 +3535,19 @@ func updateHostConfig(origAlias, newAlias, hostName, port, user, identityFile, p
 		result = append(result, line)
 	}
 
-	// Write back
-	_ = os.WriteFile(path, []byte(strings.Join(result, "\n")), 0600)
+	// Write back atomically with backup
+	backupFile(path)
+	if err := atomicWriteFile(path, []byte(strings.Join(result, "\n")), 0600); err != nil {
+		warning("update host config write failed: %v", err)
+		return
+	}
 
 	// Now append new directives if they differ
 	if inBlock {
 		appendDirectives(origAlias, newAlias, hostName, port, user, identityFile, proxyJump, remoteCommand)
 	}
+
+	resetConfigCache()
 }
 
 func appendDirectives(origAlias, newAlias, hostName, port, user, identityFile, proxyJump, remoteCommand string) {
@@ -3599,7 +3674,9 @@ func appendDirectives(origAlias, newAlias, hostName, port, user, identityFile, p
 		}
 	}
 
-	_ = os.WriteFile(path, []byte(strings.Join(result, "\n")), 0600)
+	if err := atomicWriteFile(path, []byte(strings.Join(result, "\n")), 0600); err != nil {
+		warning("append directives write failed: %v", err)
+	}
 }
 
 func updatePasswordConfig(alias, password string) {
@@ -3609,6 +3686,41 @@ func updatePasswordConfig(alias, password string) {
 	}
 	data, _ := os.ReadFile(path)
 	lines := strings.Split(string(data), "\n")
+
+	// Detect current storage format and old decoded password
+	wasEncrypted := false
+	oldDecoded := ""
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		lowTrim := strings.ToLower(trimmed)
+
+		if strings.HasPrefix(lowTrim, "encpassword ") {
+			parts := strings.SplitN(trimmed, " ", 3)
+			if len(parts) >= 2 && parts[1] == alias {
+				wasEncrypted = true
+				if len(parts) >= 3 && strings.HasPrefix(parts[2], "= ") {
+					if decoded, err := decodeSecret(strings.TrimSpace(parts[2][2:])); err == nil {
+						oldDecoded = decoded
+					}
+				}
+				break
+			}
+		}
+		if strings.HasPrefix(lowTrim, "password ") {
+			parts := strings.SplitN(trimmed, " ", 3)
+			if len(parts) >= 2 && parts[1] == alias {
+				if len(parts) >= 3 && strings.HasPrefix(parts[2], "= ") {
+					oldDecoded = strings.TrimSpace(parts[2][2:])
+				}
+				break
+			}
+		}
+	}
+
+	// If password didn't actually change, preserve the original line as-is
+	if password == oldDecoded && password != "" {
+		return
+	}
 
 	var result []string
 	found := false
@@ -3628,16 +3740,23 @@ func updatePasswordConfig(alias, password string) {
 				continue
 			}
 		}
-		// Check for encPassword <alias> = ... (skip encrypted entries, we'll handle)
+		// Check for encPassword <alias> = ...
 		if strings.HasPrefix(lowTrim, "encpassword ") {
 			parts := strings.SplitN(trimmed, " ", 3)
 			if len(parts) >= 2 && parts[1] == alias {
 				if password == "" {
 					continue
 				}
-				// Replace encPassword with plaintext
 				found = true
-				result = append(result, "Password "+alias+" = "+password)
+				if wasEncrypted {
+					if encoded, err := encodeSecret([]byte(password)); err == nil {
+						result = append(result, "encPassword "+alias+" = "+encoded)
+					} else {
+						result = append(result, "Password "+alias+" = "+password)
+					}
+				} else {
+					result = append(result, "Password "+alias+" = "+password)
+				}
 				continue
 			}
 		}
@@ -3645,14 +3764,24 @@ func updatePasswordConfig(alias, password string) {
 	}
 
 	if !found && password != "" {
-		result = append(result, "Password "+alias+" = "+password)
+		if wasEncrypted {
+			if encoded, err := encodeSecret([]byte(password)); err == nil {
+				result = append(result, "encPassword "+alias+" = "+encoded)
+			} else {
+				result = append(result, "Password "+alias+" = "+password)
+			}
+		} else {
+			result = append(result, "Password "+alias+" = "+password)
+		}
 	}
 
-	_ = os.WriteFile(path, []byte(strings.Join(result, "\n")), 0600)
+	backupFile(path)
+	if err := atomicWriteFile(path, []byte(strings.Join(result, "\n")), 0600); err != nil {
+		warning("update password config write failed: %v", err)
+		return
+	}
 
-	// Reset cache so next getExConfig reads fresh data
-	userConfig.exConfig = nil
-	userConfig.loadExConfig = sync.Once{}
+	resetConfigCache()
 }
 
 func updateGroupLabelsConfig(alias, group string) {
@@ -3687,11 +3816,12 @@ func updateGroupLabelsConfig(alias, group string) {
 		result = append(result, "GroupLabels "+alias+" = "+group)
 	}
 
-	_ = os.WriteFile(path, []byte(strings.Join(result, "\n")), 0600)
-
-	// Reset cache so next getGroupLabels reads fresh data
-	userConfig.exConfig = nil
-	userConfig.loadExConfig = sync.Once{}
+	backupFile(path)
+	if err := atomicWriteFile(path, []byte(strings.Join(result, "\n")), 0600); err != nil {
+		warning("update group labels write failed: %v", err)
+		return
+	}
+	resetConfigCache()
 }
 
 func updateExConfigKey(alias, key, value string) {
@@ -3727,11 +3857,12 @@ func updateExConfigKey(alias, key, value string) {
 		result = append(result, key+" "+alias+" = "+value)
 	}
 
-	_ = os.WriteFile(path, []byte(strings.Join(result, "\n")), 0600)
-
-	// Reset cache so next getExConfig reads fresh data
-	userConfig.exConfig = nil
-	userConfig.loadExConfig = sync.Once{}
+	backupFile(path)
+	if err := atomicWriteFile(path, []byte(strings.Join(result, "\n")), 0600); err != nil {
+		warning("update ex config key [%s] write failed: %v", key, err)
+		return
+	}
+	resetConfigCache()
 }
 
 func (m *hostModel) handleDeleteConfirm(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
@@ -4186,6 +4317,87 @@ func (m *hostModel) renderGroupPicker(b *strings.Builder, maxLines int) {
 	}
 }
 
+// removeConfigKeys removes lines matching the given config keys from the main config
+// for the specified host block. Used to clean up old encPassword/encQuestionAnswer entries.
+func removeConfigKeys(alias string, keys ...string) {
+	path := userConfig.configPath
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return
+	}
+	lines := strings.Split(string(data), "\n")
+	var result []string
+	inBlock := false
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		lowTrim := strings.ToLower(trimmed)
+
+		if strings.HasPrefix(lowTrim, "host ") {
+			fields := strings.Fields(trimmed)
+			if len(fields) >= 2 && fields[1] == alias {
+				inBlock = true
+				result = append(result, line)
+				continue
+			}
+			inBlock = false
+			result = append(result, line)
+			continue
+		}
+
+		if !inBlock {
+			result = append(result, line)
+			continue
+		}
+
+		// Inside the host block — check if line starts with any of the keys
+		lineKey := strings.ToLower(strings.TrimSpace(strings.TrimPrefix(lowTrim, "#!! ")))
+		skip := false
+		for _, key := range keys {
+			if strings.HasPrefix(lineKey, strings.ToLower(key)+" ") {
+				skip = true
+				break
+			}
+		}
+		if skip {
+			continue
+		}
+		result = append(result, line)
+	}
+	backupFile(path)
+	if err := atomicWriteFile(path, []byte(strings.Join(result, "\n")), 0600); err != nil {
+		warning("remove config keys write failed: %v", err)
+		return
+	}
+	resetConfigCache()
+}
+
+func removeExConfigLines(alias string) {
+	path := userConfig.exConfigPath
+	if path == "" {
+		return
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return
+	}
+	lines := strings.Split(string(data), "\n")
+	var result []string
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		parts := strings.SplitN(trimmed, " ", 3)
+		if len(parts) >= 2 && parts[1] == alias {
+			continue
+		}
+		result = append(result, line)
+	}
+	backupFile(path)
+	if err := atomicWriteFile(path, []byte(strings.Join(result, "\n")), 0600); err != nil {
+		warning("remove exconfig lines write failed: %v", err)
+		return
+	}
+	resetConfigCache()
+}
+
 func removeHostFromConfig(alias string) {
 	path := userConfig.configPath
 	data, err := os.ReadFile(path)
@@ -4217,7 +4429,13 @@ func removeHostFromConfig(alias string) {
 		}
 		result = append(result, line)
 	}
-	_ = os.WriteFile(path, []byte(strings.Join(result, "\n")), 0600)
+	backupFile(path)
+	if err := atomicWriteFile(path, []byte(strings.Join(result, "\n")), 0600); err != nil {
+		warning("remove host from config write failed: %v", err)
+		return
+	}
+	// Also clean up extended config entries (Password, GroupLabels, etc.)
+	removeExConfigLines(alias)
 }
 
 // --- Host metadata (LastLogin, etc.) ---

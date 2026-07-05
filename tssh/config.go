@@ -775,6 +775,34 @@ func appendPromptHosts(hosts []*sshHost, seen map[string]bool, cfgHosts ...*ssh_
 	return hosts
 }
 
+// readRawExConfig reads a raw value from the exConfig file manually.
+// Unlike getExConfig, this parses the "Key alias = value" format correctly
+// instead of relying on ssh_config which would include "alias = " in the value.
+func readRawExConfig(alias, key string) string {
+	path := userConfig.exConfigPath
+	if path == "" {
+		return ""
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return ""
+	}
+	lowerKey := strings.ToLower(key)
+	for _, line := range strings.Split(string(data), "\n") {
+		trimmed := strings.TrimSpace(line)
+		lowTrim := strings.ToLower(trimmed)
+		prefix := lowerKey + " " + strings.ToLower(alias)
+		if strings.HasPrefix(lowTrim, prefix+" =") || lowTrim == prefix {
+			parts := strings.SplitN(trimmed, "=", 2)
+			if len(parts) == 2 {
+				return strings.TrimSpace(parts[1])
+			}
+			return ""
+		}
+	}
+	return ""
+}
+
 func getGroupLabels(alias string) string {
 	var groupLabels []string
 	addGroupLabel := func(groupLabel string) {
@@ -920,17 +948,28 @@ func execSecretCommand(param *sshParam, command string) string {
 
 func getSecretConfig(param *sshParam, key string) string {
 	alias := param.args.Destination
-	if value := getExConfig(alias, "enc"+key); value != "" {
-		secret, err := decodeSecret(value)
-		if err == nil && secret != "" {
+	if value := readRawExConfig(alias, "enc"+key); value != "" {
+		if secret, err := decodeSecret(value); err == nil && secret != "" {
 			return secret
 		}
-		warning("decode secret [%s] failed: %v", value, err)
+		warning("decode raw secret [%s] for [%s] failed", key, alias)
+	} else if value := getExConfig(alias, "enc"+key); value != "" {
+		if secret, err := decodeSecret(value); err == nil && secret != "" {
+			return secret
+		}
+		warning("decode ex secret [%s] for [%s] failed: %v", key, alias, value)
 	}
-	if command := getExConfig(alias, key+"Command"); command != "" {
+	if command := readRawExConfig(alias, key+"Command"); command != "" {
 		if secret := execSecretCommand(param, command); secret != "" {
 			return secret
 		}
+	} else if command := getExConfig(alias, key+"Command"); command != "" {
+		if secret := execSecretCommand(param, command); secret != "" {
+			return secret
+		}
+	}
+	if value := readRawExConfig(alias, key); value != "" {
+		return value
 	}
 	return getExConfig(alias, key)
 }

@@ -30,6 +30,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 	"unicode"
 
@@ -153,29 +154,22 @@ func (n *newHostTool) promptPassword() {
 }
 
 func (n *newHostTool) writeHost() {
-	file, err := os.OpenFile(n.configPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
-	if err != nil {
-		toolsErrorExit("open config file failed: %v", err)
+	var buf strings.Builder
+	existing, err := os.ReadFile(n.configPath)
+	if err == nil {
+		buf.Write(existing)
 	}
-	defer func() { _ = file.Close() }()
-	if _, err := fmt.Fprintf(file, `
-Host %s
-    HostName %s
-    Port %d
-    User %s
-`, n.hostAlias, n.hostName, n.hostPort, n.userName); err != nil {
-		toolsErrorExit("write config file failed: %v", err)
-	}
+	buf.WriteString(fmt.Sprintf("\nHost %s\n    HostName %s\n    Port %d\n    User %s\n", n.hostAlias, n.hostName, n.hostPort, n.userName))
 	if n.password != "" {
 		secret, err := encodeSecret([]byte(n.password))
 		if err != nil {
 			toolsErrorExit("encode password failed: %v", err)
 		}
-		if _, err := fmt.Fprintf(file, `    #!! encPassword %s
-    #!! encQuestionAnswer1 %s
-`, secret, secret); err != nil {
-			toolsErrorExit("write config file failed: %v", err)
-		}
+		buf.WriteString(fmt.Sprintf("    #!! encPassword %s\n    #!! encQuestionAnswer1 %s\n", secret, secret))
+	}
+	backupFile(n.configPath)
+	if err := atomicWriteFile(n.configPath, []byte(buf.String()), 0600); err != nil {
+		toolsErrorExit("write config file failed: %v", err)
 	}
 }
 
