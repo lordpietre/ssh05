@@ -1,108 +1,87 @@
-# Plan: Integración FRP Proxy en tssh
+# Plan: Mejora del sistema FRP Proxy en tssh
 
-## Resumen
+## Problemas identificados (revisión 2026-07-05)
 
-Añadir opción "FRP Proxy" en menú contextual del host (debajo de "Tunnels") para:
-1. Compilar frps/frpc desde el fork local (`frp/`)
-2. Instalar/configurar FRP local y remoto vía SSH
-3. Escanear puertos y seleccionar servicio a exponer
-4. Iniciar proxy FRP en ambas direcciones
+### P1 — Bug: escaneo R2L envía resultados a `m.tunnel` en vez de `m.frp`
+`tunnelScanRemote()` devuelve `tunnelScanResultMsg`, pero el Update handler de FRP
+espera `frpScanResultMsg`. Los resultados del scan remoto se pierden en el estado
+equivocado y nunca llegan a la UI de FRP.
 
-## Archivos
+### P2 — Sin fallback si el scan de puertos falla o está vacío
+Si `ss`/`netstat` no están en el sistema, o no hay puertos escuchando, el usuario
+se queda en una pantalla de error sin posibilidad de introducir datos manualmente.
 
-| Archivo | Tipo | Propósito |
-|---|---|---|
-| `tssh/frp_proxy.go` | **NUEVO** | Toda la lógica FRP (estados, handlers, renders, procesos, instalación) |
-| `tssh/host_model.go` | MODIFICAR | +1 campo struct, +1 item menú, +1 dispatch, +1 render |
+### P3 — Puertos fijos sin detección de conflicto
+- `bindPort = 7000` hardcodeado — si está ocupado, `frps` falla al bindear
+- `webServer.port = 7400` hardcodeado — mismo problema
+- No hay intento de buscar puerto libre alternativo
 
-## Estados del TUI
+### P4 — Validación de entrada insuficiente
+- Nombre del proxy: no se valida que no contenga `"` (rompe TOML)
+- Puerto expuesto: no se valida contra duplicados
+- Errores de save/load de configuración se tragan silenciosamente
+- ServicePort de entrada de usuario se ignora silenciosamente
 
-```
-menu → direction → setup → scan_results → confirm → list
-```
+### P5 — Token no persistido en `frpProxyEntry`
+El token de autenticación se genera durante el setup pero no se guarda en los
+entries persistidos. En operaciones de reload/restart el token se pierde.
 
-- `menu` — lista proxies guardados + opción "New"
-- `direction` — elegir Remote→Local (R2L) o Local→Remote (L2R)
-- `setup` — progreso: compilar→configurar→iniciar→detectar IP→instalar remoto
-- `scan_results` — puertos escaneados, seleccionar servicio
-- `confirm` — nombre del proxy, puerto expuesto
-- `list` — proxies activos, opciones delete/new
+---
 
-## Flujo R2L (Remote → Local)
+## Plan de implementación
 
-1. Compilar `frps` + `frpc` estáticos desde `frp/cmd/` (si no existen)
-2. Generar token aleatorio (`crypto/rand`)
-3. Escribir `~/.tssh/frps_<alias>.toml`
-4. Iniciar `frps` local en puerto 7000
-5. Detectar IP pública vía ifconfig.me/api.ipify.org
-6. Subir binario `frpc` al remoto vía SSH (pipe `cat >`)
-7. Escribir `~/.tssh/frpc_<alias>.toml` en remoto
-8. Iniciar `frpc` en remoto (nohup)
-9. Escanear puertos del remoto → seleccionar servicio
-10. Añadir `[[proxies]]` a config remota y recargar
+### S1 — Arreglar bug de scan remoto (R2L)
+**Archivo:** `tssh/frp_proxy.go`
+**Cambio:** Crear `frpScanRemotePorts(alias)` que hace SSH y parsea puertos,
+retornando `frpScanResultMsg` directamente. Reemplazar `tunnelScanRemote()` en
+el flujo R2L de `host_model.go:590`.
 
-## Flujo L2R (Local → Remote)
+### S2 — Fallback manual cuando scan falla o vacío
+**Archivo:** `tssh/frp_proxy.go`
+**Cambio:** En el handler de `frpScanResultMsg`, si `err != nil` o `len(ports) == 0`,
+en vez de mostrar error, ir a vista de entrada manual (`manual_setup`) con campos
+para:
+  - Service port (numérico, obligatorio)
+  - Proxy name (texto, default `"proxy-<port>"`)
+  - Exposed port (numérico, default = service port)
 
-1. Compilar `frps` + `frpc` estáticos (si no existen)
-2. Generar token aleatorio
-3. Subir `frps` al remoto, iniciarlo
-4. Detectar IP del remoto
-5. Escribir `~/.tssh/frpc_<alias>.toml` local
-6. Iniciar `frpc` local
-7. Escanear puertos locales → seleccionar servicio
-8. Añadir `[[proxies]]` a config local y recargar
+### S3 — Detección de puerto libre
+**Archivo:** `tssh/frp_proxy.go`
+**Cambio:** Crear `findFreePort(startPort)` que prueba conectividad TCP a
+`127.0.0.1:port` desde `startPort` hacia arriba hasta encontrar uno libre.
+Usarlo en `frpSetupCmd` en vez del hardcode `kFrpDefaultPort=7000`.
+Aplicar también para `kFrpAdminPort=7400`.
 
-## Estructuras de datos
+### S4 — Validación de entrada
+**Archivo:** `tssh/frp_proxy.go`
+**Cambio:**
+- `handleFrpConfirm`: validar que `proxyName` no contenga `"`
+- Validar que `exposedPort` sea número > 0
+- Validar que `exposedPort` no esté ya en uso por otro proxy del mismo alias
+- Mostrar errores de validación en la UI (`m.frp.setupErr`)
+- `frpSaveConfig`: retornar error visible al usuario
+- `frpLoadConfig`: retornar error visible al usuario
 
-```go
-type frpProxyEntry struct {
-    Alias       string `json:"alias"`
-    Name        string `json:"name"`
-    Direction   string `json:"direction"`    // "r2l" | "l2r"
-    FrpsAddr    string `json:"frps_addr"`
-    FrpsPort    int    `json:"frps_port"`
-    Token       string `json:"token"`
-    ServicePort int    `json:"service_port"`
-    ExposedPort int    `json:"exposed_port"`
-    Active      bool   `json:"-"`
-    LocalCmd    *exec.Cmd `json:"-"`
-}
-```
+### S5 — Persistir token en entries
+**Archivo:** `tssh/frp_proxy.go`
+**Cambio:** Guardar `entry.Token = m.frp.token` al crear el proxy en
+`handleFrpConfirm`. El token se genera en `frpSetupCmd` y se almacena
+en `m.frp` para ser usado después.
 
-Persistencia en `~/.tssh_frp` (mismo patrón que tunnels).
+### S6 — Feedback de errores al usuario
+**Archivo:** `tssh/frp_proxy.go`
+**Cambio:**
+- `frpSaveConfig`: retornar `error`, mostrar en UI si falla
+- `frpLoadConfig`: retornar `error`, mostrar en UI si falla
+- Los handlers de `frpStartResultMsg`/`frpStopResultMsg` deben mostrar error
 
-## Mensajes (tea.Msg)
+---
 
-- `frpSetupProgressMsg{step, err}` — progreso de instalación/configuración
-- `frpScanResultMsg{ports, err}` — resultado de escaneo local
-- `frpStartResultMsg{entry, err}` — proxy iniciado
-- `frpStopResultMsg{entry, err}` — proxy detenido
+## Testing
 
-## Compilación de binarios FRP
-
-```go
-func frpCompileIfNeeded() error {
-    srcDir := filepath.Join(exeDir, "frp")  // o cwd/frp
-    go build -o ~/.tssh/bin/frps ./frp/cmd/frps
-    go build -o ~/.tssh/bin/frpc ./frp/cmd/frpc
-}
-```
-
-Binarios guardados en `~/.tssh/bin/`. Se busca en: PATH → junto al binario → `~/.tssh/bin/`.
-
-## Modificaciones a host_model.go
-
-| Línea | Cambio |
-|---|---|
-| ~167 | Añadir `frp frpProxyState` al struct `hostModel` |
-| ~312 | Añadir item "FRP Proxy" en `getContextItems()` |
-| ~574 | Añadir `m.frp.active` en `handleKey()` |
-| ~531 | Añadir casos para mensajes FRP en `Update()` |
-| ~1271 | Añadir `else if m.frp.active` en `View()` |
-| ~1692 | Añadir `renderFrpView()` en dispatch |
-
-## Dependencias externas
-
-- Go toolchain (para compilar FRP)
-- ss o netstat (para escaneo local de puertos)
-- Las mismas que tssh para SSH (golang.org/x/crypto)
+1. `CGO_ENABLED=0 go build -o ./bin/ ./cmd/tssh`
+2. `CGO_ENABLED=0 go test -v -count=1 ./tssh`
+3. Probar R2L con host real
+4. Probar L2R con host real
+5. Probar fallback manual (simular `ss` no disponible)
+6. Probar puerto 7000 ocupado → debe saltar a 7001

@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"os"
 	"os/exec"
@@ -20,8 +21,7 @@ import (
 	"charm.land/bubbletea/v2"
 )
 
-const kFrpDefaultPort = 7000
-const kFrpAdminPort = 7400
+// No longer hardcoded — use findFreePort() instead.
 
 // --- Data types ---
 
@@ -39,13 +39,15 @@ type frpProxyEntry struct {
 }
 
 type frpSetupProgressMsg struct {
-	step string
-	err  error
+	step  string
+	token string
+	err   error
 }
 
 type frpScanResultMsg struct {
-	ports []portInfo
-	err   error
+	ports      []portInfo
+	containers []dockerContainer
+	err        error
 }
 
 type frpStartResultMsg struct {
@@ -62,21 +64,24 @@ type frpStopResultMsg struct {
 
 type frpProxyState struct {
 	active        bool
-	view          string // "menu", "direction", "setup", "scan_results", "confirm", "list"
+	view          string // "menu", "direction", "setup", "scan_results", "confirm", "manual_setup", "list"
 	alias         string
 	direction     string // "r2l" or "l2r" (set during setup)
 	entries       []*frpProxyEntry
 	cursor        int
 	delMode       bool
 	configPath    string
-	scanPorts     []portInfo
-	scanCursor    int
-	scanErr       string
+	scanPorts          []portInfo
+	dockerContainers   []dockerContainer
+	scanCursor         int
+	scanErr            string
 	frpsAddr      string // detected public IP or configured address
 	frpsPort      int
 	setupStep     string // current step description shown during setup
 	setupErr      string
+	token         string // FRP auth token from setup
 	proxyName     string // proxy name being configured
+	servicePort   string // service port being configured (user input, editable in manual_setup)
 	exposedPort   string // exposed port being configured (user input)
 	visibleItems  int
 }
@@ -86,17 +91,17 @@ func frpDefaultPath() string {
 	return filepath.Join(home, ".tssh_frp")
 }
 
-func frpLoadConfig(path, alias string) []*frpProxyEntry {
+func frpLoadConfig(path, alias string) ([]*frpProxyEntry, error) {
 	if path == "" {
-		return nil
+		return nil, nil
 	}
 	data, err := os.ReadFile(path)
 	if err != nil {
-		return nil
+		return nil, err
 	}
 	var all []*frpProxyEntry
 	if err := json.Unmarshal(data, &all); err != nil {
-		return nil
+		return nil, err
 	}
 	var filtered []*frpProxyEntry
 	for _, e := range all {
@@ -104,12 +109,12 @@ func frpLoadConfig(path, alias string) []*frpProxyEntry {
 			filtered = append(filtered, e)
 		}
 	}
-	return filtered
+	return filtered, nil
 }
 
-func frpSaveConfig(entries []*frpProxyEntry, path string) {
+func frpSaveConfig(entries []*frpProxyEntry, path string) error {
 	if path == "" {
-		return
+		return nil
 	}
 	var all []*frpProxyEntry
 	if data, err := os.ReadFile(path); err == nil {
@@ -136,9 +141,9 @@ func frpSaveConfig(entries []*frpProxyEntry, path string) {
 	keep = append(keep, activeEntries()...)
 	data, err := json.MarshalIndent(keep, "", "  ")
 	if err != nil {
-		return
+		return err
 	}
-	_ = os.WriteFile(path, data, 0600)
+	return os.WriteFile(path, data, 0600)
 }
 
 var (
@@ -203,7 +208,7 @@ func frpFindBin(name string) string {
 
 // --- Config file generation ---
 
-func writeFrpsConfig(alias string, token string, bindPort int) (string, error) {
+func writeFrpsConfig(alias string, token string, bindPort, adminPort int) (string, error) {
 	home, _ := os.UserHomeDir()
 	dir := filepath.Join(home, ".tssh")
 	if err := os.MkdirAll(dir, 0755); err != nil {
@@ -217,14 +222,14 @@ auth.token = "%s"
 
 webServer.addr = "127.0.0.1"
 webServer.port = %d
-`, bindPort, token, kFrpAdminPort)
+`, bindPort, token, adminPort)
 	if err := os.WriteFile(path, []byte(content), 0600); err != nil {
 		return "", err
 	}
 	return path, nil
 }
 
-func writeFrpcConfig(alias string, serverAddr string, serverPort int, token string, proxies []*frpProxyEntry) (string, error) {
+func writeFrpcConfig(alias string, serverAddr string, serverPort int, token string, adminPort int, proxies []*frpProxyEntry) (string, error) {
 	home, _ := os.UserHomeDir()
 	dir := filepath.Join(home, ".tssh")
 	if err := os.MkdirAll(dir, 0755); err != nil {
@@ -238,7 +243,10 @@ serverPort = %d
 auth.method = "token"
 auth.token = "%s"
 
-`, serverAddr, serverPort, token))
+webServer.addr = "127.0.0.1"
+webServer.port = %d
+
+`, serverAddr, serverPort, token, adminPort))
 	for _, p := range proxies {
 		buf.WriteString(fmt.Sprintf(`[[proxies]]
 name = "%s"
@@ -315,6 +323,88 @@ func frpScanLocalPorts() tea.Cmd {
 		sort.Slice(ports, func(i, j int) bool { return ports[i].Port < ports[j].Port })
 		return frpScanResultMsg{ports: ports, err: nil}
 	}
+}
+
+// frpScanRemotePorts connects to the remote host and scans for listening TCP ports.
+func frpScanRemotePorts(alias string) tea.Cmd {
+	return func() tea.Msg {
+		client, err := SshLogin(&SshArgs{
+			Destination: alias,
+			ConfigFile:  userConfig.configPath,
+		})
+		if err != nil {
+			return frpScanResultMsg{err: fmt.Errorf("connect failed: %v", err)}
+		}
+		defer client.Close()
+
+		session, err := client.NewSession()
+		if err != nil {
+			return frpScanResultMsg{err: fmt.Errorf("session failed: %v", err)}
+		}
+		defer session.Close()
+
+		output, err := session.Output(
+			`(ss -tlnp 2>/dev/null || netstat -tlnp 2>/dev/null || ss -tln 2>/dev/null || true) ` +
+				`&& echo "===DOCKER===" ` +
+				`&& (docker ps --format '{{.Names}}` + "\t" + `{{.Ports}}' 2>/dev/null || true)`,
+		)
+		if err != nil {
+			return frpScanResultMsg{err: fmt.Errorf("scan command failed: %v", err)}
+		}
+
+		parts := strings.SplitN(string(output), "===DOCKER===\n", 2)
+		scanOut := parts[0]
+		dockerOut := ""
+		if len(parts) > 1 {
+			dockerOut = strings.TrimSpace(parts[1])
+		}
+
+		var ports []portInfo
+		seen := make(map[int]bool)
+		for _, line := range strings.Split(scanOut, "\n") {
+			line = strings.TrimSpace(line)
+			if line == "" {
+				continue
+			}
+			first := strings.Fields(line)[0]
+			if first == "State" || first == "Proto" || first == "Netid" {
+				continue
+			}
+			port, process, ok := parsePortLine(line)
+			if ok && !seen[port] {
+				seen[port] = true
+				ports = append(ports, portInfo{Port: port, Process: process})
+			}
+		}
+		sort.Slice(ports, func(i, j int) bool { return ports[i].Port < ports[j].Port })
+
+		containers := parseDockerOutput(dockerOut)
+		return frpScanResultMsg{ports: ports, containers: containers, err: nil}
+	}
+}
+
+// isLocalPortFree checks if a specific TCP port is available on localhost.
+func isLocalPortFree(port int) bool {
+	addr := fmt.Sprintf("127.0.0.1:%d", port)
+	ln, err := net.Listen("tcp", addr)
+	if err != nil {
+		return false
+	}
+	ln.Close()
+	return true
+}
+
+// findFreePort finds the first available TCP port starting from startPort.
+func findFreePort(startPort int) int {
+	for port := startPort; port < startPort+100; port++ {
+		addr := fmt.Sprintf("127.0.0.1:%d", port)
+		ln, err := net.Listen("tcp", addr)
+		if err == nil {
+			ln.Close()
+			return port
+		}
+	}
+	return startPort // fallback, will likely fail at runtime
 }
 
 // --- Remote operations ---
@@ -409,6 +499,15 @@ func frpStartLocal(name string, args ...string) (*exec.Cmd, error) {
 		return nil, fmt.Errorf("%s not found", name)
 	}
 	cmd := exec.Command(bin, args...)
+	home, _ := os.UserHomeDir()
+	logDir := filepath.Join(home, ".tssh")
+	os.MkdirAll(logDir, 0755)
+	logPath := filepath.Join(logDir, fmt.Sprintf("%s.log", name))
+	f, err := os.OpenFile(logPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
+	if err == nil {
+		cmd.Stdout = f
+		cmd.Stderr = f
+	}
 	if err := cmd.Start(); err != nil {
 		return nil, fmt.Errorf("start %s failed: %v", name, err)
 	}
@@ -435,7 +534,8 @@ func frpSetupCmd(alias string, direction string) tea.Cmd {
 		}
 
 		token := generateToken()
-		port := kFrpDefaultPort
+		port := findFreePort(7000)
+		adminPort := findFreePort(7400)
 
 		var frpsAddr string
 		var frpsCmd *exec.Cmd
@@ -451,7 +551,7 @@ func frpSetupCmd(alias string, direction string) tea.Cmd {
 			frpsAddr = ip
 
 			// Step 3a: write frps config and start locally
-			frpsPath, err := writeFrpsConfig(alias, token, port)
+			frpsPath, err := writeFrpsConfig(alias, token, port, adminPort)
 			if err != nil {
 				return frpSetupProgressMsg{step: fmt.Sprintf("Config failed: %v", err), err: err}
 			}
@@ -471,7 +571,7 @@ func frpSetupCmd(alias string, direction string) tea.Cmd {
 			}
 
 			// write frpc config remotely
-			frpcConfigPath, err := writeFrpcConfig(alias+"_remote", frpsAddr, port, token, []*frpProxyEntry{})
+			frpcConfigPath, err := writeFrpcConfig(alias+"_remote", frpsAddr, port, token, adminPort, []*frpProxyEntry{})
 			if err != nil {
 				frpStopProcess(frpsCmd)
 				return frpSetupProgressMsg{step: fmt.Sprintf("Config failed: %v", err), err: err}
@@ -537,7 +637,7 @@ auth.token = "%s"
 
 webServer.addr = "127.0.0.1"
 webServer.port = %d
-`, port, token, kFrpAdminPort)
+`, port, token, adminPort)
 
 			if err := frpCopyToRemote(alias, []byte(frpsConfig),
 				filepath.Join(remoteCfgDir, fmt.Sprintf("frps_%s.toml", alias)), "644"); err != nil {
@@ -554,13 +654,13 @@ webServer.port = %d
 			_ = pidStr
 
 			// Step 4b: write frpc config locally (empty proxies for now)
-			_, err = writeFrpcConfig(alias, frpsAddr, port, token, []*frpProxyEntry{})
+			_, err = writeFrpcConfig(alias, frpsAddr, port, token, adminPort, []*frpProxyEntry{})
 			if err != nil {
 				return frpSetupProgressMsg{step: fmt.Sprintf("Local config failed: %v", err), err: err}
 			}
 		}
 
-		return frpSetupProgressMsg{step: "ready", err: nil}
+		return frpSetupProgressMsg{step: "ready", token: token, err: nil}
 	}
 }
 
@@ -595,12 +695,12 @@ remotePort = %d
 				fmt.Sprintf("%s/frpc reload -c %s/frpc_%s.toml",
 					filepath.Join(remoteDir, "bin"), remoteDir, alias))
 			if err != nil {
-				// frpc reload might fail if no admin port configured - try restart
+				// frpc reload failed (e.g. admin API not ready) — try restart
 				restartOut, err2 := frpExecRemote(alias,
-					fmt.Sprintf("pkill -f 'frpc.*%s' 2>/dev/null; nohup %s/frpc -c %s/frpc_%s.toml > /tmp/frpc_%s.log 2>&1 &",
+					fmt.Sprintf("pkill -f 'frpc.*%s' 2>/dev/null; sleep 1; nohup %s/frpc -c %s/frpc_%s.toml > /tmp/frpc_%s.log 2>&1 &",
 						alias, filepath.Join(remoteDir, "bin"), remoteDir, alias, alias))
 				if err2 != nil {
-					return frpStartResultMsg{entry: entry, err: fmt.Errorf("reload failed: %v", err)}
+					return frpStartResultMsg{entry: entry, err: fmt.Errorf("restart failed: %v", err2)}
 				}
 				_ = restartOut
 			} else {
@@ -801,6 +901,8 @@ func (m *hostModel) handleFrp(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return m.handleFrpScanResults(msg)
 	case "confirm":
 		return m.handleFrpConfirm(msg)
+	case "manual_setup":
+		return m.handleFrpManualSetup(msg)
 	case "list":
 		return m.handleFrpList(msg)
 	}
@@ -917,22 +1019,143 @@ func (m *hostModel) handleFrpScanResults(msg tea.KeyPressMsg) (tea.Model, tea.Cm
 			m.frp.scanCursor++
 		}
 	case "enter":
-		if visible == 0 || m.frp.scanCursor >= len(m.frp.scanPorts) {
+		if visible == 0 {
 			break
 		}
-		// select this port for proxying
-		port := m.frp.scanPorts[m.frp.scanCursor].Port
+		var port int
+		totalPorts := len(m.frp.scanPorts)
+		if m.frp.scanCursor < totalPorts {
+			port = m.frp.scanPorts[m.frp.scanCursor].Port
+		} else {
+			dockerIdx := m.frp.scanCursor - totalPorts
+			if dockerIdx < len(m.frp.dockerContainers) {
+				ports := parseDockerHostPorts(m.frp.dockerContainers[dockerIdx].Ports)
+				if len(ports) > 0 {
+					port = ports[0]
+				} else {
+					m.frp.scanErr = fmt.Sprintf("Container %q has no exposed host ports",
+						m.frp.dockerContainers[dockerIdx].Name)
+					return m, nil
+				}
+			} else {
+				break
+			}
+		}
+		if port == 0 {
+			break
+		}
 		m.frp.view = "confirm"
 		m.frp.cursor = 0
 		m.frp.proxyName = fmt.Sprintf("proxy-%d", port)
 		m.frp.exposedPort = ""
-		m.frp.setupStep = fmt.Sprintf("%d", port) // store selected port
+		m.frp.setupStep = fmt.Sprintf("%d", port)
 	case "esc":
 		m.frp.view = "list"
 	case "ctrl+c", "ctrl+q":
 		m.done = true
 		m.result = hostChoiceMsg{quit: true}
 		return m, tea.Quit
+	}
+	return m, nil
+}
+
+// --- UI: manual setup (when scan fails or empty) ---
+
+func (m *hostModel) handleFrpManualSetup(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
+	s := msg.String()
+	txt := msg.Key().Text
+	switch s {
+	case "tab", "down", "j":
+		m.frp.cursor = (m.frp.cursor + 1) % 3
+	case "shift+tab", "up", "k":
+		m.frp.cursor = (m.frp.cursor + 2) % 3
+	case "enter":
+		m.frp.setupErr = ""
+
+		servicePort, _ := strconv.Atoi(m.frp.servicePort)
+		if servicePort <= 0 {
+			m.frp.setupErr = "Service port must be a positive number"
+			return m, nil
+		}
+		if m.frp.proxyName == "" {
+			return m, nil
+		}
+		if strings.Contains(m.frp.proxyName, `"`) {
+			m.frp.setupErr = "Proxy name must not contain quotes"
+			return m, nil
+		}
+
+		exposedPort, _ := strconv.Atoi(m.frp.exposedPort)
+		if exposedPort <= 0 {
+			exposedPort = servicePort
+		}
+
+		for _, e := range m.frp.entries {
+			if e.FrpsAddr == m.frp.frpsAddr && e.ExposedPort == exposedPort {
+				m.frp.setupErr = fmt.Sprintf("Exposed port %d is already in use", exposedPort)
+				return m, nil
+			}
+		}
+
+		if m.frp.direction == "r2l" && !isLocalPortFree(exposedPort) {
+			m.frp.setupErr = fmt.Sprintf("Local port %d is already in use", exposedPort)
+			return m, nil
+		}
+
+		entry := &frpProxyEntry{
+			Alias:       m.frp.alias,
+			Name:        m.frp.proxyName,
+			Direction:   m.frp.direction,
+			FrpsAddr:    m.frp.frpsAddr,
+			FrpsPort:    m.frp.frpsPort,
+			Token:       m.frp.token,
+			ServicePort: servicePort,
+			ExposedPort: exposedPort,
+		}
+		m.frp.view = "setup"
+		m.frp.setupStep = "Starting proxy..."
+		return m, frpAddProxyCmd(m.frp.alias, entry)
+	case "esc":
+		m.frp.view = "menu"
+	case "backspace":
+		switch m.frp.cursor {
+		case 0:
+			if len(m.frp.servicePort) > 0 {
+				m.frp.servicePort = m.frp.servicePort[:len(m.frp.servicePort)-1]
+			}
+		case 1:
+			if len(m.frp.proxyName) > 0 {
+				m.frp.proxyName = m.frp.proxyName[:len(m.frp.proxyName)-1]
+			}
+		case 2:
+			if len(m.frp.exposedPort) > 0 {
+				m.frp.exposedPort = m.frp.exposedPort[:len(m.frp.exposedPort)-1]
+			}
+		}
+	case "ctrl+c", "ctrl+q":
+		m.done = true
+		m.result = hostChoiceMsg{quit: true}
+		return m, tea.Quit
+	default:
+		if txt == "" {
+			return m, nil
+		}
+		switch m.frp.cursor {
+		case 0:
+			for _, r := range txt {
+				if r >= '0' && r <= '9' {
+					m.frp.servicePort += string(r)
+				}
+			}
+		case 1:
+			m.frp.proxyName += strings.ReplaceAll(txt, `"`, "")
+		case 2:
+			for _, r := range txt {
+				if r >= '0' && r <= '9' {
+					m.frp.exposedPort += string(r)
+				}
+			}
+		}
 	}
 	return m, nil
 }
@@ -948,17 +1171,35 @@ func (m *hostModel) handleFrpConfirm(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	case "shift+tab", "up", "k":
 		m.frp.cursor = (m.frp.cursor + 2) % 3
 	case "enter":
+		m.frp.setupErr = ""
+
+		if strings.Contains(m.frp.proxyName, `"`) {
+			m.frp.setupErr = "Proxy name must not contain quotes"
+			return m, nil
+		}
 		if m.frp.proxyName == "" {
 			return m, nil
 		}
-		exposedPort, _ := strconv.Atoi(m.frp.exposedPort)
-		if exposedPort <= 0 {
-			// default to same port
-			servicePort, _ := strconv.Atoi(m.frp.setupStep)
-			exposedPort = servicePort
-		}
+
 		servicePort, _ := strconv.Atoi(m.frp.setupStep)
 		if servicePort <= 0 {
+			return m, nil
+		}
+
+		exposedPort, _ := strconv.Atoi(m.frp.exposedPort)
+		if exposedPort <= 0 {
+			exposedPort = servicePort
+		}
+
+		for _, e := range m.frp.entries {
+			if e.FrpsAddr == m.frp.frpsAddr && e.ExposedPort == exposedPort {
+				m.frp.setupErr = fmt.Sprintf("Exposed port %d is already in use", exposedPort)
+				return m, nil
+			}
+		}
+
+		if m.frp.direction == "r2l" && !isLocalPortFree(exposedPort) {
+			m.frp.setupErr = fmt.Sprintf("Local port %d is already in use", exposedPort)
 			return m, nil
 		}
 
@@ -968,7 +1209,7 @@ func (m *hostModel) handleFrpConfirm(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			Direction:   m.frp.direction,
 			FrpsAddr:    m.frp.frpsAddr,
 			FrpsPort:    m.frp.frpsPort,
-			Token:       "",
+			Token:       m.frp.token,
 			ServicePort: servicePort,
 			ExposedPort: exposedPort,
 		}
@@ -998,7 +1239,7 @@ func (m *hostModel) handleFrpConfirm(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		}
 		switch m.frp.cursor {
 		case 0:
-			m.frp.proxyName += txt
+			m.frp.proxyName += strings.ReplaceAll(txt, `"`, "")
 		case 2:
 			for _, r := range txt {
 				if r >= '0' && r <= '9' {
@@ -1080,6 +1321,8 @@ func (m *hostModel) renderFrpView(b *strings.Builder, maxLines int) {
 		m.renderFrpScanResults(b, maxLines)
 	case "confirm":
 		m.renderFrpConfirm(b, maxLines)
+	case "manual_setup":
+		m.renderFrpManualSetup(b, maxLines)
 	case "list":
 		m.renderFrpList(b, maxLines)
 	}
@@ -1185,7 +1428,7 @@ func (m *hostModel) renderFrpSetup(b *strings.Builder, maxLines int) {
 }
 
 func (m *hostModel) renderFrpScanResults(b *strings.Builder, maxLines int) {
-	title := fmt.Sprintf("  ── Select Port to Proxy ──")
+	title := "  ── Select Port to Proxy ──"
 	b.WriteString(m.bgLine(m.activeStyle.Render(clipString(title, m.width-1))) + "\n")
 
 	if m.frp.scanErr != "" {
@@ -1194,17 +1437,37 @@ func (m *hostModel) renderFrpScanResults(b *strings.Builder, maxLines int) {
 	}
 
 	totalPorts := len(m.frp.scanPorts)
-	if totalPorts == 0 {
-		b.WriteString(m.bgLine("  No open ports found.") + "\n")
+	totalDocker := len(m.frp.dockerContainers)
+	totalItems := totalPorts + totalDocker
+	dockerOffset := totalPorts
+
+	if totalItems == 0 {
+		b.WriteString(m.bgLine("  No open ports or containers found.") + "\n")
 	}
 
 	available := maxLines - 3
 	showPorts := totalPorts
-	if totalPorts > available {
+	showDocker := totalDocker
+	if totalItems > available && totalDocker > 0 {
+		portLines := available * totalPorts / totalItems
+		if portLines < 1 {
+			portLines = 1
+		}
+		dockerLines := available - portLines - 2
+		if dockerLines < 1 {
+			showDocker = 0
+			showPorts = available
+		} else {
+			showPorts = portLines
+			showDocker = dockerLines
+		}
+	} else if totalItems > available {
 		showPorts = available
+		showDocker = 0
 	}
-	visibleItems := showPorts
-	if visibleItems < 1 && totalPorts > 0 {
+
+	visibleItems := showPorts + showDocker
+	if visibleItems < 1 && totalItems > 0 {
 		visibleItems = 1
 	}
 	if m.frp.scanCursor >= visibleItems {
@@ -1226,16 +1489,87 @@ func (m *hostModel) renderFrpScanResults(b *strings.Builder, maxLines int) {
 		}
 		rendered++
 	}
+
+	if totalDocker > 0 && showDocker > 0 {
+		b.WriteString(m.bgLine("") + "\n")
+		rendered++
+		dockerTitle := m.helpStyle.Render("  ── Docker Containers ──")
+		b.WriteString(m.bgLine(dockerTitle) + "\n")
+		rendered++
+		for i := 0; i < totalDocker && i < showDocker; i++ {
+			c := m.frp.dockerContainers[i]
+			line := fmt.Sprintf("  · %s   %s", c.Name, simplifyDockerPorts(c.Ports))
+			line = clipString(line, m.width-4)
+			cursorIdx := dockerOffset + i
+			if cursorIdx == m.frp.scanCursor {
+				b.WriteString(m.bgLine(m.activeStyle.Render("▐█ "+line)) + "\n")
+			} else {
+				b.WriteString(m.bgLine(m.inactiveStyle.Render("   "+line)) + "\n")
+			}
+			rendered++
+		}
+	}
+
 	for i := rendered; i < maxLines-2; i++ {
 		b.WriteString(m.bgLine("") + "\n")
 	}
 	b.WriteString(m.bgLine(m.helpStyle.Render("  ↑↓ Select  Enter confirm  Esc back")) + "\n")
 }
 
+func (m *hostModel) renderFrpManualSetup(b *strings.Builder, maxLines int) {
+	title := "  ── Manual FRP Setup ──"
+	b.WriteString(m.bgLine(m.activeStyle.Render(clipString(title, m.width-1))) + "\n")
+
+	if m.frp.scanErr != "" {
+		b.WriteString(m.bgLine("  Scan: "+m.frp.scanErr) + "\n")
+	} else {
+		b.WriteString(m.bgLine("  No open ports found on remote host.") + "\n")
+	}
+	if m.frp.setupErr != "" {
+		b.WriteString(m.bgLine("  Error: "+m.frp.setupErr) + "\n")
+		m.frp.setupErr = ""
+	}
+	b.WriteString(m.bgLine("") + "\n")
+
+	// Service port
+	svcLabel := fmt.Sprintf("  Service port: %s", m.frp.servicePort)
+	if m.frp.cursor == 0 {
+		b.WriteString(m.bgLine(m.activeStyle.Render("▐█ "+svcLabel+"▌")) + "\n")
+	} else {
+		b.WriteString(m.bgLine("   " + svcLabel) + "\n")
+	}
+
+	// Proxy name
+	nameLabel := fmt.Sprintf("  Proxy name: %s", m.frp.proxyName)
+	if m.frp.cursor == 1 {
+		b.WriteString(m.bgLine(m.activeStyle.Render("▐█ "+nameLabel+"▌")) + "\n")
+	} else {
+		b.WriteString(m.bgLine("   " + nameLabel) + "\n")
+	}
+
+	// Exposed port
+	expLabel := fmt.Sprintf("  Exposed port: %s", m.frp.exposedPort)
+	if m.frp.cursor == 2 {
+		b.WriteString(m.bgLine(m.activeStyle.Render("▐█ "+expLabel+"▌")) + "\n")
+	} else {
+		b.WriteString(m.bgLine("   " + expLabel) + "\n")
+	}
+
+	b.WriteString(m.bgLine("") + "\n")
+	b.WriteString(m.bgLine(m.helpStyle.Render("  Tab/↑↓ Switch field  Enter confirm  Esc back")) + "\n")
+	for i := 8; i < maxLines; i++ {
+		b.WriteString(m.bgLine("") + "\n")
+	}
+}
+
 func (m *hostModel) renderFrpConfirm(b *strings.Builder, maxLines int) {
 	servicePort := m.frp.setupStep
 	title := fmt.Sprintf("  ── Configure Proxy for Port %s ──", servicePort)
 	b.WriteString(m.bgLine(m.activeStyle.Render(clipString(title, m.width-1))) + "\n")
+	if m.frp.setupErr != "" {
+		b.WriteString(m.bgLine("  Error: "+m.frp.setupErr) + "\n")
+		m.frp.setupErr = ""
+	}
 	b.WriteString(m.bgLine("") + "\n")
 
 	// Proxy name

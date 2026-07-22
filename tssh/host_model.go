@@ -318,7 +318,11 @@ func (m *hostModel) getContextItems() []contextItem {
 			m.frp.active = true
 			m.frp.view = "menu"
 			m.frp.alias = alias
-			m.frp.entries = frpLoadConfig(m.frp.configPath, alias)
+			var loadErr error
+			m.frp.entries, loadErr = frpLoadConfig(m.frp.configPath, alias)
+			if loadErr != nil {
+				m.frp.setupErr = fmt.Sprintf("Load config: %v", loadErr)
+			}
 			m.frp.cursor = 0
 			m.frp.delMode = false
 			m.frp.direction = ""
@@ -584,12 +588,14 @@ func (m *hostModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		} else if msg.step == "ready" {
 			// setup complete, scan ports
 			m.frp.scanPorts = nil
+			m.frp.dockerContainers = nil
 			m.frp.scanErr = ""
 			m.frp.scanCursor = 0
 			m.frp.view = "scan_results"
-			if m.frp.direction == "r2l" {
-				return m, tunnelScanRemote(m.frp.alias)
-			}
+			m.frp.token = msg.token
+		if m.frp.direction == "r2l" {
+			return m, frpScanRemotePorts(m.frp.alias)
+		}
 			return m, frpScanLocalPorts()
 		} else {
 			m.frp.setupStep = msg.step
@@ -597,12 +603,20 @@ func (m *hostModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 	case frpScanResultMsg:
-		if msg.err != nil {
-			m.frp.scanErr = msg.err.Error()
-		} else {
-			m.frp.scanPorts = msg.ports
-			m.frp.scanErr = ""
+		if msg.err != nil || len(msg.ports) == 0 {
+			if msg.err != nil {
+				m.frp.scanErr = msg.err.Error()
+			}
+			m.frp.view = "manual_setup"
+			m.frp.cursor = 0
+			m.frp.proxyName = "proxy"
+			m.frp.servicePort = ""
+			m.frp.exposedPort = ""
+			return m, nil
 		}
+		m.frp.scanPorts = msg.ports
+		m.frp.dockerContainers = msg.containers
+		m.frp.scanErr = ""
 		m.frp.view = "scan_results"
 		return m, nil
 	case frpStartResultMsg:
@@ -615,7 +629,9 @@ func (m *hostModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.frp.entries = append(m.frp.entries, msg.entry)
 			m.frp.view = "list"
 			m.frp.setupErr = ""
-			frpSaveConfig(m.frp.entries, m.frp.configPath)
+			if err := frpSaveConfig(m.frp.entries, m.frp.configPath); err != nil {
+				m.frp.setupErr = fmt.Sprintf("Save config: %v", err)
+			}
 		}
 		return m, nil
 	case frpStopResultMsg:
@@ -627,7 +643,9 @@ func (m *hostModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 			}
 			m.frp.entries = keep
-			frpSaveConfig(m.frp.entries, m.frp.configPath)
+			if err := frpSaveConfig(m.frp.entries, m.frp.configPath); err != nil {
+				m.frp.setupErr = fmt.Sprintf("Save config: %v", err)
+			}
 		} else {
 			m.frp.setupErr = msg.err.Error()
 		}
@@ -1688,7 +1706,7 @@ func (m *hostModel) renderDetails(b *strings.Builder, h *sshHost, maxLines int) 
 	if m.detailsAlias != h.Alias {
 		m.detailsAlias = h.Alias
 		m.detailsTunnels = tunnelLoadConfig(tunnelDefaultPath(), h.Alias)
-		m.detailsFrp = frpLoadConfig(frpDefaultPath(), h.Alias)
+		m.detailsFrp, _ = frpLoadConfig(frpDefaultPath(), h.Alias)
 	}
 
 	// Show FRP proxies

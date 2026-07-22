@@ -498,6 +498,10 @@ func sshStart(args *sshArgs) (int, error) {
 		}
 		addOnExitFunc(func() { resetStdin(state) })
 		defer resetStdin(state)
+
+		// enable bracketed paste mode so the terminal sends paste data
+		_, _ = os.Stdout.WriteString("\x1b[?2004h")
+		addOnExitFunc(func() { _, _ = os.Stdout.WriteString("\x1b[?2004l") })
 	}
 
 	// setup trzsz filter if necessary

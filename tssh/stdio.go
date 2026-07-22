@@ -39,6 +39,11 @@ import (
 var pauseOutput atomic.Bool
 var outputWaitGroup sync.WaitGroup
 
+var (
+	startBracket = []byte{0x1b, '[', '2', '0', '0', '~'}
+	endBracket   = []byte{0x1b, '[', '2', '0', '1', '~'}
+)
+
 func writeAll(dst io.Writer, data []byte) error {
 	m := 0
 	l := len(data)
@@ -64,9 +69,8 @@ func forwardInput(reader io.Reader, writer io.WriteCloser, win bool, escapeChar 
 
 	var enterPressedFlag bool
 	var enterPressedTime time.Time
-	var pasteMode bool
-	var pasteActiveTime time.Time
-	const pasteThreshold = 1024
+	var inBracketedPaste bool
+	var pasteBuf bytes.Buffer
 
 	buffer := make([]byte, 32*1024)
 	for {
@@ -79,54 +83,74 @@ func forwardInput(reader io.Reader, writer io.WriteCloser, win bool, escapeChar 
 				}
 			}
 
-			if n >= pasteThreshold && !pasteMode {
-				pasteMode = true
-				pasteActiveTime = time.Now()
-			}
+			data := buffer[:n]
 
-			if pasteMode {
-				if time.Since(pasteActiveTime) > 100*time.Millisecond && n < pasteThreshold/2 {
-					pasteMode = false
-				} else {
-					if n > 0 {
-						pasteActiveTime = time.Now()
+			// handle bracketed paste mode
+			if inBracketedPaste {
+				if idx := bytes.Index(data, endBracket); idx >= 0 {
+					if idx > 0 {
+						pasteBuf.Write(data[:idx])
 					}
-					buf := buffer[:n]
-					if win && !sshConn.tty {
-						buf = bytes.ReplaceAll(buf, []byte("\r\n"), []byte("\n"))
-					}
-					if err := writeAll(writer, buf); err != nil {
-						if !sshConn.closed.Load() {
-							warning("wrap input write failed: %v", err)
+					if pasteBuf.Len() > 0 {
+						if err := writeAll(writer, pasteBuf.Bytes()); err != nil {
+							if !sshConn.closed.Load() {
+								warning("wrap input write failed: %v", err)
+							}
+							return
 						}
-						return
+						pasteBuf.Reset()
 					}
-					continue
-				}
-			}
-
-			if escapeTime > 0 { // enter tssh console ?
-				if n == 1 && buffer[0] == '\r' {
-					enterPressedFlag = true
-					enterPressedTime = time.Now()
-				} else if enterPressedFlag && n == 1 && buffer[0] == escapeChar && time.Since(enterPressedTime) <= escapeTime {
-					pauseOutput.Store(true)
-					runConsole(escapeChar, writer, sshConn)
-					pauseOutput.Store(false)
-					continue
+					inBracketedPaste = false
+					rest := data[idx+len(endBracket):]
+					if len(rest) > 0 {
+						data = rest
+					} else {
+						continue
+					}
 				} else {
-					enterPressedFlag = false
+					pasteBuf.Write(data)
+					continue
 				}
 			}
 
-			buf := buffer[:n]
-			if win && !sshConn.tty {
-				buf = bytes.ReplaceAll(buf, []byte("\r\n"), []byte("\n"))
-			}
-			if err := writeAll(writer, buf); err != nil {
-				if !sshConn.closed.Load() {
-					warning("wrap input write failed: %v", err)
+			if !inBracketedPaste {
+				if idx := bytes.Index(data, startBracket); idx >= 0 {
+					if idx > 0 {
+						if err := writeForwardInput(data[:idx], writer, win, sshConn, escapeTime, &enterPressedFlag, &enterPressedTime, escapeChar); err != nil {
+							return
+						}
+					}
+					inBracketedPaste = true
+					pasteBuf.Reset()
+					inner := data[idx+len(startBracket):]
+					if len(inner) > 0 {
+						if endIdx := bytes.Index(inner, endBracket); endIdx >= 0 {
+							if endIdx > 0 {
+								if err := writeAll(writer, inner[:endIdx]); err != nil {
+									if !sshConn.closed.Load() {
+										warning("wrap input write failed: %v", err)
+									}
+									return
+								}
+							}
+							inBracketedPaste = false
+							rest := inner[endIdx+len(endBracket):]
+							if len(rest) > 0 {
+								data = rest
+							} else {
+								continue
+							}
+						} else {
+							pasteBuf.Write(inner)
+							continue
+						}
+					} else {
+						continue
+					}
 				}
+			}
+
+			if err := writeForwardInput(data, writer, win, sshConn, escapeTime, &enterPressedFlag, &enterPressedTime, escapeChar); err != nil {
 				return
 			}
 		}
@@ -142,6 +166,34 @@ func forwardInput(reader io.Reader, writer io.WriteCloser, win bool, escapeChar 
 			return
 		}
 	}
+}
+
+func writeForwardInput(data []byte, writer io.WriteCloser, win bool, sshConn *sshConnection, escapeTime time.Duration, enterPressedFlag *bool, enterPressedTime *time.Time, escapeChar byte) error {
+	if escapeTime > 0 {
+		if len(data) == 1 && data[0] == '\r' {
+			*enterPressedFlag = true
+			*enterPressedTime = time.Now()
+		} else if *enterPressedFlag && len(data) == 1 && data[0] == escapeChar && time.Since(*enterPressedTime) <= escapeTime {
+			pauseOutput.Store(true)
+			runConsole(escapeChar, writer, sshConn)
+			pauseOutput.Store(false)
+			return nil
+		} else {
+			*enterPressedFlag = false
+		}
+	}
+
+	buf := data
+	if win && !sshConn.tty {
+		buf = bytes.ReplaceAll(buf, []byte("\r\n"), []byte("\n"))
+	}
+	if err := writeAll(writer, buf); err != nil {
+		if !sshConn.closed.Load() {
+			warning("wrap input write failed: %v", err)
+		}
+		return err
+	}
+	return nil
 }
 
 func forwardOutput(reader io.Reader, writer io.WriteCloser, win, tty bool) {

@@ -19,18 +19,20 @@ make install                   # copies ./bin/tssh to /usr/bin/tssh
 
 ## Entrypoints
 - **Binary**: `cmd/tssh/main.go` → `tssh.TsshMain(argv)` in `tssh/main.go`
-- **Library**: `tssh.SshLogin(args)` in `tssh/main.go`
+- **Library**: `tssh.SshLogin(args)` in `tssh/ssh.go`
 - **Internal packages**: `internal/table/`, `internal/krb5/`, `internal/ssh/`
 
 ## Architecture notes
-- All business logic lives in `tssh/` (66 `.go` files). Main package is thin.
-- Version constant `kTsshVersion` in `tssh/version.go` (line 36)
-- Exit codes defined in `tssh/comm.go` (e.g. `kExitCodeLoginFailed=16`)
+- All business logic lives in `tssh/` (70 `.go` files). Main package is thin.
+- Version constant `kTsshVersion` in `tssh/version.go:36`
+- Exit codes defined in `tssh/comm.go:50-70` (e.g. `kExitCodeLoginFailed=16`)
 - `#!!` prefix enables tssh-specific options in `~/.ssh/config` (standard ssh treats it as comment)
 - `enc` prefix on config values means encrypted with `tssh --enc-secret`
 - Android/Termux quirk: `cmd/tssh/main.go` adjusts `os.Args` when `TERMUX_EXEC__PROC_SELF_EXE` is set
 - Keepalive defaults: `ServerAliveInterval=30` (was 0), configurable via `~/.tssh.conf` `defaultServerAliveInterval`. Set `#!! ServerAliveInterval 0` in `~/.ssh/config` to disable.
 - `~/.tssh.conf` settings: `promptThemeLayout=tiny|simple|table`, `promptDefaultMode=search`, `promptPageSize=N`, `promptDetailItems=...`, `defaultServerAliveInterval=N`
+- FRP (Fast Reverse Proxy) integration: `frp/` directory is gitignored; `Makefile` builds frps/frpc if source present, otherwise `make download-frp` fetches v0.69.1 binaries
+- Debian packaging: `debian/` directory contains packaging files for .deb/.rpm builds via GoReleaser
 
 ## CI workflows (`.github/workflows/`)
 | Workflow | Trigger |
@@ -43,6 +45,8 @@ make install                   # copies ./bin/tssh to /usr/bin/tssh
 - 13 test files in `tssh/`, 1 in `internal/table/`
 - `-count=1` disables test caching; always run from repo root
 - Integration-level tests depend on SSH server fixtures within the repo
+- Run single test: `go test -v -count=1 -run TestName ./tssh`
+- Run single package: `go test -v -count=1 ./internal/table`
 
 ## Release
 - GoReleaser multi-platform: linux, darwin, windows, android, freebsd; 386/amd64/arm/arm64/loong64
