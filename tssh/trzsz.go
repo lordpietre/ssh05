@@ -44,7 +44,7 @@ func setupTrzszFilter(sshConn *sshConnection) error {
 	disableTrzsz := strings.ToLower(getExOptionConfig(args, "EnableTrzsz")) == "no"
 	enableZmodem := args.Zmodem || strings.ToLower(getExOptionConfig(args, "EnableZmodem")) == "yes"
 	enableDragFile := args.DragFile || strings.ToLower(getExOptionConfig(args, "EnableDragFile")) == "yes"
-	enableOSC52 := strings.ToLower(getExOptionConfig(args, "EnableOSC52")) == "yes"
+	enableOSC52 := strings.ToLower(getExOptionConfig(args, "EnableOSC52")) != "no"
 
 	// disable trzsz ( trz / tsz )
 	if disableTrzsz && !enableZmodem && !enableDragFile && !enableOSC52 {
@@ -126,7 +126,7 @@ func setupTrzszFilter(sshConn *sshConnection) error {
 		DetectDragFile:  enableDragFile,
 		DetectTraceLog:  args.TraceLog,
 		EnableZmodem:    enableZmodem,
-		EnableOSC52:     enableOSC52,
+		EnableOSC52:     false, // handled by tssh's forwardOutput
 	})
 
 	// reset terminal and close on exit

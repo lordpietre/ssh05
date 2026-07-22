@@ -47,6 +47,9 @@ var english = map[string]string{
 	"console/suspend":   "Suspend the current SSH process ( ^Z : Ctrl + Z )",
 	"console/terminate": "Terminate the current SSH session ( . : Exit / Kill )",
 	"console/detach":    "Detach the current SSH session ( d : Detach )",
+	"console/clipboard": "Toggle clipboard (OSC 52) integration ( c : Clipboard )",
+	"console/cbstat_enabled":  "Clipboard (OSC 52) : ON",
+	"console/cbstat_disabled": "Clipboard (OSC 52) : OFF",
 	"console/notes":     "↑/↓/j/k Move • Enter Select • q Quit",
 }
 
@@ -67,6 +70,9 @@ var chinese = map[string]string{
 	"console/suspend":   "暂停当前 SSH 进程 ( ^Z : Ctrl + Z )",
 	"console/terminate": "退出当前 SSH 会话 ( . : Exit / Kill )",
 	"console/detach":    "分离当前 SSH 会话 ( d : Detach )",
+	"console/clipboard": "切换剪贴板集成 ( c : Clipboard )",
+	"console/cbstat_enabled":  "剪贴板集成 : 已开启",
+	"console/cbstat_disabled": "剪贴板集成 : 已关闭",
 	"console/notes":     "↑/↓/j/k 移动 • Enter 选择 • q 退出",
 }
 

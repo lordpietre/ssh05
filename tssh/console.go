@@ -224,6 +224,21 @@ func runConsole(escapeChar byte, writer io.WriteCloser, sshConn *sshConnection) 
 		}})
 	}
 
+	{
+		cbLabel := getText("console/cbstat_disabled")
+		if isOSC52Enabled() {
+			cbLabel = getText("console/cbstat_enabled")
+		}
+		model.items = append(model.items, &menuItem{"c", getText("console/clipboard"), func() (tea.Model, tea.Cmd) {
+			setOSC52Enabled(!isOSC52Enabled())
+			model.quitting = true
+			return model, tea.Quit
+		}})
+		model.items = append(model.items, &menuItem{"", cbLabel, func() (tea.Model, tea.Cmd) {
+			return model, nil
+		}})
+	}
+
 	teaOpts, cancelReader := newTeaOptions(func(buf []byte) {
 		if enableDebugLogging {
 			if ch := stdinInputChan.Load(); ch != nil {

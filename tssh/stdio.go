@@ -64,6 +64,9 @@ func forwardInput(reader io.Reader, writer io.WriteCloser, win bool, escapeChar 
 
 	var enterPressedFlag bool
 	var enterPressedTime time.Time
+	var pasteMode bool
+	var pasteActiveTime time.Time
+	const pasteThreshold = 1024
 
 	buffer := make([]byte, 32*1024)
 	for {
@@ -72,6 +75,32 @@ func forwardInput(reader io.Reader, writer io.WriteCloser, win bool, escapeChar 
 			if enableDebugLogging {
 				if ch := stdinInputChan.Load(); ch != nil {
 					*ch <- append([]byte(nil), buffer[:n]...)
+					continue
+				}
+			}
+
+			if n >= pasteThreshold && !pasteMode {
+				pasteMode = true
+				pasteActiveTime = time.Now()
+			}
+
+			if pasteMode {
+				if time.Since(pasteActiveTime) > 100*time.Millisecond && n < pasteThreshold/2 {
+					pasteMode = false
+				} else {
+					if n > 0 {
+						pasteActiveTime = time.Now()
+					}
+					buf := buffer[:n]
+					if win && !sshConn.tty {
+						buf = bytes.ReplaceAll(buf, []byte("\r\n"), []byte("\n"))
+					}
+					if err := writeAll(writer, buf); err != nil {
+						if !sshConn.closed.Load() {
+							warning("wrap input write failed: %v", err)
+						}
+						return
+					}
 					continue
 				}
 			}
@@ -127,6 +156,9 @@ func forwardOutput(reader io.Reader, writer io.WriteCloser, win, tty bool) {
 		}
 		if n > 0 {
 			buf := buffer[:n]
+			if tty {
+				detectAndHandleOSC52(buf)
+			}
 			if win && !tty {
 				buf = bytes.ReplaceAll(buf, []byte("\n"), []byte("\r\n"))
 			}
