@@ -145,7 +145,7 @@ bun run ui
 ```
 
 `Ctrl+K` abre la paleta de comandos. `Ctrl+G` activa tmux remoto antes de abrir
-un host. Cerrar la pestaña no
+un host. La barra de estado muestra la ruta elegida (directa/ProxyJump). Cerrar la pestaña no
 destruye la sesión tmux; al reabrir el mismo host se reengancha.
 
 El workspace se guarda en `~/.config/trss/workspaces/<nombre>.json` (sin

@@ -222,6 +222,7 @@ type SessionView = {
   sessionId: SessionId
   host: HostProfile
   phase: SessionPhase
+  route: string
   terminal: EmbeddedTerminalRenderable
   resizeTimer?: ReturnType<typeof setTimeout>
   pendingResize?: { cols: number; rows: number }
@@ -372,7 +373,7 @@ function renderStatus(): void {
   }
   status.content =
     ` SSH ${phaseIcon(active.phase)} ${phaseLabel(active.phase)} · ${active.title} · ${hostTarget(view.host)}` +
-    ` · tmux:${active.tmux ? "on" : "off"} · Ctrl+Tab cambiar · Ctrl+W cerrar`
+    ` · ${view.route} · tmux:${active.tmux ? "on" : "off"} · Ctrl+Tab cambiar · Ctrl+W cerrar`
 }
 
 function uiDirty(): void {
@@ -639,6 +640,7 @@ function createTerminalView(
   host: HostProfile,
   tmuxSession?: string,
   phase: SessionPhase = "connected",
+  route = "SSH directo",
 ): SessionView {
   const cols = Math.max(20, Math.floor(terminalArea.width) || renderer.width - HOST_PANEL_WIDTH)
   const rows = Math.max(5, renderer.height - 2)
@@ -664,7 +666,7 @@ function createTerminalView(
     },
   })
   terminalArea.add(terminal)
-  const view: SessionView = { sessionId, host, phase, terminal }
+  const view: SessionView = { sessionId, host, phase, route, terminal }
   sessions.set(sessionId, view)
   return view
 }
@@ -692,6 +694,17 @@ async function connectHost(
   transientText = ""
   errorText = ""
   const tmuxSession = options.tmuxSession ?? (tmuxMode ? tmuxSessionName(host.alias) : undefined)
+  let route = "SSH directo"
+  try {
+    const plan = await client.call(
+      "routes.plan",
+      { hostProfileId: host.id },
+      { timeoutMs: 3000 },
+    )
+    route = plan.reason || plan.selected || route
+  } catch (error) {
+    debug(`routes.plan ${host.id}: ${String(error)}`)
+  }
   try {
     const opened = await client.call(
       "sessions.open",
@@ -702,7 +715,7 @@ async function connectHost(
       pendingHosts.delete(options.replaceTabId)
       store.remove(options.replaceTabId)
     }
-    const view = createTerminalView(opened.sessionId, host, tmuxSession, "connected")
+    const view = createTerminalView(opened.sessionId, host, tmuxSession, "connected", route)
     const tab = tabForSession(opened.sessionId, host, "connected", tmuxSession)
     store.add(tab)
     activate(tab.id)
@@ -725,7 +738,7 @@ async function attachExisting(
     pendingHosts.delete(replaceTabId)
     store.remove(replaceTabId)
   }
-  const view = createTerminalView(info.sessionId, host, info.tmuxSession, info.phase)
+  const view = createTerminalView(info.sessionId, host, info.tmuxSession, info.phase, "SSH reenganchado")
   const tab = tabForSession(info.sessionId, host, info.phase, info.tmuxSession)
   store.add(tab)
   activate(tab.id)

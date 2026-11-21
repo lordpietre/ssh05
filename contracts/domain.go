@@ -24,6 +24,7 @@ type HostProfile struct {
 	SourceRefs       []SourceReference    `json:"sourceRefs,omitempty"`
 	AuthRef          *CredentialReference `json:"authRef,omitempty"`
 	RoutePolicyID    string               `json:"routePolicyId,omitempty"`
+	ProxyJump        []string             `json:"proxyJump,omitempty"`
 	Labels           []string             `json:"labels,omitempty"`
 	Color            string               `json:"color,omitempty"`
 	VerifiedIdentity bool                 `json:"verifiedIdentity"`

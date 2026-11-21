@@ -202,6 +202,19 @@ func TestServiceInventoryKeePassImport(t *testing.T) {
 		t.Fatalf("vault status = %+v", status)
 	}
 
+	plan, err := ipc.CallTyped[contracts.RoutesPlanParams, contracts.RoutesPlanResult](
+		ctx, client, contracts.MethodRoutesPlan, contracts.RoutesPlanParams{HostProfileID: "lab-arm64"},
+	)
+	if err != nil {
+		t.Fatalf("routes.plan: %v", err)
+	}
+	if plan.Selected != "proxy_jump:lab-arm64" || len(plan.Routes) != 2 {
+		t.Fatalf("plan = %+v", plan)
+	}
+	if len(plan.Routes[1].Via) != 1 || plan.Routes[1].Via[0] != "bastion.example.net" {
+		t.Fatalf("via = %+v", plan.Routes[1].Via)
+	}
+
 	imported, err := ipc.CallTyped[contracts.HostsImportParams, contracts.HostsImportResult](
 		ctx, client, contracts.MethodHostsImport, contracts.HostsImportParams{Source: "keepass"},
 	)

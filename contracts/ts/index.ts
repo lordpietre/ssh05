@@ -169,6 +169,7 @@ export interface HostProfile {
   sourceRefs?: SourceReference[]
   authRef?: CredentialReference
   routePolicyId?: string
+  proxyJump?: string[]
   labels?: string[]
   color?: string
   verifiedIdentity: boolean

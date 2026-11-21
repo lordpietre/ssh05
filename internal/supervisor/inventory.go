@@ -257,7 +257,7 @@ func sshProfile(entry tssh.HostEntry) contracts.HostProfile {
 	if hostname == "" {
 		hostname = entry.Alias
 	}
-	return contracts.HostProfile{
+	profile := contracts.HostProfile{
 		ID:    entry.Alias,
 		Alias: entry.Alias,
 		Target: contracts.HostTarget{
@@ -272,6 +272,12 @@ func sshProfile(entry tssh.HostEntry) contracts.HostProfile {
 		Discovered:       true,
 		VerifiedIdentity: false,
 	}
+	for _, jump := range strings.Split(entry.ProxyJump, ",") {
+		if jump = strings.TrimSpace(jump); jump != "" {
+			profile.ProxyJump = append(profile.ProxyJump, jump)
+		}
+	}
+	return profile
 }
 
 func keepassProfile(entry keepassEntry) (contracts.HostProfile, bool) {

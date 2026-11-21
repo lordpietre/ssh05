@@ -9,11 +9,12 @@ var configMu sync.Mutex
 
 // HostEntry is the non-secret host inventory exposed to the supervisor.
 type HostEntry struct {
-	Alias  string
-	Host   string
-	Port   string
-	User   string
-	System bool
+	Alias     string
+	Host      string
+	Port      string
+	User      string
+	ProxyJump string
+	System    bool
 }
 
 // ListHostEntries loads ~/.ssh/config (or configPath) and returns the visible
@@ -32,11 +33,12 @@ func ListHostEntries(configPath string) ([]HostEntry, error) {
 			continue
 		}
 		entries = append(entries, HostEntry{
-			Alias:  host.Alias,
-			Host:   host.Host,
-			Port:   host.Port,
-			User:   host.User,
-			System: host.System,
+			Alias:     host.Alias,
+			Host:      host.Host,
+			Port:      host.Port,
+			User:      host.User,
+			ProxyJump: host.ProxyJump,
+			System:    host.System,
 		})
 	}
 	return entries, nil

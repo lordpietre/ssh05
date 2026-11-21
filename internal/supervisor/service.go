@@ -289,23 +289,57 @@ func (s *Service) planRoute(req contracts.RPCRequest) (json.RawMessage, *contrac
 	if rpcError != nil {
 		return nil, rpcError
 	}
-	routeID := "direct:" + params.HostProfileID
-	return marshal(contracts.RoutesPlanResult{
-		Routes: []contracts.ConnectionRoute{{
-			ID:            routeID,
-			Kind:          contracts.RouteDirect,
-			HostProfileID: params.HostProfileID,
-			Authorized:    true,
-		}},
-		Selected: routeID,
-		Reason:   "direct SSH",
-	})
+	ctx := context.Background()
+	routes, reason := s.routeCandidates(ctx, params.HostProfileID)
+	selected := ""
+	if len(routes) > 0 {
+		selected = routes[len(routes)-1].ID
+	}
+	return marshal(contracts.RoutesPlanResult{Routes: routes, Selected: selected, Reason: reason})
+}
+
+func (s *Service) routeCandidates(ctx context.Context, hostProfileID string) ([]contracts.ConnectionRoute, string) {
+	directID := "direct:" + hostProfileID
+	routes := []contracts.ConnectionRoute{{
+		ID:            directID,
+		Kind:          contracts.RouteDirect,
+		HostProfileID: hostProfileID,
+		Authorized:    true,
+	}}
+	reason := "direct SSH"
+
+	if inventory, ok := s.hosts.(HostInventory); ok {
+		if profile, found := inventory.Resolve(ctx, hostProfileID); found && len(profile.ProxyJump) > 0 {
+			routes = append(routes, contracts.ConnectionRoute{
+				ID:            "proxy_jump:" + hostProfileID,
+				Kind:          contracts.RouteProxyJump,
+				HostProfileID: hostProfileID,
+				Via:           append([]string(nil), profile.ProxyJump...),
+				Authorized:    true,
+			})
+			reason = "ProxyJump via " + strings.Join(profile.ProxyJump, ", ")
+		}
+	}
+	return routes, reason
 }
 
 func (s *Service) connectRoute(ctx context.Context, conn *ipc.Conn, req contracts.RPCRequest) (json.RawMessage, *contracts.RPCError) {
 	params, rpcError := decodeParams[contracts.RoutesConnectParams](req)
 	if rpcError != nil {
 		return nil, rpcError
+	}
+	routes, _ := s.routeCandidates(ctx, params.HostProfileID)
+	if params.RouteID != "" {
+		authorized := false
+		for _, route := range routes {
+			if route.ID == params.RouteID && route.Authorized {
+				authorized = true
+				break
+			}
+		}
+		if !authorized {
+			return nil, &contracts.RPCError{Code: ipc.CodeInvalidRequest, Message: "route not authorized"}
+		}
 	}
 	id, err := s.backend.Open(ctx, params.HostProfileID, "", contracts.SessionOptions{
 		Destination: s.destinationFor(ctx, params.HostProfileID),

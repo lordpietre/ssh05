@@ -47,6 +47,7 @@ func writeSSHConfig(t *testing.T) string {
     HostName lab.example.net
     Port 2222
     User admin
+    ProxyJump bastion.example.net
 
 Host ssh-only
     HostName ssh-only.example.net
