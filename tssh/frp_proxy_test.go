@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -148,5 +149,28 @@ func TestFrpRemoteCopyCommandHandlesPlainTildePath(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(home, "trss.conf")); err != nil {
 		t.Fatalf("tilde path not expanded into HOME: %v", err)
+	}
+}
+
+func TestEnsurePrivateDir(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("POSIX permissions are not meaningful on Windows")
+	}
+	dir := filepath.Join(t.TempDir(), "config")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chmod(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := ensurePrivateDir(dir); err != nil {
+		t.Fatalf("ensurePrivateDir: %v", err)
+	}
+	info, err := os.Stat(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if info.Mode().Perm() != 0o700 {
+		t.Fatalf("mode = %o, want 700", info.Mode().Perm())
 	}
 }

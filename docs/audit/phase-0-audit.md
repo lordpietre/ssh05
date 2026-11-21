@@ -81,7 +81,7 @@ Total: 78 archivos Go, ~26.500 líneas; 14 archivos de prueba.
 | ID | Hallazgo | Ubicación | Impacto | Acción propuesta |
 |---|---|---|---|---|
 | H-01 | `generateToken()` devolvía un token fijo si falla `crypto/rand` | `tssh/frp_proxy.go:179-185` | Viola FRP-03; token predecible | **Resuelto:** ahora devuelve `(string, error)`, falla cerrado ante error/short read y hay tests en `tssh/frp_proxy_test.go` |
-| H-02 | Directorio `~/.tssh` creado con `0755` | `tssh/frp_proxy.go:213`, `:235` | Viola FRP-04; otros usuarios pueden listar | Crear/usar `0700` para configs FRP |
+| H-02 | Directorio `~/.tssh` creado con `0755` | `tssh/frp_proxy.go` | Viola FRP-04; otros usuarios pueden listar | **Resuelto:** `ensurePrivateDir` crea/endurece a `0700`; test incluido |
 | H-03 | Token FRP persistido en `~/.tssh_frp` (JSON) y TOML | `frp_proxy.go` (`frpSaveConfig`), `writeFrpcConfig` | Secreto en claro fuera de un proveedor | Referencia a secreto + cifrado/permisos |
 | H-04 | Solo proxies `type = "tcp"` | `tssh/frp_proxy.go:246-258` | No cubre UDP/STCP/XTCP (FRP-02) | Detección de capacidades por versión |
 | H-05 | `frpCopyToRemote` construye `mkdir -p … && cat > …` sin citar rutas | `tssh/frp_proxy.go` | Inyección de comandos si la ruta es controlable | **Resuelto:** `sh -c` con argumentos citados, expansión de `~/` en el script y tests de inyección/rutas con espacios |
@@ -125,6 +125,7 @@ H-01 y H-05 y sin cerrar ADR-01/ADR-03.
 Estado de la integración posterior a esta auditoría:
 
 - **H-01 resuelto**: token CSPRNG con fallo cerrado y tests.
+- **H-02 resuelto**: directorio de configuración FRP en `0700`.
 - **H-05 resuelto**: copia remota FRP con argumentos citados y tests de inyección.
 - **ADR-01 cerrada**: motor SSH Go aceptado, con contrato `contracts.SessionBackend`.
 - **Contratos definidos**: `contracts/` (Go) y `contracts/ts/` (TypeScript).

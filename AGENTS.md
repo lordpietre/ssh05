@@ -83,11 +83,12 @@ make install                   # copies ./bin/tssh to /usr/bin/tssh
 - Supervisor run (Unix socket at `$XDG_RUNTIME_DIR/trss/control.sock`):
   `./bin/trssd --ssh-config ~/.ssh/config`
 - H-01 is resolved (`generateToken` fails closed; see `tssh/frp_proxy_test.go`).
+- H-02 is resolved (`ensurePrivateDir` forces FRP config/log dirs to `0700`).
 - H-05 is resolved (remote FRP copy uses quoted `sh -c` arguments and tests).
 - Phase 0 does **not** change runtime behavior of `tssh`; the runtime changes so
-  far are the H-01 FRP token fix and the H-05 remote-copy quoting fix. Respect
-  the status in each ADR: ADR-01, ADR-02 (prototype) and ADR-03 (transport) are
-  accepted; the rest remain open.
+  far are the H-01 token fix, H-02 private FRP directories and H-05 remote-copy
+  quoting. Respect the status in each ADR: ADR-01, ADR-02 (prototype) and
+  ADR-03 (transport) are accepted; the rest remain open.
 
 ## Release
 - GoReleaser multi-platform: linux, darwin, windows, android, freebsd; 386/amd64/arm/arm64/loong64

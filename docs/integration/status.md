@@ -16,6 +16,7 @@
 | ADR-01 motor SSH | **Aceptada** | `docs/adr/ADR-01-ssh-engine.md` |
 | ADR-02 terminal embebido | Aceptada (prototipo) | `docs/adr/ADR-02-vt-emulator.md` |
 | H-01 token FRP con fallback estático | **Resuelto** | `tssh/frp_proxy.go`, `tssh/frp_proxy_test.go` |
+| H-02 permisos del directorio FRP | **Resuelto** | `ensurePrivateDir`, test |
 | H-05 inyección en copia remota FRP | **Resuelto** | `tssh/frp_proxy.go`, `tssh/frp_proxy_test.go` |
 | Contratos UI ↔ supervisor | **Definidos** | `contracts/`, `contracts/ts/` |
 | IPC local autenticado (transporte) | **Hecho** | `internal/ipc/`, tests |
@@ -34,7 +35,7 @@
 | 1 | Integrar `IpcClient` + `TabStore` en la UI OpenTUI | 3 sesiones reales, resize y cierre independiente desde la UI |
 | 2 | Persistencia de sesiones/túneles al cerrar UI | FRP-08, OPS-02 |
 | 3 | Inventario con provenance y conflictos | Importar `ssh_config` sin sobrescribir cambios locales |
-| 3 | FRP: permisos `0700`, token fuera de JSON plano, tipos UDP/STCP/XTCP | FRP-03/04 y pruebas de permisos |
+| 3 | FRP: token fuera de JSON plano, rotación y tipos UDP/STCP/XTCP | FRP-03/04/06 y pruebas de permisos |
 
 ## Invariantes que no se negocian
 

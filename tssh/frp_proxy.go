@@ -217,10 +217,18 @@ func frpFindBin(name string) string {
 
 // --- Config file generation ---
 
+// ensurePrivateDir creates dir with 0700 and tightens an existing directory.
+func ensurePrivateDir(dir string) error {
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		return err
+	}
+	return os.Chmod(dir, 0o700)
+}
+
 func writeFrpsConfig(alias string, token string, bindPort, adminPort int) (string, error) {
 	home, _ := os.UserHomeDir()
 	dir := filepath.Join(home, ".tssh")
-	if err := os.MkdirAll(dir, 0755); err != nil {
+	if err := ensurePrivateDir(dir); err != nil {
 		return "", err
 	}
 	path := filepath.Join(dir, fmt.Sprintf("frps_%s.toml", alias))
@@ -241,7 +249,7 @@ webServer.port = %d
 func writeFrpcConfig(alias string, serverAddr string, serverPort int, token string, adminPort int, proxies []*frpProxyEntry) (string, error) {
 	home, _ := os.UserHomeDir()
 	dir := filepath.Join(home, ".tssh")
-	if err := os.MkdirAll(dir, 0755); err != nil {
+	if err := ensurePrivateDir(dir); err != nil {
 		return "", err
 	}
 	path := filepath.Join(dir, fmt.Sprintf("frpc_%s.toml", alias))
@@ -550,7 +558,9 @@ func frpStartLocal(name string, args ...string) (*exec.Cmd, error) {
 	cmd := exec.Command(bin, args...)
 	home, _ := os.UserHomeDir()
 	logDir := filepath.Join(home, ".tssh")
-	os.MkdirAll(logDir, 0755)
+	if err := ensurePrivateDir(logDir); err != nil {
+		return nil, fmt.Errorf("create log dir failed: %v", err)
+	}
 	logPath := filepath.Join(logDir, fmt.Sprintf("%s.log", name))
 	f, err := os.OpenFile(logPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
 	if err == nil {
