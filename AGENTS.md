@@ -90,6 +90,8 @@ make install                   # copies ./bin/tssh to /usr/bin/tssh
 - UI smoke (starts sshd/trssd automatically): `make ui-smoke` (3 sesiones,
   tmux/reattach, restore de workspace y 10 pestañas con overflow).
 - Fase 1 P0: `make phase1-smoke` (host key estricta + UI smoke).
+- P1 completa: `make p1-smoke` (host key + UI + FRP real del supervisor).
+- FRP real supervisor: `make trssd-frp-smoke`.
 - FRP smoke (requiere `make download-frp`): `make frp-smoke`.
 - Contract checks:
   ```

@@ -28,7 +28,7 @@ else
 	GO_TEST := ${shell basename `which gotest 2>/dev/null` 2>/dev/null || echo go test}
 endif
 
-.PHONY: all clean test install download-frp phase0 contracts-check ui-check ui-smoke trssd frp-smoke hostkey-smoke phase1-smoke
+.PHONY: all clean test install download-frp phase0 contracts-check ui-check ui-smoke trssd frp-smoke trssd-frp-smoke hostkey-smoke phase1-smoke p1-smoke
 
 # Check if frp source is available (may not exist on clone since /frp/ is gitignored)
 ifneq ("$(wildcard $(FRP_DIR)/go.mod)","")
@@ -97,6 +97,11 @@ ui-smoke: trssd
 
 frp-smoke:
 	./scripts/frp-smoke.sh
+
+trssd-frp-smoke:
+	./scripts/trssd-frp-smoke.sh
+
+p1-smoke: hostkey-smoke ui-smoke trssd-frp-smoke
 
 contracts-check:
 	CGO_ENABLED=0 ${GO_TEST} -count=1 ./contracts ./internal/ipc ./internal/supervisor ./internal/audit ./internal/frp

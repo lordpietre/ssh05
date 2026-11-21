@@ -2,10 +2,10 @@
 
 | Campo | Valor |
 |---|---|
-| Fecha | 21/11/2026 |
+| Fecha | 22/11/2026 |
 | Commit base | `6e98b8d` |
 | Documento | `TRSS_SDD_v0.2.md` |
-| Fase actual | Fase 1 P0 aprobada; Fase 2 completada; Fase 3/4 en curso |
+| Fase actual | **P0 + P1 completadas**; P2 fuera del alcance acordado |
 
 ## Hecho
 
@@ -63,6 +63,8 @@
 | Smoke real de 10 pestañas + contadores | **Hecho** | `make ui-smoke` |
 | Recuperación tras caída de UI (`sessions.list`/`attach`) | **Hecho** | reengancha sesiones vivas sin duplicar |
 | Aceptación Fase 1 P0 | **Aprobada** | `docs/phase-1/acceptance.md`, `make phase1-smoke` |
+| Aceptación P1 completa | **Aprobada** | `docs/phase-1/p1-acceptance.md`, `make p1-smoke` |
+| FRP real de extremo a extremo | **Hecho** | `scripts/trssd-frp-smoke.sh` |
 | `SessionBackend` y `TabStore` | Definidos | `contracts/session.go`, `contracts/ts/index.ts` |
 | Envelope IPC y métodos del Anexo B | Definidos | `contracts/ipc.go`, `contracts/ts/index.ts` |
 
@@ -70,9 +72,8 @@
 
 | Prioridad | Trabajo | Criterio de cierre |
 |---|---|---|
-| 2 | FRP frps local y actualización verificada | FRP-01/07 |
-| 3 | Config SSH por conexión | Eliminar serialización de `SshLogin` |
-| 3 | Resolver de rutas FRP | RUT-01/03 para FRP |
+| 3 | Config SSH por conexión (deuda de arquitectura, no P1) | Eliminar serialización de `SshLogin` |
+| — | P2: diagnóstico, Nmap/GeoIP y transferencias | Fuera del alcance acordado |
 
 ## Invariantes que no se negocian
 
