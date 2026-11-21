@@ -12,9 +12,6 @@ import (
 	"github.com/trzsz/trzsz-ssh/contracts"
 )
 
-// BinaryHandler receives PTY bytes from the binary channel.
-type BinaryHandler func(sessionID string, data []byte)
-
 // Client is a local control-channel client with one reader goroutine and
 // request/response correlation by requestId.
 type Client struct {
@@ -33,6 +30,7 @@ type Client struct {
 
 	binaryMu      sync.Mutex
 	binaryHandler BinaryHandler
+	eventHandler  EventHandler
 }
 
 // Dial connects to an existing local socket.
@@ -61,6 +59,32 @@ func (c *Client) SetBinaryHandler(handler BinaryHandler) {
 	c.binaryMu.Lock()
 	c.binaryHandler = handler
 	c.binaryMu.Unlock()
+}
+
+// EventHandler receives unsolicited supervisor events.
+type EventHandler func(event contracts.Event)
+
+// SetEventHandler installs the callback for JSON events.
+func (c *Client) SetEventHandler(handler EventHandler) {
+	c.binaryMu.Lock()
+	c.eventHandler = handler
+	c.binaryMu.Unlock()
+}
+
+// SendBinary writes one PTY input frame to the server.
+func (c *Client) SendBinary(sessionID string, data []byte) error {
+	c.writeMu.Lock()
+	defer c.writeMu.Unlock()
+	select {
+	case <-c.closed:
+		return ErrClosed
+	default:
+	}
+	if err := WriteBinaryFrame(c.conn, sessionID, data); err != nil {
+		c.fail(fmt.Errorf("ipc: write binary: %w", err))
+		return c.getErr()
+	}
+	return nil
 }
 
 // Call sends a typed control request and waits for its response. A remote error
@@ -185,6 +209,33 @@ func (c *Client) readLoop() {
 				handler(sessionID, data)
 			}
 		case FrameJSON:
+			var probe struct {
+				RequestID string `json:"requestId"`
+				Event     string `json:"event"`
+			}
+			if err := json.Unmarshal(payload, &probe); err != nil {
+				c.fail(fmt.Errorf("ipc: decode frame: %w", err))
+				return
+			}
+			if probe.Event != "" {
+				var event contracts.Event
+				if err := json.Unmarshal(payload, &event); err != nil {
+					c.fail(fmt.Errorf("ipc: decode event: %w", err))
+					return
+				}
+				if event.ProtocolVersion != contracts.ProtocolVersion {
+					c.fail(fmt.Errorf("ipc: event protocol version %d", event.ProtocolVersion))
+					return
+				}
+				c.binaryMu.Lock()
+				handler := c.eventHandler
+				c.binaryMu.Unlock()
+				if handler != nil {
+					handler(event)
+				}
+				continue
+			}
+
 			var resp contracts.RPCResponse
 			if err := json.Unmarshal(payload, &resp); err != nil {
 				c.fail(fmt.Errorf("ipc: decode response: %w", err))

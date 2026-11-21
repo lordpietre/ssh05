@@ -214,6 +214,12 @@ func SshLogin(args *SshArgs) (SshClient, error) {
 		}
 		options[name] = values
 	}
+
+	// The current config layer is process-wide. Serialize init + connect so a
+	// second SshLogin cannot reset userConfig while the first is reading it.
+	configMu.Lock()
+	defer configMu.Unlock()
+
 	if err := initUserConfig(args.ConfigFile); err != nil {
 		return nil, err
 	}

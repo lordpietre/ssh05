@@ -103,3 +103,10 @@ cd prototype/terminal
 bun install
 bun run smoke        # tmux + vim + htop + SSH real + resize
 ```
+
+Supervisor local:
+
+```sh
+CGO_ENABLED=0 go build -o ./bin/ ./cmd/trssd
+./bin/trssd --ssh-config ~/.ssh/config
+```

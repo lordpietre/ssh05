@@ -19,6 +19,9 @@
 | H-05 inyección en copia remota FRP | **Resuelto** | `tssh/frp_proxy.go`, `tssh/frp_proxy_test.go` |
 | Contratos UI ↔ supervisor | **Definidos** | `contracts/`, `contracts/ts/` |
 | IPC local autenticado (transporte) | **Hecho** | `internal/ipc/`, tests |
+| Backend `SessionBackend` + runner SSH | **Hecho** | `internal/supervisor/` |
+| Servicio IPC de sesiones + daemon | **Hecho** | `internal/supervisor/service.go`, `cmd/trssd` |
+| Inventario `hosts.list` desde `ssh_config` | **Hecho** | `tssh/hosts_api.go`, `internal/supervisor/hosts.go` |
 | `SessionBackend` y `TabStore` | Definidos | `contracts/session.go`, `contracts/ts/index.ts` |
 | Envelope IPC y métodos del Anexo B | Definidos | `contracts/ipc.go`, `contracts/ts/index.ts` |
 
@@ -26,10 +29,10 @@
 
 | Prioridad | Trabajo | Criterio de cierre |
 |---|---|---|
-| 1 | Conectar el supervisor al IPC y al `SessionBackend` | UI caída no mata sesiones; cliente no autorizado rechazado |
-| 2 | Supervisor Go mínimo | 3 sesiones, cierre independiente, señales y resize |
-| 2 | Cliente TypeScript/Bun del IPC + `TabStore` | 10 pestañas, overflow y activa visible (UIX-01) |
-| 3 | Inventario con provenance | Importar `ssh_config` sin sobrescribir cambios locales |
+| 1 | Cliente TypeScript/Bun del IPC + `TabStore` | UI caída no mata sesiones; 10 pestañas (UIX-01) |
+| 2 | Integrar `trssd` con la UI OpenTUI | 3 sesiones reales, resize y cierre independiente desde la UI |
+| 2 | Persistencia de sesiones/túneles al cerrar UI | FRP-08, OPS-02 |
+| 3 | Inventario con provenance y conflictos | Importar `ssh_config` sin sobrescribir cambios locales |
 | 3 | FRP: permisos `0700`, token fuera de JSON plano, tipos UDP/STCP/XTCP | FRP-03/04 y pruebas de permisos |
 
 ## Invariantes que no se negocian

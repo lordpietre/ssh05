@@ -61,6 +61,11 @@ de pestaña o por el nombre del host.
 La decisión del motor queda aceptada; la paridad funcional se valida en la
 matriz P0.
 
+Además, `SshLogin` inicializa configuración global; hasta que exista config por
+conexión, `configMu` serializa init + connect para evitar carreras entre
+sesiones. El runner SSH y el servicio IPC ya están implementados en
+`internal/supervisor`.
+
 ## Criterio de cierre
 
 ADR-01 se considera cerrada porque hay una decisión explícita, una ruta de

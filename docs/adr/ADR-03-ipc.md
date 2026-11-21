@@ -55,7 +55,9 @@ Reglas:
 | Panic del handler sin filtrar el valor | Hecho |
 | Cancelación por contexto y cierre de llamadas pendientes | Hecho |
 | `CallTyped[P,R]` para métodos del contrato | Hecho |
-| Conectar el supervisor real y el cliente Bun | Pendiente |
+| Servicio `sessions.*`, `hosts.list`, `routes.*` | Hecho (`internal/supervisor/service.go`) |
+| Daemon `trssd` | Hecho (`cmd/trssd`) |
+| Conectar la UI Bun/OpenTUI | Pendiente |
 
 Tests: `internal/ipc/ipc_test.go` y `internal/ipc/frame_test.go` cubren round
 trip, versión, método desconocido, panics, permisos, segundo servidor,
@@ -87,4 +89,6 @@ CGO_ENABLED=0 go test -count=1 ./internal/ipc
 
 - SDD Anexo B y §17.5.
 - `internal/ipc/` (transporte implementado y probado).
+- `internal/supervisor/` (backend, runner SSH, servicio de sesiones).
+- `cmd/trssd` (daemon).
 - `contracts/ipc.go` y `contracts/ts/index.ts` (envelopes y métodos).

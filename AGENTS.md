@@ -56,6 +56,8 @@ make install                   # copies ./bin/tssh to /usr/bin/tssh
 - ADRs: `docs/adr/README.md` (ADR-01 accepted; ADR-02 accepted for prototype)
 - Shared contracts: `contracts/` (Go) and `contracts/ts/` (TypeScript)
 - IPC transport: `internal/ipc/` (Unix socket, framing, server/client, tests)
+- Supervisor: `internal/supervisor/` (backend, SSH runner, IPC service)
+- Daemon: `cmd/trssd/` (`make trssd`)
 - Integration status: `docs/integration/status.md`
 - Prototype: `prototype/terminal` (Bun 1.4.5 + `@opentui/core` 0.8.2, pinned)
 - Evidence/results: `docs/phase-0/README.md`
@@ -72,9 +74,12 @@ make install                   # copies ./bin/tssh to /usr/bin/tssh
   or `make phase0` from the repo root (requires `bun` on `PATH`).
 - Contract checks:
   ```
-  CGO_ENABLED=0 go test -count=1 ./contracts ./internal/ipc
+  CGO_ENABLED=0 go test -count=1 ./contracts ./internal/ipc ./internal/supervisor
   make contracts-check
   ```
+- Supervisor build: `make trssd` -> `bin/trssd`.
+- Supervisor run (Unix socket at `$XDG_RUNTIME_DIR/trss/control.sock`):
+  `./bin/trssd --ssh-config ~/.ssh/config`
 - H-01 is resolved (`generateToken` fails closed; see `tssh/frp_proxy_test.go`).
 - H-05 is resolved (remote FRP copy uses quoted `sh -c` arguments and tests).
 - Phase 0 does **not** change runtime behavior of `tssh`; the runtime changes so

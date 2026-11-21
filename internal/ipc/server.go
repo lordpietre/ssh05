@@ -130,21 +130,26 @@ func (s *Server) handle(ctx context.Context, conn net.Conn) {
 
 	reader := bufio.NewReaderSize(conn, 64*1024)
 	writer := bufio.NewWriterSize(conn, 64*1024)
+	clientConn := newConn(conn, writer)
+	defer clientConn.close()
 
 	for {
 		kind, payload, err := readFrame(reader)
 		if err != nil {
 			return
 		}
-		if kind != FrameJSON {
-			resp := &contracts.RPCResponse{
-				ProtocolVersion: contracts.ProtocolVersion,
-				Error:           rpcErr(CodeInvalidRequest, "control channel only accepts JSON frames"),
-			}
-			if err := s.respond(writer, resp); err != nil {
+		switch kind {
+		case FrameBinary:
+			sessionID, data, err := ReadBinaryFrame(payload)
+			if err != nil {
 				return
 			}
+			clientConn.dispatchBinary(sessionID, data)
 			continue
+		case FrameJSON:
+			// handled below
+		default:
+			return
 		}
 
 		var req contracts.RPCRequest
@@ -153,12 +158,12 @@ func (s *Server) handle(ctx context.Context, conn net.Conn) {
 				ProtocolVersion: contracts.ProtocolVersion,
 				Error:           rpcErr(CodeParseError, "invalid JSON request"),
 			}
-			_ = s.respond(writer, resp)
+			_ = clientConn.writeJSON(resp)
 			return
 		}
 
-		resp := s.dispatch(ctx, req)
-		if err := s.respond(writer, resp); err != nil {
+		resp := s.dispatch(ctx, clientConn, req)
+		if err := clientConn.writeJSON(resp); err != nil {
 			return
 		}
 		if req.ProtocolVersion != contracts.ProtocolVersion {
@@ -167,14 +172,7 @@ func (s *Server) handle(ctx context.Context, conn net.Conn) {
 	}
 }
 
-func (s *Server) respond(writer *bufio.Writer, resp *contracts.RPCResponse) error {
-	if err := WriteJSONFrame(writer, resp); err != nil {
-		return err
-	}
-	return writer.Flush()
-}
-
-func (s *Server) dispatch(ctx context.Context, req contracts.RPCRequest) *contracts.RPCResponse {
+func (s *Server) dispatch(ctx context.Context, conn *Conn, req contracts.RPCRequest) *contracts.RPCResponse {
 	resp := &contracts.RPCResponse{
 		ProtocolVersion: contracts.ProtocolVersion,
 		RequestID:       req.RequestID,
@@ -192,7 +190,7 @@ func (s *Server) dispatch(ctx context.Context, req contracts.RPCRequest) *contra
 		return resp
 	}
 
-	result, rpcError := s.safeHandle(ctx, req)
+	result, rpcError := s.safeHandle(ctx, conn, req)
 	if rpcError != nil {
 		resp.Error = rpcError
 		return resp
@@ -201,7 +199,7 @@ func (s *Server) dispatch(ctx context.Context, req contracts.RPCRequest) *contra
 	return resp
 }
 
-func (s *Server) safeHandle(ctx context.Context, req contracts.RPCRequest) (result json.RawMessage, rpcError *contracts.RPCError) {
+func (s *Server) safeHandle(ctx context.Context, conn *Conn, req contracts.RPCRequest) (result json.RawMessage, rpcError *contracts.RPCError) {
 	defer func() {
 		if recover() != nil {
 			result = nil
@@ -209,5 +207,5 @@ func (s *Server) safeHandle(ctx context.Context, req contracts.RPCRequest) (resu
 			rpcError = rpcErr(CodeInternal, "internal error")
 		}
 	}()
-	return s.handler.Handle(ctx, req)
+	return s.handler.Handle(ctx, conn, req)
 }

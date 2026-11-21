@@ -28,7 +28,7 @@ else
 	GO_TEST := ${shell basename `which gotest 2>/dev/null` 2>/dev/null || echo go test}
 endif
 
-.PHONY: all clean test install download-frp phase0 contracts-check
+.PHONY: all clean test install download-frp phase0 contracts-check trssd
 
 # Check if frp source is available (may not exist on clone since /frp/ is gitignored)
 ifneq ("$(wildcard $(FRP_DIR)/go.mod)","")
@@ -78,16 +78,19 @@ download-frp:
 	echo "FRP binaries installed in ${BIN_DIR}/"
 
 clean:
-	$(RM) ${BIN_DIR}/tssh ${BIN_DIR}/tssh.exe ${BIN_DIR}/frps ${BIN_DIR}/frpc 2>/dev/null; true
+	$(RM) ${BIN_DIR}/tssh ${BIN_DIR}/tssh.exe ${BIN_DIR}/trssd ${BIN_DIR}/trssd.exe ${BIN_DIR}/frps ${BIN_DIR}/frpc 2>/dev/null; true
 
 test:
-	${GO_TEST} -v -count=1 ./tssh ./contracts ./internal/ipc
+	${GO_TEST} -v -count=1 ./tssh ./contracts ./internal/ipc ./internal/supervisor
+
+trssd:
+	CGO_ENABLED=0 go build -o ${BIN_DIR}/ ./cmd/trssd
 
 phase0:
 	cd prototype/terminal && $(BUN) install && $(BUN) run typecheck && $(BUN) run smoke
 
 contracts-check:
-	CGO_ENABLED=0 ${GO_TEST} -count=1 ./contracts ./internal/ipc
+	CGO_ENABLED=0 ${GO_TEST} -count=1 ./contracts ./internal/ipc ./internal/supervisor
 	cd prototype/terminal && $(BUN) run typecheck:contracts
 
 install: all
