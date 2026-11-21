@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -320,4 +321,55 @@ func TestBackendPassesTmuxOptions(t *testing.T) {
 	if runner.lastOptions.TmuxSession != "trss-demo" {
 		t.Fatalf("tmux option = %q", runner.lastOptions.TmuxSession)
 	}
+}
+
+func TestBackendLargeOutputIsBoundedBeforeAttach(t *testing.T) {
+	runner := &fakeRunner{}
+	backend := NewBackend(runner, Options{MaxPending: 1 << 20})
+	id, err := backend.Open(context.Background(), "host-1", "", contracts.SessionOptions{})
+	if err != nil {
+		t.Fatalf("Open: %v", err)
+	}
+	run := runner.last()
+
+	const total = 100 << 20
+	chunk := bytes.Repeat([]byte("x"), 32<<10)
+	for written := 0; written < total; written += len(chunk) {
+		run.emit(string(chunk))
+	}
+	run.finish(0)
+
+	eventually(t, func() bool {
+		backend.mu.RLock()
+		defer backend.mu.RUnlock()
+		pending := len(backend.sessions[id].pending)
+		return pending > 0 && pending <= (1<<20)
+	})
+}
+
+func TestBackendLargeOutputReachesHandler(t *testing.T) {
+	runner := &fakeRunner{}
+	backend := NewBackend(runner, Options{})
+	id, err := backend.Open(context.Background(), "host-1", "", contracts.SessionOptions{})
+	if err != nil {
+		t.Fatalf("Open: %v", err)
+	}
+	run := runner.last()
+
+	var received atomic.Int64
+	unsubscribe := backend.OnData(id, func(data []byte) {
+		received.Add(int64(len(data)))
+	})
+	defer unsubscribe()
+
+	const total = 100 << 20
+	chunk := bytes.Repeat([]byte("x"), 32<<10)
+	for written := 0; written < total; written += len(chunk) {
+		run.emit(string(chunk))
+	}
+	run.finish(0)
+
+	eventually(t, func() bool {
+		return received.Load() >= total
+	})
 }
