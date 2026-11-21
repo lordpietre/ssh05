@@ -7,6 +7,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"syscall"
@@ -410,6 +411,9 @@ func (probeTimeout) Timeout() bool   { return true }
 func (probeTimeout) Temporary() bool { return true }
 
 func TestClosingSessionKeepsFRPTunnel(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("test uses a POSIX frpc stub")
+	}
 	dir := t.TempDir()
 	frpc := filepath.Join(dir, "frpc")
 	script := "#!/bin/sh\nif [ \"$1\" = \"verify\" ]; then exit 0; fi\nexec sleep 30\n"
