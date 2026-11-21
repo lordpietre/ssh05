@@ -96,6 +96,10 @@ done
   "cd $(printf '%q' "$HERE") && TERM=xterm-256color TRSS_SOCKET=$(printf '%q' "$SOCKET") TRSS_WORKSPACE=$(printf '%q' "$SOCKET_DIR/workspace.json") TRSS_UI_DEBUG=$(printf '%q' "$LOG") $(printf '%q' "$BUN") run src/trss.ts"
 
 assert_contains "Hosts (3)" "UI loads the real host inventory"
+send C-k
+assert_contains "Comandos" "command palette opens"
+send Escape
+sleep 0.3
 send Enter
 assert_contains "[1 ● trss-ui-1]" "tab 1 opens through trssd"
 assert_contains "x@x:" "SSH prompt is visible"

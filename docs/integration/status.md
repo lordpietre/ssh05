@@ -38,6 +38,7 @@
 | tmux opcional + reattach al reabrir | **Hecho** | `Ctrl+G`, `SessionsOpenParams.tmuxSession` |
 | Workspace persistente (pestañas + tmux) | **Hecho** | `src/workspaces/`, `~/.config/trss/workspace.json` |
 | Múltiples workspaces con nombre y selector | **Hecho** | `Ctrl+P`, `--workspace`, `TRSS_WORKSPACE_DIR` |
+| Paleta de comandos | **Hecho** | `Ctrl+K` en la UI |
 | Restauración como vistas pendientes | **Hecho** | Enter reconecta; nunca simula sesión viva |
 | Backend 100 MB con buffers acotados | **Hecho** | tests de `internal/supervisor` |
 | Barra de pestañas con overflow y activa visible | **Hecho** | `src/tabs/tabbar.ts` + tests |

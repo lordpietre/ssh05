@@ -188,6 +188,22 @@ const workspaceOverlay = new TextRenderable(renderer, {
 
 renderer.root.add(workspaceOverlay)
 
+const paletteOverlay = new TextRenderable(renderer, {
+  id: "palette-overlay",
+  position: "absolute",
+  top: 0,
+  left: 0,
+  width: "100%",
+  height: "100%",
+  visible: false,
+  zIndex: 101,
+  content: "",
+  fg: RGBA.fromInts(219, 226, 238),
+  bg: RGBA.fromInts(16, 19, 26),
+})
+
+renderer.root.add(paletteOverlay)
+
 const pendingPlaceholder = new TextRenderable(renderer, {
   id: "pending-view",
   position: "absolute",
@@ -235,6 +251,17 @@ let workspacePickerCursor = 0
 let workspaceNames: string[] = []
 let workspaceNewMode = false
 let workspaceInput = ""
+let paletteVisible = false
+let paletteCursor = 0
+
+const paletteCommands = [
+  "Ir a hosts",
+  "Importar/recargar KeePass",
+  "Alternar tmux",
+  "Cerrar pestaña activa",
+  "Cambiar workspace",
+  "Salir de TRSS",
+]
 
 function truncate(value: string, max: number): string {
   if (value.length <= max) return value
@@ -328,7 +355,7 @@ function renderStatus(): void {
     return
   }
   if (hostFocused) {
-    status.content = ` Hosts · ↑↓ Enter conectar · Ctrl+I KeePass · Esc volver · tmux:${tmuxMode ? "on" : "off"} · F10 salir`
+    status.content = ` Hosts · ↑↓ Enter conectar · Ctrl+I KeePass · Ctrl+K paleta · tmux:${tmuxMode ? "on" : "off"} · F10 salir`
     return
   }
   const active = store.active()
@@ -353,7 +380,74 @@ function uiDirty(): void {
   renderTabs()
   renderStatus()
   renderWorkspacePicker()
+  renderPalette()
   renderer.requestRender()
+}
+
+function renderPalette(): void {
+  if (!paletteVisible) {
+    paletteOverlay.visible = false
+    return
+  }
+  paletteOverlay.visible = true
+  const lines = ["", "  Comandos", ""]
+  for (let index = 0; index < paletteCommands.length; index++) {
+    const marker = index === paletteCursor ? ">" : " "
+    lines.push(`  ${marker} ${paletteCommands[index]}`)
+  }
+  lines.push("", "  Enter ejecutar · Esc cerrar")
+  paletteOverlay.content = lines.join("\n")
+}
+
+function openPalette(): void {
+  if (workspacePickerVisible) closeWorkspacePicker()
+  paletteVisible = true
+  paletteCursor = 0
+  uiDirty()
+}
+
+function closePalette(): void {
+  paletteVisible = false
+  uiDirty()
+}
+
+function executePalette(index: number): void {
+  closePalette()
+  switch (index) {
+    case 0:
+      focusHosts()
+      break
+    case 1:
+      void importHosts()
+      break
+    case 2:
+      tmuxMode = !tmuxMode
+      uiDirty()
+      break
+    case 3:
+      void closeActive()
+      break
+    case 4:
+      openWorkspacePicker()
+      break
+    case 5:
+      void quit()
+      break
+  }
+}
+
+function handlePaletteKey(key: KeyEvent): void {
+  const name = key.name.toLowerCase()
+  if (name === "up") paletteCursor = Math.max(0, paletteCursor - 1)
+  else if (name === "down") paletteCursor = Math.min(paletteCommands.length - 1, paletteCursor + 1)
+  else if (name === "escape") {
+    closePalette()
+    return
+  } else if (name === "return" || name === "enter") {
+    executePalette(paletteCursor)
+    return
+  }
+  uiDirty()
 }
 
 function snapshotWorkspace(): Workspace {
@@ -769,9 +863,19 @@ function handleHostKey(key: KeyEvent): void {
 
 renderer.keyInput.on("keypress", (key) => {
   const name = key.name.toLowerCase()
+  if (paletteVisible) {
+    key.stopPropagation()
+    handlePaletteKey(key)
+    return
+  }
   if (workspacePickerVisible) {
     key.stopPropagation()
     handleWorkspaceKey(key)
+    return
+  }
+  if (key.ctrl && name === "k") {
+    key.stopPropagation()
+    openPalette()
     return
   }
   if (key.ctrl && name === "p") {

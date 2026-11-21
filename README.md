@@ -144,7 +144,8 @@ bun install
 bun run ui
 ```
 
-`Ctrl+G` activa tmux remoto antes de abrir un host. Cerrar la pestaña no
+`Ctrl+K` abre la paleta de comandos. `Ctrl+G` activa tmux remoto antes de abrir
+un host. Cerrar la pestaña no
 destruye la sesión tmux; al reabrir el mismo host se reengancha.
 
 El workspace se guarda en `~/.config/trss/workspaces/<nombre>.json` (sin
