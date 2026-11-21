@@ -66,7 +66,8 @@ make install                   # copies ./bin/tssh to /usr/bin/tssh
 - UI OpenTUI: `prototype/terminal/src/trss.ts` (`bun run ui`)
   - `Ctrl+G` activa/desactiva tmux remoto antes de abrir un host.
   - `Ctrl+P` abre el selector de workspaces; `n` crea uno nuevo.
-  - `Ctrl+K` abre la paleta de comandos; incluye exportar diagnóstico saneado.
+  - `Ctrl+K` abre la paleta de comandos; incluye diagnosticar host y exportar
+    un informe saneado.
   - `--workspace <nombre>` o `TRSS_WORKSPACE_NAME`; `TRSS_WORKSPACE_DIR`.
   - `Ctrl+I` importa/recarga KeePass si `trssd` tiene KDBX configurado.
   `F2` favorito, `F3` color, `F4` etiquetas; overrides en

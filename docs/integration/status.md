@@ -5,7 +5,7 @@
 | Fecha | 22/11/2026 |
 | Commit base | `6e98b8d` |
 | Documento | `TRSS_SDD_v0.2.md` |
-| Fase actual | **P0 + P1 completadas**; P2 fuera del alcance acordado |
+| Fase actual | **P0 + P1 completadas**; DIA-01 adelantado; resto de P2 fuera del alcance |
 
 ## Hecho
 
@@ -68,6 +68,7 @@
 | SshLogin concurrente con la misma config | **Hecho** | `acquireConfigRead`, `TestSshLoginConcurrent` |
 | Informe de diagnóstico saneado | **Hecho** | `diagnostics.report`, `src/diagnostics/export.ts` |
 | Retención de auditoría y buffers | **Hecho** | `--audit-max-files`, `--max-pending-bytes` |
+| DIA-01 DNS, puerto, banner y latencia | **Hecho** | `diagnostics.host` + paleta y smoke real |
 | tmux solo se reengancha si existe | **Hecho** | `TmuxCreate=false`, sonda `has-session`, prueba real |
 | FRP real de extremo a extremo | **Hecho** | `scripts/trssd-frp-smoke.sh`: TCP/UDP/STCP/XTCP |
 | `SessionBackend` y `TabStore` | Definidos | `contracts/session.go`, `contracts/ts/index.ts` |
@@ -77,7 +78,8 @@
 
 | Prioridad | Trabajo | Criterio de cierre |
 |---|---|---|
-| — | P2: diagnóstico, Nmap/GeoIP y transferencias | Fuera del alcance acordado |
+| — | DIA-02/DIA-03: Nmap, GeoIP/ASN/RDAP | Fuera del alcance acordado |
+| — | DAT-01: SFTP/SCP/trzsz | Fuera del alcance acordado |
 
 ## Invariantes que no se negocian
 

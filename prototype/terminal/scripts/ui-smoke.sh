@@ -109,6 +109,7 @@ send C-k
 assert_contains "Comandos" "command palette opens"
 assert_contains "Probar ruta" "route probe command listed"
 assert_contains "Exportar diagnóstico saneado" "diagnostics export command listed"
+assert_contains "Diagnosticar host" "host diagnostics command listed"
 send Escape
 sleep 0.3
 send C-f
@@ -309,6 +310,10 @@ send C-p
 send Down
 send Enter
 assert_contains "[1 ● trss-ui-2]" "switching to lab reuses its live tab"
+
+echo "== host diagnostics =="
+TRSS_SOCKET="$SOCKET" TRSS_TEST_SSH_ALIAS=trss-ui-1 \
+  "$BUN" "$HERE/scripts/host-diagnostics-smoke.ts" || fail "host diagnostics"
 
 echo "== tmux restore policy =="
 TRSS_SOCKET="$SOCKET" TRSS_TEST_SSH_ALIAS=trss-ui-1 \

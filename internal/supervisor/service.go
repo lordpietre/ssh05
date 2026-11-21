@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"sort"
 	"strings"
 	"sync"
 	"syscall"
@@ -124,6 +125,8 @@ func (s *Service) Handle(ctx context.Context, conn *ipc.Conn, req contracts.RPCR
 		return s.unlockVault(ctx, req)
 	case contracts.MethodDiagnosticsReport:
 		return s.diagnosticsReport(ctx)
+	case contracts.MethodDiagnosticsHost:
+		return s.diagnosticsHost(ctx, req)
 	default:
 		return nil, notImplemented()
 	}
@@ -145,6 +148,87 @@ func (s *Service) setHostOverride(ctx context.Context, req contracts.RPCRequest)
 	}
 	s.log(audit.Event{Action: "host.override", HostProfileID: profile.ID, Result: "ok"})
 	return marshal(profile)
+}
+
+func (s *Service) diagnosticsHost(ctx context.Context, req contracts.RPCRequest) (json.RawMessage, *contracts.RPCError) {
+	params, rpcError := decodeParams[contracts.HostDiagnosticsParams](req)
+	if rpcError != nil {
+		return nil, rpcError
+	}
+	routes, _ := s.routeCandidates(ctx, params.HostProfileID)
+	var route contracts.ConnectionRoute
+	found := false
+	for _, candidate := range routes {
+		if candidate.ID == params.RouteID {
+			route, found = candidate, true
+			break
+		}
+	}
+	if !found {
+		if len(routes) == 0 {
+			return nil, internalError(fmt.Errorf("no authorized route for %q", params.HostProfileID))
+		}
+		route = routes[len(routes)-1]
+	}
+	address, err := s.routeAddress(ctx, route)
+	if err != nil {
+		return nil, internalError(err)
+	}
+	report := contracts.HostDiagnosticsResult{
+		HostProfileID: params.HostProfileID,
+		GeneratedAt:   time.Now().UTC().Format(time.RFC3339),
+		RouteID:       route.ID,
+		RouteKind:     route.Kind,
+		Address:       address,
+		DNS:           contracts.DNSCheck{Host: params.HostProfileID, Addresses: []string{}},
+		TCP:           contracts.TCPCheck{Address: address, State: "unknown"},
+		Banner:        contracts.BannerCheck{},
+		TLS:           contracts.TLSCheck{Applicable: false, Message: "SSH no usa TLS"},
+	}
+	host, _, splitErr := net.SplitHostPort(address)
+	if splitErr != nil {
+		host = address
+	}
+	report.DNS.Host = host
+
+	dnsCtx, cancelDNS := context.WithTimeout(ctx, 3*time.Second)
+	dnsStart := time.Now()
+	addresses, dnsErr := net.DefaultResolver.LookupHost(dnsCtx, host)
+	cancelDNS()
+	report.DNS.DurationMS = time.Since(dnsStart).Milliseconds()
+	if dnsErr != nil {
+		report.DNS.Error = dnsErr.Error()
+	} else {
+		sort.Strings(addresses)
+		report.DNS.Addresses = addresses
+	}
+
+	tcpCtx, cancelTCP := context.WithTimeout(ctx, 3*time.Second)
+	tcpStart := time.Now()
+	conn, tcpErr := (&net.Dialer{}).DialContext(tcpCtx, "tcp", address)
+	cancelTCP()
+	report.TCP.LatencyMS = time.Since(tcpStart).Milliseconds()
+	report.TCP.State = classifyProbeError(tcpErr)
+	if tcpErr != nil {
+		if report.TCP.State == "timeout" {
+			report.TCP.Error = "sin respuesta dentro del plazo; no demuestra que el puerto esté cerrado"
+		} else {
+			report.TCP.Error = tcpErr.Error()
+		}
+	} else {
+		bannerStart := time.Now()
+		_ = conn.SetReadDeadline(time.Now().Add(2 * time.Second))
+		buffer := make([]byte, 255)
+		n, readErr := conn.Read(buffer)
+		report.Banner.DurationMS = time.Since(bannerStart).Milliseconds()
+		if readErr != nil {
+			report.Banner.Error = readErr.Error()
+		} else {
+			report.Banner.Received = strings.TrimSpace(string(buffer[:n]))
+		}
+		_ = conn.Close()
+	}
+	return marshal(report)
 }
 
 func (s *Service) diagnosticsReport(ctx context.Context) (json.RawMessage, *contracts.RPCError) {

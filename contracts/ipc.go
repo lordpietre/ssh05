@@ -43,6 +43,7 @@ const (
 	MethodVaultStatus        Method = "vault.status"
 	MethodVaultUnlock        Method = "vault.unlockRequest"
 	MethodDiagnosticsReport  Method = "diagnostics.report"
+	MethodDiagnosticsHost    Method = "diagnostics.host"
 	MethodWorkspacesSave     Method = "workspaces.save"
 	MethodWorkspacesRestore  Method = "workspaces.restore"
 )
@@ -74,6 +75,7 @@ var validMethods = map[Method]struct{}{
 	MethodVaultStatus:        {},
 	MethodVaultUnlock:        {},
 	MethodDiagnosticsReport:  {},
+	MethodDiagnosticsHost:    {},
 	MethodWorkspacesSave:     {},
 	MethodWorkspacesRestore:  {},
 }
@@ -308,6 +310,52 @@ type DiagnosticsReport struct {
 	Sessions        []SessionInfo          `json:"sessions"`
 	Vault           VaultStatusResult      `json:"vault"`
 	FRP             FrpInstancesListResult `json:"frp"`
+}
+
+type HostDiagnosticsParams struct {
+	HostProfileID string `json:"hostProfileId"`
+	RouteID       string `json:"routeId,omitempty"`
+}
+
+type DNSCheck struct {
+	Host       string   `json:"host"`
+	Addresses  []string `json:"addresses"`
+	DurationMS int64    `json:"durationMs"`
+	Error      string   `json:"error,omitempty"`
+}
+
+type TCPCheck struct {
+	Address   string `json:"address"`
+	State     string `json:"state"`
+	LatencyMS int64  `json:"latencyMs"`
+	Error     string `json:"error,omitempty"`
+}
+
+type BannerCheck struct {
+	Received   string `json:"received,omitempty"`
+	DurationMS int64  `json:"durationMs"`
+	Error      string `json:"error,omitempty"`
+}
+
+type TLSCheck struct {
+	Applicable bool   `json:"applicable"`
+	Subject    string `json:"subject,omitempty"`
+	Issuer     string `json:"issuer,omitempty"`
+	NotAfter   string `json:"notAfter,omitempty"`
+	Error      string `json:"error,omitempty"`
+	Message    string `json:"message,omitempty"`
+}
+
+type HostDiagnosticsResult struct {
+	HostProfileID string      `json:"hostProfileId"`
+	GeneratedAt   string      `json:"generatedAt"`
+	RouteID       string      `json:"routeId"`
+	RouteKind     RouteKind   `json:"routeKind"`
+	Address       string      `json:"address"`
+	DNS           DNSCheck    `json:"dns"`
+	TCP           TCPCheck    `json:"tcp"`
+	Banner        BannerCheck `json:"banner"`
+	TLS           TLSCheck    `json:"tls"`
 }
 
 // --- workspaces ---

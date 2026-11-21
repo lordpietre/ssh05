@@ -451,6 +451,52 @@ export interface DiagnosticsReport {
   frp: FrpInstancesListResult
 }
 
+export interface HostDiagnosticsParams {
+  hostProfileId: string
+  routeId?: string
+}
+
+export interface DNSCheck {
+  host: string
+  addresses: string[]
+  durationMs: number
+  error?: string
+}
+
+export interface TCPCheck {
+  address: string
+  state: "reachable" | "refused" | "timeout" | "dns_failure" | "unknown"
+  latencyMs: number
+  error?: string
+}
+
+export interface BannerCheck {
+  received?: string
+  durationMs: number
+  error?: string
+}
+
+export interface TLSCheck {
+  applicable: boolean
+  subject?: string
+  issuer?: string
+  notAfter?: string
+  error?: string
+  message?: string
+}
+
+export interface HostDiagnosticsResult {
+  hostProfileId: string
+  generatedAt: string
+  routeId: string
+  routeKind: RouteKind
+  address: string
+  dns: DNSCheck
+  tcp: TCPCheck
+  banner: BannerCheck
+  tls: TLSCheck
+}
+
 export interface WorkspacesSaveParams {
   workspace: Workspace
 }
@@ -492,6 +538,7 @@ export interface MethodContracts {
   "vault.status": { params: Record<string, never>; result: VaultStatusResult }
   "vault.unlockRequest": { params: VaultUnlockParams; result: VaultStatusResult }
   "diagnostics.report": { params: Record<string, never>; result: DiagnosticsReport }
+  "diagnostics.host": { params: HostDiagnosticsParams; result: HostDiagnosticsResult }
   "workspaces.save": { params: WorkspacesSaveParams; result: void }
   "workspaces.restore": { params: WorkspacesRestoreParams; result: WorkspacesRestoreResult }
 }
@@ -527,6 +574,7 @@ export const IPC_METHODS = [
   "vault.status",
   "vault.unlockRequest",
   "diagnostics.report",
+  "diagnostics.host",
   "workspaces.save",
   "workspaces.restore",
 ] as const satisfies readonly Method[]

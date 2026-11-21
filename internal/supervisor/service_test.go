@@ -530,3 +530,62 @@ func TestServiceDiagnosticsReportIsSanitized(t *testing.T) {
 		}
 	}
 }
+
+func TestServiceHostDiagnostics(t *testing.T) {
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer listener.Close()
+	go func() {
+		conn, err := listener.Accept()
+		if err != nil {
+			return
+		}
+		_, _ = conn.Write([]byte("SSH-2.0-TestBanner\r\n"))
+		_ = conn.Close()
+	}()
+	port := listener.Addr().(*net.TCPAddr).Port
+	dir := t.TempDir()
+	path := filepath.Join(dir, "ssh_config")
+	content := "Host diag\n    HostName 127.0.0.1\n    Port " + strconv.Itoa(port) + "\n" +
+		"Host bad\n    HostName no-such-host.invalid\n    Port 22\n"
+	if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	service := NewService(NewBackend(&fakeRunner{}, Options{}), NewInventory(InventoryConfig{SSHConfigPath: path}))
+	ctx := context.Background()
+
+	report := callHostDiagnostics(t, ctx, service, "diag", "")
+	if report.TCP.State != "reachable" || !strings.Contains(report.Banner.Received, "SSH-2.0-TestBanner") {
+		t.Fatalf("report = %+v", report)
+	}
+	if len(report.DNS.Addresses) == 0 || report.DNS.Addresses[0] != "127.0.0.1" {
+		t.Fatalf("dns = %+v", report.DNS)
+	}
+	if report.TLS.Applicable {
+		t.Fatalf("SSH diagnostics must not claim TLS: %+v", report.TLS)
+	}
+
+	bad := callHostDiagnostics(t, ctx, service, "bad", "")
+	if bad.DNS.Error == "" || len(bad.DNS.Addresses) != 0 {
+		t.Fatalf("bad dns = %+v", bad.DNS)
+	}
+}
+
+func callHostDiagnostics(t *testing.T, ctx context.Context, service *Service, host, route string) contracts.HostDiagnosticsResult {
+	t.Helper()
+	payload, err := json.Marshal(contracts.HostDiagnosticsParams{HostProfileID: host, RouteID: route})
+	if err != nil {
+		t.Fatal(err)
+	}
+	raw, rpcErr := service.diagnosticsHost(ctx, contracts.RPCRequest{Params: payload})
+	if rpcErr != nil {
+		t.Fatalf("diagnosticsHost: %v", rpcErr)
+	}
+	var result contracts.HostDiagnosticsResult
+	if err := json.Unmarshal(raw, &result); err != nil {
+		t.Fatal(err)
+	}
+	return result
+}

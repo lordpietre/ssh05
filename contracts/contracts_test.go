@@ -49,7 +49,8 @@ func TestMethods(t *testing.T) {
 		MethodRoutesPlan, MethodRoutesConnect, MethodFrpInstancesList,
 		MethodFrpProxiesApply, MethodFrpProxiesStop, MethodFrpProxiesRemove, MethodFrpRotate,
 		MethodFrpServerStart, MethodFrpServerStop, MethodVaultStatus,
-		MethodVaultUnlock, MethodDiagnosticsReport, MethodWorkspacesSave, MethodWorkspacesRestore,
+		MethodVaultUnlock, MethodDiagnosticsReport, MethodDiagnosticsHost,
+		MethodWorkspacesSave, MethodWorkspacesRestore,
 	}
 	seen := make(map[Method]struct{}, len(methods))
 	for _, method := range methods {

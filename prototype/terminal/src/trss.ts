@@ -261,6 +261,22 @@ const labelsOverlay = new TextRenderable(renderer, {
 
 renderer.root.add(labelsOverlay)
 
+const diagOverlay = new TextRenderable(renderer, {
+  id: "diag-overlay",
+  position: "absolute",
+  top: 0,
+  left: 0,
+  width: "100%",
+  height: "100%",
+  visible: false,
+  zIndex: 105,
+  content: "",
+  fg: RGBA.fromInts(219, 226, 238),
+  bg: RGBA.fromInts(16, 19, 26),
+})
+
+renderer.root.add(diagOverlay)
+
 const pendingPlaceholder = new TextRenderable(renderer, {
   id: "pending-view",
   position: "absolute",
@@ -313,6 +329,8 @@ let paletteVisible = false
 let paletteCursor = 0
 let closeDialogVisible = false
 let closeDialogCursor = 0
+let diagVisible = false
+let diagContent = ""
 let labelsEditing = false
 let labelsHostID = ""
 let labelsInput = ""
@@ -339,6 +357,7 @@ const paletteCommands = [
   "Cerrar pestaña activa",
   "Cambiar workspace",
   "Probar ruta del host",
+  "Diagnosticar host",
   "Exportar diagnóstico saneado",
   "FRP",
   "Salir de TRSS",
@@ -478,6 +497,7 @@ function uiDirty(): void {
   renderCloseDialog()
   renderFRP()
   renderLabelsEditor()
+  renderDiagnostics()
   renderer.requestRender()
 }
 
@@ -605,12 +625,15 @@ function executePalette(index: number): void {
       void probeCurrentHost()
       break
     case 6:
-      void exportDiagnosticsReport()
+      void diagnoseCurrentHost()
       break
     case 7:
-      void openFRP()
+      void exportDiagnosticsReport()
       break
     case 8:
+      void openFRP()
+      break
+    case 9:
       void quit()
       break
   }
@@ -1142,6 +1165,12 @@ function handleHostKey(key: KeyEvent): void {
 
 renderer.keyInput.on("keypress", (key) => {
   const name = key.name.toLowerCase()
+  if (diagVisible) {
+    key.stopPropagation()
+    if (name === "escape" || name === "return" || name === "enter") diagVisible = false
+    uiDirty()
+    return
+  }
   if (labelsEditing) {
     key.stopPropagation()
     void handleLabelsKey(key)
@@ -1272,6 +1301,51 @@ async function loadHosts(): Promise<void> {
     return a.alias.localeCompare(b.alias)
   })
   conflicts = result.conflicts?.length ?? 0
+}
+
+async function diagnoseCurrentHost(): Promise<void> {
+  if (!client) return
+  const host = currentFormHost()
+  if (!host) {
+    transientText = "Diagnóstico: no hay host seleccionado"
+    uiDirty()
+    return
+  }
+  try {
+    const plan = await client.call("routes.plan", { hostProfileId: host.id }, { timeoutMs: 3000 })
+    const result = await client.call(
+      "diagnostics.host",
+      { hostProfileId: host.id, routeId: plan.selected },
+      { timeoutMs: 15_000 },
+    )
+    const dns = result.dns.error
+      ? `error: ${result.dns.error}`
+      : `${result.dns.addresses.join(", ")} (${result.dns.durationMs}ms)`
+    const tcp = `${result.tcp.state} (${result.tcp.latencyMs}ms)${result.tcp.error ? ` · ${result.tcp.error}` : ""}`
+    const banner = result.banner.error
+      ? `error: ${result.banner.error}`
+      : result.banner.received || "(sin banner)"
+    const tls = result.tls.applicable
+      ? `${result.tls.subject ?? "certificado"} · ${result.tls.notAfter ?? ""}`
+      : result.tls.message || "no aplica"
+    diagContent = [
+      "",
+      `  Diagnóstico · ${host.alias}`,
+      "",
+      `  Ruta: ${result.routeKind} ${result.routeId}`,
+      `  Destino: ${result.address}`,
+      `  DNS: ${dns}`,
+      `  TCP: ${tcp}`,
+      `  Banner: ${banner}`,
+      `  TLS: ${tls}`,
+      "",
+      "  Esc/Enter cerrar",
+    ].join("\n")
+    diagVisible = true
+  } catch (error) {
+    transientText = `Diagnóstico: ${String(error)}`
+  }
+  uiDirty()
 }
 
 async function exportDiagnosticsReport(): Promise<void> {
@@ -1431,6 +1505,15 @@ function handleWorkspaceKey(key: KeyEvent): void {
   uiDirty()
 }
 
+
+function renderDiagnostics(): void {
+  if (!diagVisible) {
+    diagOverlay.visible = false
+    return
+  }
+  diagOverlay.visible = true
+  diagOverlay.content = diagContent
+}
 
 function renderLabelsEditor(): void {
   if (!labelsEditing) {
