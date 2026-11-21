@@ -127,7 +127,7 @@ Estado de la integración posterior a esta auditoría:
 - **H-01 resuelto**: token CSPRNG con fallo cerrado y tests.
 - **H-02 resuelto**: directorio de configuración FRP en `0700`.
 - **H-03 mitigado (interino)**: token FRP cifrado en reposo con clave local `0600`; TOML remoto `0600`; KDBX/OS keyring pendiente.
-- **H-04 parcial avanzado**: tcp/udp/stcp/xtcp, secreto dedicado, gating local/remoto, `frpc verify` para los 4 tipos y túnel TCP real; falta runtime UDP/STCP/XTCP.
+- **H-04 parcial avanzado**: 4 tipos validados por `frpc verify` y túneles reales TCP/STCP/UDP; falta runtime XTCP.
 - **H-05 resuelto**: copia remota FRP con argumentos citados y tests de inyección.
 - **ADR-01 cerrada**: motor SSH Go aceptado, con contrato `contracts.SessionBackend`.
 - **Contratos definidos**: `contracts/` (Go) y `contracts/ts/` (TypeScript).

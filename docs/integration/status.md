@@ -43,7 +43,7 @@
 
 | Prioridad | Trabajo | Criterio de cierre |
 |---|---|---|
-| 1 | FRP H-04 restante: runtime UDP/STCP/XTCP | Probar túnel real por tipo |
+| 1 | FRP H-04 restante: runtime XTCP | Probar túnel real XTCP |
 | 2 | Múltiples workspaces con nombre | OPS-01 |
 | 3 | Migrar secretos FRP a KDBX/OS keyring (ADR-04) | H-03 completo |
 | 3 | Inventario con provenance y conflictos | Importar `ssh_config` sin sobrescribir cambios locales |
