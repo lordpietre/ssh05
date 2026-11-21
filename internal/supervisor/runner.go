@@ -15,5 +15,6 @@ type RunSession interface {
 	ExitCode() int
 	Write(data []byte) error
 	Resize(cols, rows int) error
+	Signal(signal string) error
 	Close() error
 }

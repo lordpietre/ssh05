@@ -142,6 +142,19 @@ func (r *sshRun) Resize(cols, rows int) error {
 	return r.session.WindowChange(rows, cols)
 }
 
+func (r *sshRun) Signal(signal string) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.closed {
+		return ErrSessionClosed
+	}
+	sender, ok := r.session.(tssh.SshSignalSender)
+	if !ok {
+		return fmt.Errorf("supervisor: transport does not support signals")
+	}
+	return sender.Signal(ssh.Signal(signal))
+}
+
 func (r *sshRun) Close() error {
 	r.closeOnce.Do(func() {
 		r.mu.Lock()

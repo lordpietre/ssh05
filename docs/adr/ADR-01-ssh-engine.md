@@ -56,10 +56,11 @@ de pestaña o por el nombre del host.
 | Host key estricta | `tssh/known_hosts.go` |
 | UDP/KCP/QUIC | `tssh/udp.go` (adaptador separado, no P0) |
 
-**Condición conocida:** `SshSession` todavía no expone señales POSIX
-(`Signal`) en la interfaz; el supervisor deberá añadirla antes de cerrar SES-04.
-La decisión del motor queda aceptada; la paridad funcional se valida en la
-matriz P0.
+**Condición conocida:** `SshSession` no incluye señales en su interfaz base;
+el runner SSH usa la interfaz opcional `SshSignalSender`. El transporte
+UDP/tsshd no la implementa, por lo que las señales quedan limitadas al motor
+SSH clásico. El supervisor deberá añadir cierre de árbol de procesos antes de
+cerrar SES-04.
 
 Además, `SshLogin` inicializa configuración global; hasta que exista config por
 conexión, `configMu` serializa init + connect para evitar carreras entre
@@ -94,7 +95,7 @@ condición de salida de la Fase 1.
 - Tres sesiones concurrentes con `vim`, `htop` y `tmux`.
 - Cambio de clave host: bloqueo y decisión explícita, sin aceptación silenciosa.
 - `ProxyJump` multihop, agent, keyboard-interactive y OTP en la matriz P0.
-- Señales (`Signal`) y cierre de árbol de procesos.
+- Cierre de árbol de procesos.
 - Resize y señales en Linux x86_64/aarch64; después macOS/Windows.
 - Comparación con OpenSSH externo en algoritmos modernos y casos límite.
 

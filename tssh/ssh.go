@@ -154,6 +154,12 @@ type SshSession interface {
 	GetExitCode() int
 }
 
+// SshSignalSender is implemented by transports that support SSH signals.
+// The UDP/tsshd transport does not currently implement it.
+type SshSignalSender interface {
+	Signal(sig ssh.Signal) error
+}
+
 // SshArgs specifies the arguments to log in to the remote server.
 type SshArgs struct {
 

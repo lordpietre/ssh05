@@ -50,6 +50,7 @@ type fakeRun struct {
 	written  bytes.Buffer
 	cols     int
 	rows     int
+	signals  []string
 	closed   bool
 	exitCode int
 }
@@ -80,6 +81,16 @@ func (r *fakeRun) Resize(cols, rows int) error {
 		return ErrSessionClosed
 	}
 	r.cols, r.rows = cols, rows
+	return nil
+}
+
+func (r *fakeRun) Signal(signal string) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.closed {
+		return ErrSessionClosed
+	}
+	r.signals = append(r.signals, signal)
 	return nil
 }
 
@@ -168,6 +179,14 @@ func TestBackendOpenDataWriteResizeClose(t *testing.T) {
 	if run.cols != 120 || run.rows != 40 {
 		t.Fatalf("size = %dx%d", run.cols, run.rows)
 	}
+	if err := backend.Signal(ctx, id, "INT"); err != nil {
+		t.Fatalf("Signal: %v", err)
+	}
+	run.mu.Lock()
+	if len(run.signals) != 1 || run.signals[0] != "INT" {
+		t.Fatalf("signals = %v", run.signals)
+	}
+	run.mu.Unlock()
 
 	if err := backend.RequestClose(ctx, id, contracts.CloseView); err != nil {
 		t.Fatalf("RequestClose: %v", err)

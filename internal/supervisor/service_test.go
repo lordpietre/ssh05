@@ -111,6 +111,18 @@ func TestServiceSessionFlow(t *testing.T) {
 	}
 	run.mu.Unlock()
 
+	if _, err := ipc.CallTyped[contracts.SessionsSignalParams, struct{}](
+		ctx, client, contracts.MethodSessionsSignal,
+		contracts.SessionsSignalParams{SessionID: opened.SessionID, Signal: "INT"},
+	); err != nil {
+		t.Fatalf("sessions.signal: %v", err)
+	}
+	run.mu.Lock()
+	if len(run.signals) != 1 || run.signals[0] != "INT" {
+		t.Fatalf("signals = %v", run.signals)
+	}
+	run.mu.Unlock()
+
 	if _, err := ipc.CallTyped[contracts.SessionsCloseParams, struct{}](
 		ctx, client, contracts.MethodSessionsClose,
 		contracts.SessionsCloseParams{SessionID: opened.SessionID, Intent: contracts.CloseView},

@@ -42,6 +42,8 @@ func (s *Service) Handle(ctx context.Context, conn *ipc.Conn, req contracts.RPCR
 		return s.detachTmux(ctx, req)
 	case contracts.MethodSessionsAttachTmux:
 		return s.attachTmux(ctx, req)
+	case contracts.MethodSessionsSignal:
+		return s.signalSession(ctx, req)
 	case contracts.MethodRoutesPlan:
 		return s.planRoute(req)
 	case contracts.MethodRoutesConnect:
@@ -135,6 +137,17 @@ func (s *Service) attachTmux(ctx context.Context, req contracts.RPCRequest) (jso
 		return nil, rpcError
 	}
 	if err := s.backend.Attach(ctx, params.SessionID, nil); err != nil {
+		return nil, internalError(err)
+	}
+	return json.RawMessage(`{}`), nil
+}
+
+func (s *Service) signalSession(ctx context.Context, req contracts.RPCRequest) (json.RawMessage, *contracts.RPCError) {
+	params, rpcError := decodeParams[contracts.SessionsSignalParams](req)
+	if rpcError != nil {
+		return nil, rpcError
+	}
+	if err := s.backend.Signal(ctx, params.SessionID, params.Signal); err != nil {
 		return nil, internalError(err)
 	}
 	return json.RawMessage(`{}`), nil

@@ -41,7 +41,7 @@
 | 2 | Estrés UI: 100 MB, 10 pestañas, renderer caído | UIX-01/13, OPS-02 |
 | 3 | Migrar secretos FRP a KDBX/OS keyring (ADR-04) | H-03 completo |
 | 3 | Inventario con provenance y conflictos | Importar `ssh_config` sin sobrescribir cambios locales |
-| 3 | Config SSH por conexión y señales | Eliminar serialización de `SshLogin`; SES-04 |
+| 3 | Config SSH por conexión | Eliminar serialización de `SshLogin` |
 
 ## Invariantes que no se negocian
 

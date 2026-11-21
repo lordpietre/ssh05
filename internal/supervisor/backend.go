@@ -155,6 +155,17 @@ func (b *Backend) Resize(ctx context.Context, id contracts.SessionID, cols, rows
 	return run.Resize(cols, rows)
 }
 
+func (b *Backend) Signal(ctx context.Context, id contracts.SessionID, signal string) error {
+	if signal == "" {
+		return fmt.Errorf("supervisor: empty signal")
+	}
+	run, err := b.runFor(id)
+	if err != nil {
+		return err
+	}
+	return run.Signal(signal)
+}
+
 func (b *Backend) RequestClose(ctx context.Context, id contracts.SessionID, intent contracts.CloseIntent) error {
 	if !intent.Valid() {
 		return ErrUnsupportedIntent

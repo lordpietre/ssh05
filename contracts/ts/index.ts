@@ -69,6 +69,7 @@ export interface SessionBackend {
   resize(id: SessionId, cols: number, rows: number): Promise<void>
   requestClose(id: SessionId, intent: CloseIntent): Promise<void>
   attach(id: SessionId, cursor?: bigint): Promise<void>
+  signal(id: SessionId, signal: string): Promise<void>
   onData(id: SessionId, cb: DataHandler): () => void
   onStatus(id: SessionId, cb: StatusHandler): () => void
   capabilities(): Promise<Capabilities>
@@ -316,6 +317,11 @@ export interface SessionsTmuxParams {
   name?: string
 }
 
+export interface SessionsSignalParams {
+  sessionId: SessionId
+  signal: string
+}
+
 export interface RoutesPlanParams {
   hostProfileId: string
   routePolicyId?: string
@@ -384,6 +390,7 @@ export interface MethodContracts {
   "sessions.close": { params: SessionsCloseParams; result: void }
   "sessions.detachTmux": { params: SessionsTmuxParams; result: void }
   "sessions.attachTmux": { params: SessionsTmuxParams; result: void }
+  "sessions.signal": { params: SessionsSignalParams; result: void }
   "routes.plan": { params: RoutesPlanParams; result: RoutesPlanResult }
   "routes.connect": { params: RoutesConnectParams; result: SessionsOpenResult }
   "frp.instances.list": { params: Record<string, never>; result: FrpInstancesListResult }
@@ -409,6 +416,7 @@ export const IPC_METHODS = [
   "sessions.close",
   "sessions.detachTmux",
   "sessions.attachTmux",
+  "sessions.signal",
   "routes.plan",
   "routes.connect",
   "frp.instances.list",

@@ -98,6 +98,7 @@ type SessionBackend interface {
 	Resize(ctx context.Context, id SessionID, cols, rows int) error
 	RequestClose(ctx context.Context, id SessionID, intent CloseIntent) error
 	Attach(ctx context.Context, id SessionID, cursor *uint64) error
+	Signal(ctx context.Context, id SessionID, signal string) error
 	OnData(id SessionID, cb DataHandler) (unsubscribe func())
 	OnStatus(id SessionID, cb StatusHandler) (unsubscribe func())
 	Capabilities(ctx context.Context) (Capabilities, error)
