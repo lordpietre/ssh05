@@ -907,12 +907,11 @@ func renderConfig(endpoint *endpoint, proxy *proxy) string {
 	fmt.Fprintf(&b, "serverAddr = %q\nserverPort = %d\n\nauth.method = \"token\"\nauth.token = %q\n\n",
 		endpoint.Address, endpoint.Port, endpoint.Token)
 	if proxy.Type == "stcp" || proxy.Type == "xtcp" {
+		fmt.Fprintf(&b, "[[proxies]]\nname = %q\ntype = %q\nlocalIP = \"127.0.0.1\"\nlocalPort = %d\nsecretKey = %q\n",
+			proxy.Name, proxy.Type, proxy.ServicePort, proxy.Secret)
 		if proxy.BindPort > 0 {
-			fmt.Fprintf(&b, "[[visitors]]\nname = %q\ntype = %q\nserverName = %q\nsecretKey = %q\nbindAddr = \"127.0.0.1\"\nbindPort = %d\n",
-				proxy.Name, proxy.Type, proxy.Name, proxy.Secret, proxy.BindPort)
-		} else {
-			fmt.Fprintf(&b, "[[proxies]]\nname = %q\ntype = %q\nlocalIP = \"127.0.0.1\"\nlocalPort = %d\nsecretKey = %q\n",
-				proxy.Name, proxy.Type, proxy.ServicePort, proxy.Secret)
+			fmt.Fprintf(&b, "\n[[visitors]]\nname = %q\ntype = %q\nserverName = %q\nsecretKey = %q\nbindAddr = \"127.0.0.1\"\nbindPort = %d\n",
+				proxy.Name+"-visitor", proxy.Type, proxy.Name, proxy.Secret, proxy.BindPort)
 		}
 	} else {
 		fmt.Fprintf(&b, "[[proxies]]\nname = %q\ntype = %q\nlocalIP = \"127.0.0.1\"\nlocalPort = %d\nremotePort = %d\n",

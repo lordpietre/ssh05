@@ -89,7 +89,7 @@ func TestManagerSTCPVisitorRoute(t *testing.T) {
 		t.Fatalf("route = %d/%v", port, ok)
 	}
 	config, _ := os.ReadFile(filepath.Join(manager.opts.WorkDir, applied.ID+".toml"))
-	if !strings.Contains(string(config), "[[visitors]]") {
+	if !strings.Contains(string(config), "[[visitors]]") || !strings.Contains(string(config), "[[proxies]]") {
 		t.Fatalf("config = %s", config)
 	}
 }

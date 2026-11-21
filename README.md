@@ -141,8 +141,8 @@ Para levantar un `frps` local gestionado por el supervisor:
 ```
 
 En la UI, `Ctrl+F` abre el panel FRP (endpoints, proxies, crear, parar,
-iniciar/parar `frps` con `s`, rotar token). La rotación reinicia el `frps`
-local antes que los `frpc`; para un `frps` remoto se rechaza para no exponer el
+iniciar/parar `frps` con `s`, rotar token). El smoke real `make trssd-frp-smoke` cubre TCP, UDP, STCP y XTCP.
+La rotación reinicia el `frps` local antes que los `frpc`; para un `frps` remoto se rechaza para no exponer el
 token: actualízalo fuera de banda y reinicia con `--frp-token ... --frp-token-force`.
 
 Atajos configurables en `~/.config/trss/keybindings.json` (o

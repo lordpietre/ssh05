@@ -58,9 +58,9 @@ Los binarios FRP se obtienen con `make download-frp`.
 
 ## Pruebas reales de red
 
-`make trssd-frp-smoke` levanta un `frps` gestionado y un `frpc` reales, crea un
-proxy TCP a un servidor HTTP local, comprueba el contenido por
-`127.0.0.1:18081`, detiene el proxy y verifica que deja de ser alcanzable.
+`make trssd-frp-smoke` levanta un `frps` gestionado y un `frpc` reales, crea
+proxies TCP, UDP, STCP y XTCP, comprueba HTTP y eco UDP, valida la ruta FRP
+STCP, detiene cada proxy y verifica que deja de ser alcanzable.
 
 `make ui-smoke` cubre tres sesiones SSH, resize, cierre independiente, tmux,
 10 pestañas con overflow, recuperación tras caída de la UI y workspaces.
