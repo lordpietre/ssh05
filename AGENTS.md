@@ -61,6 +61,9 @@ make install                   # copies ./bin/tssh to /usr/bin/tssh
 - UI IPC client / TabStore: `prototype/terminal/src/ipc/`, `src/tabs/`
 - UI OpenTUI: `prototype/terminal/src/trss.ts` (`bun run ui`)
   - `Ctrl+G` activa/desactiva tmux remoto antes de abrir un host.
+  - Workspace en `~/.config/trss/workspace.json` (`TRSS_WORKSPACE` override).
+  - Al reiniciar, las pestañas quedan pendientes; Enter reconecta y reengancha
+    tmux si corresponde.
 - Integration status: `docs/integration/status.md`
 - Prototype: `prototype/terminal` (Bun 1.4.5 + `@opentui/core` 0.8.2, pinned)
 - Evidence/results: `docs/phase-0/README.md`

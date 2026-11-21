@@ -28,6 +28,8 @@ capacidades.
 7. `SessionOptions.tmuxSession` es opcional y no secreto. Si se usa, la sesión
    remota puede sobrevivir al cierre de la vista; no se promete lo mismo sin
    tmux.
+8. `Workspace` solo contiene vistas y referencias no secretas; restaurar un
+   workspace no crea conexiones vivas por sí solo.
 
 ## Transporte previsto
 

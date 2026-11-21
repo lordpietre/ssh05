@@ -122,7 +122,11 @@ bun run ui
 `Ctrl+G` activa tmux remoto antes de abrir un host. Cerrar la pestaña no
 destruye la sesión tmux; al reabrir el mismo host se reengancha.
 
-Smoke completo (sshd local + trssd + 3 pestañas SSH + resize + tmux):
+El workspace se guarda en `~/.config/trss/workspace.json` (sin secretos) y se
+restaura como pestañas **pendientes**: Enter reconecta, no se simula una sesión
+viva. Usa `TRSS_WORKSPACE` para aislar el archivo en pruebas.
+
+Smoke completo (sshd local + trssd + 3 pestañas SSH + resize + tmux + restore):
 
 ```sh
 make ui-smoke

@@ -26,10 +26,13 @@ import type {
   SessionPhase,
   SessionStatus,
   TabId,
+  TabRecord,
   TabState,
+  Workspace,
 } from "../../../contracts/ts/index.ts"
 import { IpcClient } from "./ipc/client.ts"
 import { InMemoryTabStore } from "./tabs/store.ts"
+import { loadWorkspace, saveWorkspace } from "./workspaces/store.ts"
 
 const HOST_PANEL_WIDTH = 30
 const MAX_SESSIONS = 16
@@ -158,6 +161,20 @@ root.add(status)
 renderer.root.add(root)
 renderer.start()
 
+const pendingPlaceholder = new TextRenderable(renderer, {
+  id: "pending-view",
+  position: "absolute",
+  top: 0,
+  left: 0,
+  width: "100%",
+  height: "100%",
+  visible: false,
+  content: "",
+  fg: RGBA.fromInts(170, 180, 195),
+  bg: RGBA.fromInts(15, 17, 22),
+})
+terminalArea.add(pendingPlaceholder)
+
 type SessionView = {
   sessionId: SessionId
   host: HostProfile
@@ -170,6 +187,7 @@ const store = new InMemoryTabStore()
 const sessions = new Map<SessionId, SessionView>()
 const pendingData = new Map<SessionId, Uint8Array[]>()
 const pendingStatus = new Map<SessionId, SessionStatus>()
+const pendingHosts = new Map<TabId, HostProfile>()
 
 let client: IpcClient | undefined
 let hosts: HostProfile[] = []
@@ -181,6 +199,8 @@ let tmuxMode = false
 let quitting = false
 let errorText = ""
 let transientText = ""
+let restoringWorkspace = false
+let saveTimer: ReturnType<typeof setTimeout> | undefined
 
 function phaseIcon(phase: SessionPhase): string {
   switch (phase) {
@@ -267,6 +287,13 @@ function sessionForHost(host: HostProfile): SessionView | undefined {
   return undefined
 }
 
+function pendingHostFor(host: HostProfile): HostProfile | undefined {
+  for (const pending of pendingHosts.values()) {
+    if (pending.id === host.id) return pending
+  }
+  return undefined
+}
+
 function renderHosts(): void {
   const all = filteredHosts()
   hostTitle.content = ` Hosts (${all.length}${query ? `/${hosts.length}` : ""})`
@@ -295,7 +322,8 @@ function renderHosts(): void {
     const host = all[index]
     const session = sessionForHost(host)
     const tab = session ? store.list().find((item) => item.sessionId === session.sessionId) : undefined
-    const state = tab ? phaseIcon(tab.phase) : " "
+    const pending = !session && pendingHostFor(host) !== undefined
+    const state = tab ? phaseIcon(tab.phase) : pending ? "○" : " "
     lines.push(`${index === cursor ? ">" : " "} ${state} ${truncate(host.alias, HOST_PANEL_WIDTH - 5)}`)
   }
   hostList.content = lines.join("\n")
@@ -331,6 +359,12 @@ function renderStatus(): void {
   const active = store.active()
   const view = active ? sessions.get(active.sessionId) : undefined
   if (!active || !view) {
+    if (active && pendingHosts.has(active.id)) {
+      status.content =
+        ` Pendiente · ${active.title} · Enter reconectar` +
+        `${active.tmux ? " (tmux)" : ""} · Ctrl+W cerrar · F10 salir`
+      return
+    }
     status.content = ` Sin sesiones · Ctrl+T hosts · tmux:${tmuxMode ? "on" : "off"} · F10 salir`
     return
   }
@@ -344,6 +378,75 @@ function uiDirty(): void {
   renderTabs()
   renderStatus()
   renderer.requestRender()
+}
+
+function snapshotWorkspace(): Workspace {
+  const tabs: TabRecord[] = store.list().map((tab, index) => {
+    const view = sessions.get(tab.sessionId)
+    const pending = pendingHosts.get(tab.id)
+    return {
+      id: tab.id,
+      title: tab.title,
+      hostProfileId: view?.host.id ?? pending?.id ?? tab.title,
+      tmux: tab.tmux,
+      color: tab.color,
+      order: index,
+    }
+  })
+  return {
+    id: "default",
+    name: "default",
+    tabs,
+    preferences: { activeTabId: store.active()?.id ?? "" },
+  }
+}
+
+function scheduleWorkspaceSave(): void {
+  if (restoringWorkspace || quitting) return
+  if (saveTimer) clearTimeout(saveTimer)
+  saveTimer = setTimeout(() => {
+    saveTimer = undefined
+    try {
+      saveWorkspace(snapshotWorkspace())
+    } catch (error) {
+      debug(`workspace save: ${String(error)}`)
+    }
+  }, 150)
+}
+
+function restoreWorkspace(): void {
+  const workspace = loadWorkspace()
+  if (!workspace || workspace.tabs.length === 0) return
+  restoringWorkspace = true
+  try {
+    const records = [...workspace.tabs].sort((a, b) => a.order - b.order)
+    for (const record of records) {
+      const host = hosts.find(
+        (item) => item.id === record.hostProfileId || item.alias === record.hostProfileId,
+      )
+      if (!host) continue
+      const id = record.id || `restored-${record.hostProfileId}`
+      if (store.list().some((tab) => tab.id === id)) continue
+      store.add({
+        id,
+        sessionId: id,
+        title: record.title || host.alias,
+        phase: "disconnected",
+        color: record.color,
+        tmux: record.tmux,
+      })
+      pendingHosts.set(id, host)
+    }
+    const preferred = workspace.preferences?.activeTabId
+    const activeId =
+      preferred && store.list().some((tab) => tab.id === preferred)
+        ? preferred
+        : store.list()[0]?.id
+    if (activeId) activate(activeId)
+  } finally {
+    restoringWorkspace = false
+  }
+  uiDirty()
 }
 
 function focusHosts(): void {
@@ -369,12 +472,35 @@ function activate(tabId: TabId): void {
     focusHosts()
     return
   }
-  for (const [sessionId, view] of sessions) {
-    view.terminal.visible = sessionId === active.sessionId
+  const view = sessions.get(active.sessionId)
+  for (const [sessionId, item] of sessions) {
+    item.terminal.visible = sessionId === active.sessionId
   }
-  hostFocused = false
-  sessions.get(active.sessionId)?.terminal.focus()
+  if (view) {
+    pendingPlaceholder.visible = false
+    hostFocused = false
+    view.terminal.focus()
+  } else if (pendingHosts.has(active.id)) {
+    hostFocused = false
+    pendingPlaceholder.visible = true
+    pendingPlaceholder.content = pendingMessage(active)
+  } else {
+    pendingPlaceholder.visible = false
+    focusHosts()
+    return
+  }
   uiDirty()
+}
+
+function pendingMessage(tab: TabState): string {
+  const host = pendingHosts.get(tab.id)
+  const target = host ? hostTarget(host) : "host desconocido"
+  return (
+    `\n  ${tab.title}\n\n` +
+    `  Sesión pendiente de restaurar (${target}).\n\n` +
+    `  Enter: reconectar${tab.tmux ? ` y reenganchar tmux ${tab.tmux.sessionName}` : ""}\n` +
+    `  Ctrl+W: quitar la pestaña del workspace\n`
+  )
 }
 
 function cycle(delta: number): void {
@@ -400,7 +526,10 @@ function flushPending(sessionId: SessionId, view: SessionView): void {
   }
 }
 
-async function connectHost(host: HostProfile): Promise<void> {
+async function connectHost(
+  host: HostProfile,
+  options: { tmuxSession?: string; replaceTabId?: TabId } = {},
+): Promise<void> {
   if (!client || quitting) return
   if (sessions.size >= MAX_SESSIONS) {
     transientText = `Máximo de ${MAX_SESSIONS} sesiones alcanzado`
@@ -409,13 +538,17 @@ async function connectHost(host: HostProfile): Promise<void> {
   }
   transientText = ""
   errorText = ""
-  const tmuxSession = tmuxMode ? tmuxSessionName(host.alias) : undefined
+  const tmuxSession = options.tmuxSession ?? (tmuxMode ? tmuxSessionName(host.alias) : undefined)
   try {
     const opened = await client.call(
       "sessions.open",
       { hostProfileId: host.id, tmuxSession },
       { timeoutMs: 20_000 },
     )
+    if (options.replaceTabId) {
+      pendingHosts.delete(options.replaceTabId)
+      store.remove(options.replaceTabId)
+    }
     const cols = Math.max(20, Math.floor(terminalArea.width) || renderer.width - HOST_PANEL_WIDTH)
     const rows = Math.max(5, renderer.height - 2)
     const terminal = new EmbeddedTerminalRenderable(renderer, {
@@ -483,19 +616,22 @@ function scheduleResize(sessionId: SessionId, cols: number, rows: number): void 
 
 async function closeActive(): Promise<void> {
   const active = store.active()
-  if (!active || !client) return
+  if (!active) return
   const view = sessions.get(active.sessionId)
-  try {
-    await client.call(
-      "sessions.close",
-      { sessionId: active.sessionId, intent: "close-view" },
-      { timeoutMs: 5000 },
-    )
-  } catch (error) {
-    transientText = `Cierre: ${String(error)}`
+  if (view && client) {
+    try {
+      await client.call(
+        "sessions.close",
+        { sessionId: active.sessionId, intent: "close-view" },
+        { timeoutMs: 5000 },
+      )
+    } catch (error) {
+      transientText = `Cierre: ${String(error)}`
+    }
   }
 
   sessions.delete(active.sessionId)
+  pendingHosts.delete(active.id)
   pendingData.delete(active.sessionId)
   pendingStatus.delete(active.sessionId)
   if (view) {
@@ -508,16 +644,37 @@ async function closeActive(): Promise<void> {
     }
   }
   store.remove(active.id)
+  pendingPlaceholder.visible = false
   const next = store.active()
   if (next) activate(next.id)
   else focusHosts()
   uiDirty()
 }
 
+function reconnectActive(): void {
+  const active = store.active()
+  if (!active) return
+  const host = pendingHosts.get(active.id)
+  if (!host) return
+  void connectHost(host, {
+    replaceTabId: active.id,
+    tmuxSession: active.tmux?.sessionName,
+  })
+}
+
 async function quit(): Promise<void> {
   if (quitting) return
+  if (saveTimer) {
+    clearTimeout(saveTimer)
+    saveTimer = undefined
+  }
+  try {
+    saveWorkspace(snapshotWorkspace())
+  } catch (error) {
+    debug(`workspace save on quit: ${String(error)}`)
+  }
   quitting = true
-  const tabs = [...store.list()]
+  const tabs = [...store.list()].filter((tab) => sessions.has(tab.sessionId))
   if (client) {
     await Promise.all(
       tabs.map((tab) =>
@@ -600,6 +757,14 @@ renderer.keyInput.on("keypress", (key) => {
     if (tab) activate(tab.id)
     return
   }
+  if (!hostFocused && (name === "return" || name === "enter")) {
+    const active = store.active()
+    if (active && !sessions.has(active.sessionId) && pendingHosts.has(active.id)) {
+      key.stopPropagation()
+      reconnectActive()
+      return
+    }
+  }
   if (hostFocused) {
     key.stopPropagation()
     handleHostKey(key)
@@ -618,7 +783,10 @@ process.on("SIGWINCH", () => {
   }
 })
 renderer.on("resize", () => uiDirty())
-store.subscribe(() => uiDirty())
+store.subscribe(() => {
+  uiDirty()
+  scheduleWorkspaceSave()
+})
 
 async function start(): Promise<void> {
   uiDirty()
@@ -661,6 +829,7 @@ async function start(): Promise<void> {
   try {
     const result = await client.call("hosts.list", {}, { timeoutMs: 5000 })
     hosts = [...result.hosts].sort((a, b) => a.alias.localeCompare(b.alias))
+    restoreWorkspace()
     uiDirty()
   } catch (error) {
     errorText = `hosts.list: ${String(error)}`

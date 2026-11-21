@@ -93,7 +93,7 @@ done
 
 "$TMUX" kill-session -t "$SESSION" 2>/dev/null || true
 "$TMUX" new-session -d -s "$SESSION" -x 120 -y 36 \
-  "cd $(printf '%q' "$HERE") && TERM=xterm-256color TRSS_SOCKET=$(printf '%q' "$SOCKET") TRSS_UI_DEBUG=$(printf '%q' "$LOG") $(printf '%q' "$BUN") run src/trss.ts"
+  "cd $(printf '%q' "$HERE") && TERM=xterm-256color TRSS_SOCKET=$(printf '%q' "$SOCKET") TRSS_WORKSPACE=$(printf '%q' "$SOCKET_DIR/workspace.json") TRSS_UI_DEBUG=$(printf '%q' "$LOG") $(printf '%q' "$BUN") run src/trss.ts"
 
 assert_contains "Hosts (3)" "UI loads the real host inventory"
 send Enter
@@ -166,8 +166,27 @@ send F10
 for _ in $(seq 1 30); do
   if ! "$TMUX" has-session -t "$SESSION" 2>/dev/null; then
     echo "PASS: F10 closes the UI"
+    break
+  fi
+  sleep 0.2
+done
+if "$TMUX" has-session -t "$SESSION" 2>/dev/null; then
+  fail "F10 did not close the UI"
+fi
+
+# Reopen the UI with the same workspace file and verify pending views.
+"$TMUX" new-session -d -s "$SESSION" -x 120 -y 36 \
+  "cd $(printf '%q' "$HERE") && TERM=xterm-256color TRSS_SOCKET=$(printf '%q' "$SOCKET") TRSS_WORKSPACE=$(printf '%q' "$SOCKET_DIR/workspace.json") TRSS_UI_DEBUG=$(printf '%q' "$LOG") $(printf '%q' "$BUN") run src/trss.ts"
+assert_contains "Pendiente" "workspace restores pending tabs, not fake live sessions"
+assert_contains "trss-ui-1" "restored tabs keep their host alias"
+send Enter
+assert_contains "Ctrl+Tab cambiar" "a restored tab reconnects on Enter"
+send F10
+for _ in $(seq 1 30); do
+  if ! "$TMUX" has-session -t "$SESSION" 2>/dev/null; then
+    echo "PASS: restored workspace closes cleanly"
     exit 0
   fi
   sleep 0.2
 done
-fail "F10 did not close the UI"
+fail "restored workspace did not close"
