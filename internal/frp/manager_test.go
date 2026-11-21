@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -323,5 +324,60 @@ func TestConfigureProcessSetsDeathSignalOnLinux(t *testing.T) {
 	configureProcess(cmd)
 	if cmd.SysProcAttr == nil || !cmd.SysProcAttr.Setpgid || cmd.SysProcAttr.Pdeathsig != syscall.SIGKILL {
 		t.Fatalf("SysProcAttr = %+v", cmd.SysProcAttr)
+	}
+}
+
+func TestManagerFailsClosedWithoutEntropy(t *testing.T) {
+	dir := t.TempDir()
+	manager, err := NewManager(Options{
+		ConfigPath: filepath.Join(dir, "frp.json"), KeyPath: filepath.Join(dir, "frp.key"),
+		WorkDir: filepath.Join(dir, "work"), FrpcBin: fakeFrpc(t),
+		EndpointAddress: "127.0.0.1", EndpointPort: 7000,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(manager.Close)
+	previous := randRead
+	randRead = func([]byte) (int, error) { return 0, errors.New("entropy unavailable") }
+	t.Cleanup(func() { randRead = previous })
+
+	if _, err := manager.Apply(context.Background(), contracts.FrpProxy{
+		Name: "no-entropy", Type: contracts.FrpTCP, ServicePort: 22, RemotePort: 22030,
+	}); err == nil || !strings.Contains(err.Error(), "secure FRP secret") {
+		t.Fatalf("Apply error = %v", err)
+	}
+}
+
+func TestManagerPrivatePermissions(t *testing.T) {
+	manager := testManager(t)
+	if info, err := os.Stat(filepath.Join(manager.opts.WorkDir)); err == nil {
+		if info.Mode().Perm() != 0o700 {
+			t.Fatalf("workdir mode = %o", info.Mode().Perm())
+		}
+	} else {
+		t.Fatal(err)
+	}
+	if info, err := os.Stat(manager.opts.KeyPath); err == nil {
+		if info.Mode().Perm() != 0o600 {
+			t.Fatalf("key mode = %o", info.Mode().Perm())
+		}
+	} else {
+		t.Fatal(err)
+	}
+	applied, err := manager.Apply(context.Background(), contracts.FrpProxy{
+		Name: "perms", Type: contracts.FrpTCP, ServicePort: 22, RemotePort: 22031,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range []string{applied.ID + ".toml", applied.ID + ".log"} {
+		info, err := os.Stat(filepath.Join(manager.opts.WorkDir, name))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if info.Mode().Perm() != 0o600 {
+			t.Fatalf("%s mode = %o", name, info.Mode().Perm())
+		}
 	}
 }

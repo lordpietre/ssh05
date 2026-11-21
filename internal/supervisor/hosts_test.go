@@ -87,3 +87,27 @@ Host plain
 		t.Fatalf("plain = %+v", byAlias["plain"])
 	}
 }
+
+func TestSSHHostsInclude(t *testing.T) {
+	dir := t.TempDir()
+	include := filepath.Join(dir, "extra.conf")
+	if err := os.WriteFile(include, []byte("Host included\n    HostName 10.0.0.7\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	main := filepath.Join(dir, "ssh_config")
+	content := "Include " + include + "\nHost main\n    HostName 10.0.0.8\n"
+	if err := os.WriteFile(main, []byte(content), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	hosts, err := (SSHHosts{ConfigPath: main}).List(context.Background())
+	if err != nil {
+		t.Fatalf("List: %v", err)
+	}
+	found := map[string]bool{}
+	for _, host := range hosts {
+		found[host.Alias] = true
+	}
+	if !found["included"] || !found["main"] {
+		t.Fatalf("include not honored: %+v", found)
+	}
+}

@@ -28,7 +28,7 @@ Los binarios FRP se obtienen con `make download-frp`.
 | SES-06 | Cumplido | `internal/supervisor/backend.go`: backoff, límite y cancelación; tests de reconexión |
 | SES-07 | Cumplido | tmux opcional con `Ctrl+G`; nombres `trss-<alias>`; `tmuxStartCommand` en el runner |
 | SES-08 | Cumplido | Restauración como vistas pendientes; `Enter` reconecta y reengancha tmux solo si existe |
-| INV-02 | Cumplido | `tssh.ListHostEntries` respeta `Include`; test de inventario |
+| INV-02 | Cumplido | `tssh.ListHostEntries` respeta `Include`; `TestSSHHostsInclude` |
 | INV-03 | Cumplido | `internal/supervisor/keepass.go` importa KDBX con `keepassxc-cli` |
 | INV-04 | Cumplido | `Inventory.mergeLocked` conserva procedencia y expone conflictos sin sobrescribir |
 | INV-05 | Cumplido | `#!! GroupLabels`, `#!! Favorite`, `#!! Color`; favoritos primero y búsqueda por etiquetas |
@@ -38,8 +38,8 @@ Los binarios FRP se obtienen con `make download-frp`.
 | AUT-05 | Cumplido | `--vault-idle-timeout`; `vault.unlockRequest`; hosts KDBX fuera del inventario al bloquear |
 | FRP-01 | Cumplido | `internal/frp`: `frpc` y `frps` gestionados; `--frps-listen`, `frp.servers.start/stop` |
 | FRP-02 | Cumplido | Crear/editar (`frp.proxies.apply`), validar (`frpc verify`) y eliminar (`frp.proxies.remove`) en 4 tipos |
-| FRP-03 | Cumplido | Tokens con `crypto/rand`; error en vez de fallback estático |
-| FRP-04 | Cumplido | AES-GCM en reposo; `frp.key` 0600; configs y logs 0600; directorios 0700 |
+| FRP-03 | Cumplido | Tokens con `crypto/rand`; `TestManagerFailsClosedWithoutEntropy` |
+| FRP-04 | Cumplido | AES-GCM; `TestManagerPrivatePermissions` (key/config/log 0600, dirs 0700) |
 | FRP-05 | Cumplido | Estado, destino, puerto, tipo, PID, uptime y errores en UI/IPC; sin estadísticas extra si no hay admin API |
 | FRP-06 | Cumplido | Rotación reinicia primero el `frps` gestionado; endpoint remoto se rechaza para no exponer el token |
 | FRP-07 | Cumplido | `--frpc-sha256` y `--frps-sha256` antes de arrancar; `frpc verify`/`frps verify` antes de usar |
