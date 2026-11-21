@@ -2,10 +2,17 @@ package frp
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"runtime"
+	"strconv"
 	"strings"
+	"syscall"
 	"testing"
+	"time"
 
 	"github.com/trzsz/trzsz-ssh/contracts"
 )
@@ -104,4 +111,83 @@ func TestManagerRotate(t *testing.T) {
 	if string(before) == string(after) {
 		t.Fatal("rotation did not change token")
 	}
+}
+
+func TestManagerVerifiesPinnedBinaryHash(t *testing.T) {
+	bin := fakeFrpc(t)
+	data, err := os.ReadFile(bin)
+	if err != nil {
+		t.Fatal(err)
+	}
+	sum := sha256.Sum256(data)
+	good := hex.EncodeToString(sum[:])
+	dir := t.TempDir()
+	manager, err := NewManager(Options{
+		ConfigPath: filepath.Join(dir, "frp.json"), KeyPath: filepath.Join(dir, "frp.key"),
+		WorkDir: filepath.Join(dir, "work"), FrpcBin: bin, FrpcSHA256: "sha256:" + good,
+	})
+	if err != nil {
+		t.Fatalf("matching hash: %v", err)
+	}
+	manager.Close()
+	actual, err := manager.BinarySHA256()
+	if err != nil || actual != good {
+		t.Fatalf("BinarySHA256 = %q/%v", actual, err)
+	}
+
+	_, err = NewManager(Options{
+		ConfigPath: filepath.Join(dir, "bad.json"), KeyPath: filepath.Join(dir, "bad.key"),
+		WorkDir: filepath.Join(dir, "badwork"), FrpcBin: bin, FrpcSHA256: strings.Repeat("0", 64),
+	})
+	if err == nil || !strings.Contains(err.Error(), "hash mismatch") {
+		t.Fatalf("mismatched hash error = %v", err)
+	}
+}
+
+func TestKillProcessGroupReapsChildren(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("process groups differ on windows")
+	}
+	dir := t.TempDir()
+	pidFile := filepath.Join(dir, "child.pid")
+	script := "#!/bin/sh\nsleep 30 &\necho $! > " + pidFile + "\nwait\n"
+	path := filepath.Join(dir, "spawn")
+	if err := os.WriteFile(path, []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	cmd := exec.Command(path)
+	configureProcess(cmd)
+	if err := cmd.Start(); err != nil {
+		t.Fatal(err)
+	}
+	var childPID int
+	for deadline := time.Now().Add(3 * time.Second); time.Now().Before(deadline); {
+		data, err := os.ReadFile(pidFile)
+		if err == nil {
+			childPID, _ = strconv.Atoi(strings.TrimSpace(string(data)))
+			if childPID > 0 {
+				break
+			}
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+	if childPID == 0 {
+		killProcess(cmd)
+		_ = cmd.Wait()
+		t.Fatal("child pid was not published")
+	}
+
+	started := time.Now()
+	killProcess(cmd)
+	_ = cmd.Wait()
+	if elapsed := time.Since(started); elapsed > 5*time.Second {
+		t.Fatalf("process group kill took %s", elapsed)
+	}
+	for deadline := time.Now().Add(2 * time.Second); time.Now().Before(deadline); {
+		if err := syscall.Kill(childPID, 0); err != nil {
+			return
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+	t.Fatalf("child %d survived the process-group kill", childPID)
 }

@@ -1121,7 +1121,10 @@ store.subscribe(() => {
 async function loadHosts(): Promise<void> {
   if (!client) return
   const result = await client.call("hosts.list", {}, { timeoutMs: 5000 })
-  hosts = [...result.hosts].sort((a, b) => a.alias.localeCompare(b.alias))
+  hosts = [...result.hosts].sort((a, b) => {
+    if (Boolean(a.favorite) !== Boolean(b.favorite)) return a.favorite ? -1 : 1
+    return a.alias.localeCompare(b.alias)
+  })
   conflicts = result.conflicts?.length ?? 0
 }
 

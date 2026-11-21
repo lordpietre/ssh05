@@ -29,6 +29,7 @@
 | Deduplicación y provenance ssh_config+KDBX | **Hecho** | `internal/supervisor/inventory.go` |
 | Conflictos de inventario sin sobrescritura | **Hecho** | `HostsListResult.conflicts` + tests |
 | Importación desde UI (`Ctrl+I`) | **Hecho** | `hosts.import` |
+| AUT-05 bloqueo de vault por inactividad | **Hecho** | `--vault-idle-timeout`, `vault.unlockRequest` |
 | Reconexión con backoff y cancelación | **Hecho** | `internal/supervisor/backend.go` + tests |
 | Auditoría saneada con rotación | **Hecho** | `internal/audit/`, `--audit-log` |
 | Cliente TS/Bun del IPC | **Hecho** | `prototype/terminal/src/ipc/` |
@@ -42,6 +43,7 @@
 | Rutas directas/ProxyJump con motivo | **Hecho** | `routes.plan` + `ProxyJump` + estado en UI |
 | FRP supervisor local | **Hecho** | `internal/frp`, endpoints/proxies, procesos |
 | FRP tokens cifrados, rotación y tipos | **Hecho** | AES-GCM, `frp.tokens.rotate`, 4 tipos |
+| FRP hash de binario y sin huérfanos | **Hecho** | `--frpc-sha256`, grupos de proceso |
 | FRP UI (listar/crear/parar/rotar) | **Hecho** | `Ctrl+F` |
 | Ruta FRP por visitor | **Hecho** | `RouteForHost` + `RouteID` |
 | Pruebas adversariales (framing, inyección, reconexión) | **Hecho** | fuzz tests + tests de inyección/reconnect |

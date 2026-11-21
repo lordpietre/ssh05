@@ -6,6 +6,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/trzsz/trzsz-ssh/contracts"
 )
@@ -131,5 +132,28 @@ func TestInventoryImportKeePass(t *testing.T) {
 	}
 	if status := inventory.VaultStatus(); status.Locked {
 		t.Fatalf("vault should be unlocked after import: %+v", status)
+	}
+}
+
+func TestInventoryVaultIdleLockDropsKeePassProfiles(t *testing.T) {
+	inventory := NewInventory(InventoryConfig{VaultIdleTimeout: 10 * time.Millisecond})
+	inventory.loaded = true
+	inventory.vault = contracts.VaultStatusResult{Provider: "keepassxc", Locked: false, Profiles: 1}
+	inventory.kpHosts = []contracts.HostProfile{{ID: "kp", Alias: "kp", Target: contracts.HostTarget{Hostname: "kp"}}}
+	inventory.profiles = append([]contracts.HostProfile(nil), inventory.kpHosts...)
+	inventory.lastVault = time.Now().Add(-time.Second)
+
+	inventory.enforceIdleLock()
+
+	status := inventory.VaultStatus()
+	if !status.Locked || status.Profiles != 0 {
+		t.Fatalf("status = %+v", status)
+	}
+	hosts, err := inventory.List(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(hosts) != 0 {
+		t.Fatalf("hosts after idle lock = %+v", hosts)
 	}
 }

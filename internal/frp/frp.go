@@ -6,6 +6,7 @@ import (
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/rand"
+	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -62,6 +63,7 @@ type Options struct {
 	KeyPath         string
 	WorkDir         string
 	FrpcBin         string
+	FrpcSHA256      string
 	EndpointName    string
 	EndpointAddress string
 	EndpointPort    int
@@ -92,6 +94,11 @@ func NewManager(options Options) (*Manager, error) {
 	}
 	if options.FrpcBin == "" {
 		options.FrpcBin = "frpc"
+	}
+	if options.FrpcSHA256 != "" {
+		if err := verifyBinaryHash(options.FrpcBin, options.FrpcSHA256); err != nil {
+			return nil, err
+		}
 	}
 	key, err := loadOrCreateKey(options.KeyPath)
 	if err != nil {
@@ -132,6 +139,40 @@ func defaultStatePath(dir string) string {
 		stateHome = filepath.Join(home, ".local", "state")
 	}
 	return filepath.Join(stateHome, "trss", dir)
+}
+
+// verifyBinaryHash refuses a binary whose SHA-256 does not match the pinned
+// digest. It is used before starting or updating frpc.
+func verifyBinaryHash(binary, expected string) error {
+	path, err := exec.LookPath(binary)
+	if err != nil {
+		return fmt.Errorf("frpc binary %q: %w", binary, err)
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return fmt.Errorf("read frpc binary: %w", err)
+	}
+	sum := sha256.Sum256(data)
+	actual := hex.EncodeToString(sum[:])
+	want := strings.ToLower(strings.TrimSpace(strings.TrimPrefix(expected, "sha256:")))
+	if actual != want {
+		return fmt.Errorf("frpc binary hash mismatch: got %s", actual)
+	}
+	return nil
+}
+
+// BinarySHA256 returns the local frpc digest, for display and update checks.
+func (m *Manager) BinarySHA256() (string, error) {
+	path, err := exec.LookPath(m.opts.FrpcBin)
+	if err != nil {
+		return "", err
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return "", err
+	}
+	sum := sha256.Sum256(data)
+	return hex.EncodeToString(sum[:]), nil
 }
 
 func loadOrCreateKey(path string) ([]byte, error) {
@@ -456,6 +497,7 @@ func (m *Manager) startLocked(ctx context.Context, proxy *proxy, endpoint *endpo
 		return err
 	}
 	cmd := exec.Command(m.opts.FrpcBin, "-c", path)
+	configureProcess(cmd)
 	cmd.Stdout = logFile
 	cmd.Stderr = logFile
 	if err := cmd.Start(); err != nil {
@@ -504,8 +546,8 @@ func (m *Manager) Stop(ctx context.Context, id string) error {
 }
 
 func (m *Manager) stopLocked(id string) {
-	if cmd := m.procs[id]; cmd != nil && cmd.Process != nil {
-		_ = cmd.Process.Kill()
+	if cmd := m.procs[id]; cmd != nil {
+		killProcess(cmd)
 		delete(m.procs, id)
 	}
 }
@@ -590,7 +632,7 @@ func normalizeType(value string) string {
 
 func generateSecret() (string, error) {
 	buffer := make([]byte, 32)
-	if _, err := rand.Read(buffer); err != nil {
+	if _, err := randRead(buffer); err != nil {
 		return "", fmt.Errorf("secure FRP secret: %w", err)
 	}
 	return hex.EncodeToString(buffer), nil

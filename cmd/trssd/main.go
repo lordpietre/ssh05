@@ -35,6 +35,7 @@ func main() {
 	keepassDB := flag.String("keepass-db", "", "KDBX database to import (read-only)")
 	keepassKey := flag.String("keepass-key-file", "", "KDBX key file")
 	keepassPasswordCommand := flag.String("keepass-password-command", "", "command that prints the KDBX password to stdout")
+	vaultIdle := flag.Duration("vault-idle-timeout", 15*time.Minute, "lock the vault after inactivity (0 disables)")
 	terminal := flag.String("terminal", "xterm-256color", "TERM value for remote PTYs")
 	maxSessions := flag.Int("max-sessions", 16, "maximum concurrent sessions")
 	reconnectMax := flag.Int("reconnect-max", 3, "reconnect attempts before failing")
@@ -45,6 +46,7 @@ func main() {
 	frpPort := flag.Int("frp-port", 7000, "frps control port")
 	frpToken := flag.String("frp-token", "", "initial frps token (generated if empty)")
 	frpcBin := flag.String("frpc", "frpc", "frpc binary")
+	frpcSHA256 := flag.String("frpc-sha256", "", "pinned SHA-256 for frpc (verified before start)")
 	frpConfig := flag.String("frp-config", "", "FRP manager config path")
 	flag.Parse()
 
@@ -65,7 +67,8 @@ func main() {
 	defer backend.CloseAll()
 
 	inventory := supervisor.NewInventory(supervisor.InventoryConfig{
-		SSHConfigPath: *sshConfig,
+		SSHConfigPath:    *sshConfig,
+		VaultIdleTimeout: *vaultIdle,
 		Keepass: supervisor.KeePassConfig{
 			Database:        *keepassDB,
 			KeyFile:         *keepassKey,
@@ -75,6 +78,7 @@ func main() {
 	frpManager, err := frpmanager.NewManager(frpmanager.Options{
 		ConfigPath:      *frpConfig,
 		FrpcBin:         *frpcBin,
+		FrpcSHA256:      *frpcSHA256,
 		EndpointAddress: *frpServer,
 		EndpointPort:    *frpPort,
 		EndpointToken:   *frpToken,

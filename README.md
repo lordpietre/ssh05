@@ -129,7 +129,8 @@ FRP local (frpc) contra un frps autorizado:
 
 ```sh
 ./bin/trssd --ssh-config ~/.ssh/config \
-  --frp-server frps.example.net --frp-port 7000
+  --frp-server frps.example.net --frp-port 7000 \
+  --frpc-sha256 <sha256-del-binario-frpc>
 ```
 
 En la UI, `Ctrl+F` abre el panel FRP (listar, crear, parar, rotar token).
@@ -146,6 +147,10 @@ Host lab
 
 Los colores usan RGB cuando la terminal lo soporta y degradan a 256/16
 colores; `NO_COLOR=1` o `TRSS_THEME=mono` desactivan el color.
+
+El vault KDBX se bloquea tras `--vault-idle-timeout` (15m por defecto) y los
+hosts de KeePass dejan de listarse hasta un nuevo `hosts.import` o
+`vault.unlockRequest`.
 
 Reconexión automática configurable:
 

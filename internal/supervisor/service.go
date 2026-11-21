@@ -105,9 +105,32 @@ func (s *Service) Handle(ctx context.Context, conn *ipc.Conn, req contracts.RPCR
 			status = inventory.VaultStatus()
 		}
 		return marshal(status)
+	case contracts.MethodVaultUnlock:
+		return s.unlockVault(ctx, req)
 	default:
 		return nil, notImplemented()
 	}
+}
+
+func (s *Service) unlockVault(ctx context.Context, req contracts.RPCRequest) (json.RawMessage, *contracts.RPCError) {
+	inventory, ok := s.hosts.(HostInventory)
+	if !ok {
+		return nil, notImplemented()
+	}
+	params, rpcError := decodeParams[contracts.VaultUnlockParams](req)
+	if rpcError != nil {
+		return nil, rpcError
+	}
+	if params.Provider != "" && params.Provider != "keepassxc" && params.Provider != "keepass" {
+		return nil, &contracts.RPCError{Code: ipc.CodeInvalidRequest, Message: "only KeePassXC is supported"}
+	}
+	if _, err := inventory.Import(ctx, "keepass", ""); err != nil {
+		s.log(audit.Event{Action: "vault.unlock", Result: "error", ErrorCode: "internal", Detail: params.Reason})
+		return nil, internalError(err)
+	}
+	status := inventory.VaultStatus()
+	s.log(audit.Event{Action: "vault.unlock", Result: "ok", Detail: params.Reason})
+	return marshal(status)
 }
 
 func (s *Service) listHosts(ctx context.Context, req contracts.RPCRequest) (json.RawMessage, *contracts.RPCError) {

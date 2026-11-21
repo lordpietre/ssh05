@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/trzsz/trzsz-ssh/contracts"
 	"github.com/trzsz/trzsz-ssh/tssh"
@@ -15,8 +16,9 @@ import (
 
 // InventoryConfig configures the canonical, non-secret host inventory.
 type InventoryConfig struct {
-	SSHConfigPath string
-	Keepass       KeePassConfig
+	SSHConfigPath    string
+	Keepass          KeePassConfig
+	VaultIdleTimeout time.Duration
 }
 
 // Inventory merges ssh_config and KDBX entries with provenance.
@@ -30,6 +32,7 @@ type Inventory struct {
 	profiles  []contracts.HostProfile
 	conflicts []contracts.HostConflict
 	vault     contracts.VaultStatusResult
+	lastVault time.Time
 	lastErr   error
 }
 
@@ -47,6 +50,34 @@ func (i *Inventory) ensureLoaded(ctx context.Context) {
 	}
 	i.loaded = true
 	i.reloadLocked(ctx)
+	i.touchVaultLocked(time.Now())
+}
+
+// touchVaultLocked records successful vault access and resets the idle timer.
+func (i *Inventory) touchVaultLocked(now time.Time) {
+	if !i.vault.Locked {
+		i.lastVault = now
+	}
+}
+
+// enforceIdleLock applies the vault idle policy before serving a request.
+func (i *Inventory) enforceIdleLock() {
+	timeout := i.config.VaultIdleTimeout
+	if timeout <= 0 || i.lastVault.IsZero() || i.vault.Locked {
+		return
+	}
+	i.mu.Lock()
+	defer i.mu.Unlock()
+	if i.lastVault.IsZero() || i.vault.Locked {
+		return
+	}
+	if time.Since(i.lastVault) < timeout {
+		return
+	}
+	i.vault.Locked = true
+	i.vault.Profiles = 0
+	i.kpHosts = nil
+	i.mergeLocked()
 }
 
 func (i *Inventory) reloadLocked(ctx context.Context) {
@@ -76,6 +107,7 @@ func (i *Inventory) reloadLocked(ctx context.Context) {
 				}
 			}
 			i.vault.Profiles = len(i.kpHosts)
+			i.lastVault = time.Now()
 		}
 	}
 	i.mergeLocked()
@@ -158,6 +190,7 @@ func mergeProfile(destination *contracts.HostProfile, source contracts.HostProfi
 // List implements HostProvider.
 func (i *Inventory) List(ctx context.Context) ([]contracts.HostProfile, error) {
 	i.ensureLoaded(ctx)
+	i.enforceIdleLock()
 	i.mu.RLock()
 	defer i.mu.RUnlock()
 	out := append([]contracts.HostProfile(nil), i.profiles...)
@@ -167,6 +200,7 @@ func (i *Inventory) List(ctx context.Context) ([]contracts.HostProfile, error) {
 // Resolve finds a profile by canonical ID or alias.
 func (i *Inventory) Resolve(ctx context.Context, id string) (contracts.HostProfile, bool) {
 	i.ensureLoaded(ctx)
+	i.enforceIdleLock()
 	i.mu.RLock()
 	defer i.mu.RUnlock()
 	for _, profile := range i.profiles {
@@ -179,6 +213,7 @@ func (i *Inventory) Resolve(ctx context.Context, id string) (contracts.HostProfi
 
 // Conflicts returns the last merge conflicts.
 func (i *Inventory) Conflicts() []contracts.HostConflict {
+	i.enforceIdleLock()
 	i.mu.RLock()
 	defer i.mu.RUnlock()
 	return append([]contracts.HostConflict(nil), i.conflicts...)
@@ -186,6 +221,7 @@ func (i *Inventory) Conflicts() []contracts.HostConflict {
 
 // VaultStatus reports KeePass lock/provider state without secrets.
 func (i *Inventory) VaultStatus() contracts.VaultStatusResult {
+	i.enforceIdleLock()
 	i.mu.RLock()
 	defer i.mu.RUnlock()
 	return i.vault
@@ -194,6 +230,7 @@ func (i *Inventory) VaultStatus() contracts.VaultStatusResult {
 // Import reloads the requested source. Path is optional for ssh_config and
 // KDBX; when empty the configured path is reused.
 func (i *Inventory) Import(ctx context.Context, source string, path string) (contracts.HostsImportResult, error) {
+	i.enforceIdleLock()
 	i.mu.Lock()
 	defer i.mu.Unlock()
 	switch source {

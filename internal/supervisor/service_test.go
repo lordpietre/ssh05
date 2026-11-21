@@ -202,6 +202,17 @@ func TestServiceInventoryKeePassImport(t *testing.T) {
 		t.Fatalf("vault status = %+v", status)
 	}
 
+	unlocked, err := ipc.CallTyped[contracts.VaultUnlockParams, contracts.VaultStatusResult](
+		ctx, client, contracts.MethodVaultUnlock,
+		contracts.VaultUnlockParams{Provider: "keepassxc", Reason: "test"},
+	)
+	if err != nil {
+		t.Fatalf("vault.unlockRequest: %v", err)
+	}
+	if unlocked.Locked || unlocked.Profiles != 3 {
+		t.Fatalf("unlocked = %+v", unlocked)
+	}
+
 	plan, err := ipc.CallTyped[contracts.RoutesPlanParams, contracts.RoutesPlanResult](
 		ctx, client, contracts.MethodRoutesPlan, contracts.RoutesPlanParams{HostProfileID: "lab-arm64"},
 	)
