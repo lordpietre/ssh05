@@ -35,13 +35,20 @@ import type {
 } from "../../../contracts/ts/index.ts"
 import { loadKeybindings, matchesAction } from "./config/keybindings.ts"
 import { exportDiagnostics } from "./diagnostics/export.ts"
+import {
+  loadPreferences,
+  nextPanelWidth,
+  savePreferences,
+  type Preferences,
+} from "./preferences/store.ts"
 import { normalizeHex } from "./theme/color.ts"
 import { IpcClient } from "./ipc/client.ts"
 import { InMemoryTabStore } from "./tabs/store.ts"
 import { phaseIcon, phaseLabel, renderTabBar, renderTabBarStyled } from "./tabs/tabbar.ts"
 import { listWorkspaceNames, loadWorkspace, safeWorkspaceName, saveWorkspace } from "./workspaces/store.ts"
 
-const HOST_PANEL_WIDTH = 30
+let preferences: Preferences = loadPreferences()
+let hostPanelWidth = preferences.hostPanelWidth
 const MAX_SESSIONS = 16
 const MAX_PENDING_BYTES = 1 << 20
 
@@ -111,7 +118,7 @@ const body = new BoxRenderable(renderer, {
 
 const hostPanel = new BoxRenderable(renderer, {
   id: "hosts",
-  width: HOST_PANEL_WIDTH,
+  width: hostPanelWidth,
   height: "100%",
   flexDirection: "column",
   backgroundColor: RGBA.fromInts(22, 25, 33),
@@ -179,6 +186,8 @@ root.add(tabBar)
 root.add(body)
 root.add(status)
 renderer.root.add(root)
+applyTabPosition()
+hostPanel.width = hostPanelWidth
 renderer.start()
 
 const workspaceOverlay = new TextRenderable(renderer, {
@@ -277,6 +286,22 @@ const diagOverlay = new TextRenderable(renderer, {
 
 renderer.root.add(diagOverlay)
 
+const prefsOverlay = new TextRenderable(renderer, {
+  id: "prefs-overlay",
+  position: "absolute",
+  top: 0,
+  left: 0,
+  width: "100%",
+  height: "100%",
+  visible: false,
+  zIndex: 106,
+  content: "",
+  fg: RGBA.fromInts(219, 226, 238),
+  bg: RGBA.fromInts(16, 19, 26),
+})
+
+renderer.root.add(prefsOverlay)
+
 const pendingPlaceholder = new TextRenderable(renderer, {
   id: "pending-view",
   position: "absolute",
@@ -329,6 +354,7 @@ let paletteVisible = false
 let paletteCursor = 0
 let closeDialogVisible = false
 let closeDialogCursor = 0
+let preferencesVisible = false
 let diagVisible = false
 let diagContent = ""
 let labelsEditing = false
@@ -359,6 +385,7 @@ const paletteCommands = [
   "Probar ruta del host",
   "Diagnosticar host",
   "Exportar diagnóstico saneado",
+  "Preferencias",
   "FRP",
   "Salir de TRSS",
 ]
@@ -424,7 +451,11 @@ function renderHosts(): void {
     return
   }
 
-  const rows = Math.max(1, Math.floor(hostList.height) || Math.max(1, renderer.height - 7))
+  const rowHeight = preferences.density === "comfortable" ? 2 : 1
+  const rows = Math.max(
+    1,
+    Math.floor((hostList.height || Math.max(1, renderer.height - 7)) / rowHeight),
+  )
   if (all.length === 0) {
     hostList.content = `\n Sin resultados para “${query}”`
     return
@@ -443,7 +474,8 @@ function renderHosts(): void {
     const favorite = host.favorite ? "★" : " "
     const group = host.labels && host.labels.length > 0 ? ` (${host.labels[0]})` : ""
     const label = `${favorite}${host.alias}${group}`
-    lines.push(`${index === cursor ? ">" : " "} ${state} ${truncate(label, HOST_PANEL_WIDTH - 4)}`)
+    lines.push(`${index === cursor ? ">" : " "} ${state} ${truncate(label, hostPanelWidth - 4)}`)
+    if (preferences.density === "comfortable") lines.push("")
   }
   hostList.content = lines.join("\n")
 }
@@ -498,6 +530,7 @@ function uiDirty(): void {
   renderFRP()
   renderLabelsEditor()
   renderDiagnostics()
+  renderPreferences()
   renderer.requestRender()
 }
 
@@ -631,9 +664,12 @@ function executePalette(index: number): void {
       void exportDiagnosticsReport()
       break
     case 8:
-      void openFRP()
+      preferencesVisible = true
       break
     case 9:
+      void openFRP()
+      break
+    case 10:
       void quit()
       break
   }
@@ -847,7 +883,7 @@ function createTerminalView(
   phase: SessionPhase = "connected",
   route = "SSH directo",
 ): SessionView {
-  const cols = Math.max(20, Math.floor(terminalArea.width) || renderer.width - HOST_PANEL_WIDTH)
+  const cols = Math.max(20, Math.floor(terminalArea.width) || renderer.width - hostPanelWidth)
   const rows = Math.max(5, renderer.height - 2)
   const terminal = new EmbeddedTerminalRenderable(renderer, {
     id: `terminal-${sessionId}`,
@@ -1165,6 +1201,11 @@ function handleHostKey(key: KeyEvent): void {
 
 renderer.keyInput.on("keypress", (key) => {
   const name = key.name.toLowerCase()
+  if (preferencesVisible) {
+    key.stopPropagation()
+    handlePreferencesKey(key)
+    return
+  }
   if (diagVisible) {
     key.stopPropagation()
     if (name === "escape" || name === "return" || name === "enter") diagVisible = false
@@ -1505,6 +1546,73 @@ function handleWorkspaceKey(key: KeyEvent): void {
   uiDirty()
 }
 
+
+function renderPreferences(): void {
+  if (!preferencesVisible) {
+    prefsOverlay.visible = false
+    return
+  }
+  prefsOverlay.visible = true
+  prefsOverlay.content = [
+    "",
+    "  Preferencias",
+    "",
+    `  w/←/→  ancho del panel: ${preferences.hostPanelWidth}`,
+    `  d      densidad: ${preferences.density}`,
+    `  t      posición de pestañas: ${preferences.tabPosition}`,
+    "",
+    "  Esc/Enter cerrar",
+  ].join("\n")
+}
+
+function applyTabPosition(): void {
+  root.remove(tabBar)
+  root.add(tabBar, preferences.tabPosition === "bottom" ? 1 : 0)
+  renderer.requestRender()
+}
+
+function persistPreferences(): void {
+  try {
+    savePreferences(preferences)
+  } catch (error) {
+    transientText = `Preferencias: ${String(error)}`
+  }
+}
+
+function resizeTerminals(): void {
+  const cols = Math.max(20, renderer.width - hostPanelWidth)
+  const rows = Math.max(5, renderer.height - 2)
+  for (const view of sessions.values()) {
+    scheduleResize(view.sessionId, cols, view.terminal.height || rows)
+  }
+}
+
+function handlePreferencesKey(key: KeyEvent): void {
+  const name = key.name.toLowerCase()
+  if (name === "escape" || name === "return" || name === "enter") {
+    preferencesVisible = false
+  } else if (name === "w" || name === "right") {
+    preferences.hostPanelWidth = nextPanelWidth(preferences.hostPanelWidth, 1)
+    hostPanelWidth = preferences.hostPanelWidth
+    hostPanel.width = hostPanelWidth
+    persistPreferences()
+    resizeTerminals()
+  } else if (name === "left") {
+    preferences.hostPanelWidth = nextPanelWidth(preferences.hostPanelWidth, -1)
+    hostPanelWidth = preferences.hostPanelWidth
+    hostPanel.width = hostPanelWidth
+    persistPreferences()
+    resizeTerminals()
+  } else if (name === "d") {
+    preferences.density = preferences.density === "compact" ? "comfortable" : "compact"
+    persistPreferences()
+  } else if (name === "t") {
+    preferences.tabPosition = preferences.tabPosition === "top" ? "bottom" : "top"
+    applyTabPosition()
+    persistPreferences()
+  }
+  uiDirty()
+}
 
 function renderDiagnostics(): void {
   if (!diagVisible) {

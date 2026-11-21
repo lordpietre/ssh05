@@ -56,6 +56,12 @@ Los binarios FRP se obtienen con `make download-frp`.
 | SEG-04 | Cumplido | `internal/audit` rota y sanea sin secretos; retención con `--audit-max-files` |
 | SEG-05 | Cumplido | Fuzz de framing, pruebas de inyección, host key estricta y reconexión adversarial |
 
+## Extra posterior: preferencias de UI
+
+`~/.config/trss/preferences.json` (`TRSS_PREFERENCES`) guarda ancho del panel,
+densidad y posición de pestañas. La paleta abre «Preferencias»; los cambios se
+aplican y persisten con permisos `0600`.
+
 ## Extra posterior: DIA-01 (P2 adelantado)
 
 `diagnostics.host` resuelve DNS, mide el puerto TCP, clasifica el resultado

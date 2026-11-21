@@ -96,7 +96,7 @@ done
 
 "$TMUX" kill-session -t "$SESSION" 2>/dev/null || true
 "$TMUX" new-session -d -s "$SESSION" -x 120 -y 36 \
-  "cd $(printf '%q' "$HERE") && TERM=xterm-256color TRSS_SOCKET=$(printf '%q' "$SOCKET") TRSS_WORKSPACE=$(printf '%q' "$SOCKET_DIR/workspace.json") TRSS_UI_DEBUG=$(printf '%q' "$LOG") $(printf '%q' "$BUN") run src/trss.ts"
+  "cd $(printf '%q' "$HERE") && TERM=xterm-256color TRSS_PREFERENCES=$(printf '%q' "$SOCKET_DIR/preferences.json") TRSS_SOCKET=$(printf '%q' "$SOCKET") TRSS_WORKSPACE=$(printf '%q' "$SOCKET_DIR/workspace.json") TRSS_UI_DEBUG=$(printf '%q' "$LOG") $(printf '%q' "$BUN") run src/trss.ts"
 
 assert_contains "Hosts (3)" "UI loads the real host inventory"
 send F2
@@ -110,6 +110,7 @@ assert_contains "Comandos" "command palette opens"
 assert_contains "Probar ruta" "route probe command listed"
 assert_contains "Exportar diagnóstico saneado" "diagnostics export command listed"
 assert_contains "Diagnosticar host" "host diagnostics command listed"
+assert_contains "Preferencias" "preferences command listed"
 send Escape
 sleep 0.3
 send C-f
@@ -204,7 +205,7 @@ fi
 
 # Reopen the UI with the same workspace file and verify pending views.
 "$TMUX" new-session -d -s "$SESSION" -x 120 -y 36 \
-  "cd $(printf '%q' "$HERE") && TERM=xterm-256color TRSS_SOCKET=$(printf '%q' "$SOCKET") TRSS_WORKSPACE=$(printf '%q' "$SOCKET_DIR/workspace.json") TRSS_UI_DEBUG=$(printf '%q' "$LOG") $(printf '%q' "$BUN") run src/trss.ts"
+  "cd $(printf '%q' "$HERE") && TERM=xterm-256color TRSS_PREFERENCES=$(printf '%q' "$SOCKET_DIR/preferences.json") TRSS_SOCKET=$(printf '%q' "$SOCKET") TRSS_WORKSPACE=$(printf '%q' "$SOCKET_DIR/workspace.json") TRSS_UI_DEBUG=$(printf '%q' "$LOG") $(printf '%q' "$BUN") run src/trss.ts"
 assert_contains "Pendiente" "workspace restores pending tabs, not fake live sessions"
 assert_contains "trss-ui-1" "restored tabs keep their host alias"
 send Enter
@@ -224,7 +225,7 @@ fi
 # Real 10-tab overflow check with a clean workspace.
 rm -f "$SOCKET_DIR/workspace10.json"
 "$TMUX" new-session -d -s "$SESSION" -x 120 -y 36 \
-  "cd $(printf '%q' "$HERE") && TERM=xterm-256color TRSS_SOCKET=$(printf '%q' "$SOCKET") TRSS_WORKSPACE=$(printf '%q' "$SOCKET_DIR/workspace10.json") TRSS_UI_DEBUG=$(printf '%q' "$LOG") $(printf '%q' "$BUN") run src/trss.ts"
+  "cd $(printf '%q' "$HERE") && TERM=xterm-256color TRSS_PREFERENCES=$(printf '%q' "$SOCKET_DIR/preferences.json") TRSS_SOCKET=$(printf '%q' "$SOCKET") TRSS_WORKSPACE=$(printf '%q' "$SOCKET_DIR/workspace10.json") TRSS_UI_DEBUG=$(printf '%q' "$LOG") $(printf '%q' "$BUN") run src/trss.ts"
 assert_contains "Hosts (3)" "10-tab UI loaded"
 sleep 0.5
 for index in $(seq 1 10); do
@@ -255,7 +256,7 @@ fi
 # Abrupt UI crash: trssd keeps the sessions; a restarted UI must attach them.
 rm -f "$SOCKET_DIR/workspace-crash.json"
 "$TMUX" new-session -d -s "$SESSION" -x 120 -y 36 \
-  "cd $(printf '%q' "$HERE") && TERM=xterm-256color TRSS_SOCKET=$(printf '%q' "$SOCKET") TRSS_WORKSPACE=$(printf '%q' "$SOCKET_DIR/workspace-crash.json") TRSS_UI_DEBUG=$(printf '%q' "$LOG") $(printf '%q' "$BUN") run src/trss.ts"
+  "cd $(printf '%q' "$HERE") && TERM=xterm-256color TRSS_PREFERENCES=$(printf '%q' "$SOCKET_DIR/preferences.json") TRSS_SOCKET=$(printf '%q' "$SOCKET") TRSS_WORKSPACE=$(printf '%q' "$SOCKET_DIR/workspace-crash.json") TRSS_UI_DEBUG=$(printf '%q' "$LOG") $(printf '%q' "$BUN") run src/trss.ts"
 assert_contains "Hosts (3)" "crash UI loaded"
 send C-t Enter
 assert_contains "[1 " "crash tab 1 opened"
@@ -269,7 +270,7 @@ sleep 0.5
 sleep 0.5
 
 "$TMUX" new-session -d -s "$SESSION" -x 120 -y 36 \
-  "cd $(printf '%q' "$HERE") && TERM=xterm-256color TRSS_SOCKET=$(printf '%q' "$SOCKET") TRSS_WORKSPACE=$(printf '%q' "$SOCKET_DIR/workspace-crash.json") TRSS_UI_DEBUG=$(printf '%q' "$LOG") $(printf '%q' "$BUN") run src/trss.ts"
+  "cd $(printf '%q' "$HERE") && TERM=xterm-256color TRSS_PREFERENCES=$(printf '%q' "$SOCKET_DIR/preferences.json") TRSS_SOCKET=$(printf '%q' "$SOCKET") TRSS_WORKSPACE=$(printf '%q' "$SOCKET_DIR/workspace-crash.json") TRSS_UI_DEBUG=$(printf '%q' "$LOG") $(printf '%q' "$BUN") run src/trss.ts"
 assert_contains "Ctrl+Tab cambiar" "restarted UI attaches live supervisor sessions"
 assert_not_contains "Pendiente" "live sessions are not shown as pending"
 send 'echo LIVE_REATTACH_OK' Enter
@@ -289,7 +290,7 @@ fi
 # Multiple named workspaces with live-session reuse.
 rm -rf "$SOCKET_DIR/workspaces"
 "$TMUX" new-session -d -s "$SESSION" -x 120 -y 36 \
-  "cd $(printf '%q' "$HERE") && TERM=xterm-256color TRSS_SOCKET=$(printf '%q' "$SOCKET") TRSS_WORKSPACE_DIR=$(printf '%q' "$SOCKET_DIR/workspaces") TRSS_UI_DEBUG=$(printf '%q' "$LOG") $(printf '%q' "$BUN") run src/trss.ts"
+  "cd $(printf '%q' "$HERE") && TERM=xterm-256color TRSS_PREFERENCES=$(printf '%q' "$SOCKET_DIR/preferences.json") TRSS_SOCKET=$(printf '%q' "$SOCKET") TRSS_WORKSPACE_DIR=$(printf '%q' "$SOCKET_DIR/workspaces") TRSS_UI_DEBUG=$(printf '%q' "$LOG") $(printf '%q' "$BUN") run src/trss.ts"
 assert_contains "Hosts (3)" "workspace UI loaded"
 send Enter
 assert_contains "[1 ● trss-ui-1]" "default workspace tab opened"

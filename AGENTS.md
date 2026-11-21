@@ -75,6 +75,8 @@ make install                   # copies ./bin/tssh to /usr/bin/tssh
   `~/.config/trss/hosts.json` (`TRSS_HOST_OVERRIDES`).
   Atajos configurables (incl. `favorite`, `color`, `labels`) en
   `~/.config/trss/keybindings.json`.
+  Preferencias de ancho/densidad/pestañas en `~/.config/trss/preferences.json`
+  (`TRSS_PREFERENCES`); se editan desde la paleta.
   - Barra de pestañas con overflow (`‹N`/`N›`) y activa siempre visible.
   - Tras caer la UI, `sessions.list`/`sessions.attach` recuperan sesiones vivas.
   - Workspace en `~/.config/trss/workspace.json` (`TRSS_WORKSPACE` override).
