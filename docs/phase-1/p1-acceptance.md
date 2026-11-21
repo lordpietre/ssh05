@@ -40,7 +40,7 @@ Los binarios FRP se obtienen con `make download-frp`.
 | FRP-02 | Cumplido | Crear/editar (`frp.proxies.apply`), validar (`frpc verify`) y eliminar (`frp.proxies.remove`) en 4 tipos |
 | FRP-03 | Cumplido | Tokens con `crypto/rand`; error en vez de fallback estático |
 | FRP-04 | Cumplido | AES-GCM en reposo; `frp.key` 0600; configs y logs 0600; directorios 0700 |
-| FRP-05 | Cumplido | Estado, destino, puerto, tipo y errores en UI/IPC; sin estadísticas extra si no hay admin API |
+| FRP-05 | Cumplido | Estado, destino, puerto, tipo, PID, uptime y errores en UI/IPC; sin estadísticas extra si no hay admin API |
 | FRP-06 | Cumplido | Rotación reinicia primero el `frps` gestionado; endpoint remoto se rechaza para no exponer el token |
 | FRP-07 | Cumplido | `--frpc-sha256` y `--frps-sha256` antes de arrancar; `frpc verify`/`frps verify` antes de usar |
 | FRP-08 | Cumplido | El túnel vive en `internal/frp`, no en la sesión; prueba de cierre de pestaña con proxy online |
@@ -51,7 +51,7 @@ Los binarios FRP se obtienen con `make download-frp`.
 | UI-03 | Cumplido | Icono + texto de estado; el color nunca decide el significado |
 | UI-04 | Cumplido | Búsqueda de hosts, paleta `Ctrl+K` y atajos en `keybindings.json` |
 | OPS-01 | Cumplido | Workspaces, pestañas y tmux en `~/.config/trss/workspace.json` |
-| OPS-02 | Cumplido | Sesiones y túneles separados; `frpc`/`frps` en grupo de proceso y `Close` sin huérfanos |
+| OPS-02 | Cumplido | Sesiones y túneles separados; grupo de proceso, `Pdeathsig` en Linux y `Close` sin huérfanos |
 | SEG-03 | Cumplido | Socket 0700/0600, credenciales de par, operaciones tipadas IPC |
 | SEG-04 | Cumplido | `internal/audit` rota y sanea acciones sin secretos |
 | SEG-05 | Cumplido | Fuzz de framing, pruebas de inyección, host key estricta y reconexión adversarial |

@@ -140,6 +140,8 @@ type FrpEndpoint struct {
 	Port           int      `json:"port"`
 	Managed        bool     `json:"managed"`
 	State          FrpState `json:"state,omitempty"`
+	PID            int      `json:"pid,omitempty"`
+	UptimeSeconds  int64    `json:"uptimeSeconds,omitempty"`
 	LastErrorCode  string   `json:"lastErrorCode,omitempty"`
 	LastErrorLabel string   `json:"lastErrorLabel,omitempty"`
 }
@@ -156,6 +158,8 @@ type FrpProxy struct {
 	BindPort       int                  `json:"bindPort,omitempty"`
 	Exposure       string               `json:"exposure"` // "private" or "public"
 	State          FrpState             `json:"state"`
+	PID            int                  `json:"pid,omitempty"`
+	UptimeSeconds  int64                `json:"uptimeSeconds,omitempty"`
 	CredentialRef  *CredentialReference `json:"credentialRef,omitempty"`
 	LastErrorCode  string               `json:"lastErrorCode,omitempty"`
 	LastErrorLabel string               `json:"lastErrorLabel,omitempty"`

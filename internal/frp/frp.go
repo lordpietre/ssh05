@@ -88,6 +88,7 @@ type Manager struct {
 	proxies   []*proxy
 	procs     map[string]*exec.Cmd
 	servers   map[string]*exec.Cmd
+	started   map[string]time.Time
 	next      int
 }
 
@@ -125,6 +126,7 @@ func NewManager(options Options) (*Manager, error) {
 	m := &Manager{
 		opts: options, key: key,
 		procs: make(map[string]*exec.Cmd), servers: make(map[string]*exec.Cmd),
+		started: make(map[string]time.Time),
 	}
 	if err := m.load(); err != nil {
 		return nil, err
@@ -443,16 +445,35 @@ func (m *Manager) List() contracts.FrpInstancesListResult {
 		Proxies:   []contracts.FrpProxy{},
 	}
 	for _, endpoint := range m.endpoints {
+		pid, uptime := m.statsLocked("server", endpoint.ID, m.servers[endpoint.ID])
 		result.Endpoints = append(result.Endpoints, contracts.FrpEndpoint{
 			ID: endpoint.ID, Role: endpoint.Role, Address: endpoint.Address,
 			Port: endpoint.Port, Managed: endpoint.Managed, State: endpoint.State,
+			PID: pid, UptimeSeconds: uptime,
 			LastErrorCode: endpoint.LastErrorCode, LastErrorLabel: endpoint.LastErrorLabel,
 		})
 	}
 	for _, proxy := range m.proxies {
-		result.Proxies = append(result.Proxies, toContract(proxy))
+		item := toContract(proxy)
+		item.PID, item.UptimeSeconds = m.statsLocked("proxy", proxy.ID, m.procs[proxy.ID])
+		result.Proxies = append(result.Proxies, item)
 	}
 	return result
+}
+
+func (m *Manager) statsLocked(kind, id string, cmd *exec.Cmd) (int, int64) {
+	if cmd == nil || cmd.Process == nil {
+		return 0, 0
+	}
+	started, ok := m.started[kind+":"+id]
+	if !ok {
+		return cmd.Process.Pid, 0
+	}
+	seconds := int64(time.Since(started).Seconds())
+	if seconds < 0 {
+		seconds = 0
+	}
+	return cmd.Process.Pid, seconds
 }
 
 func toContract(proxy *proxy) contracts.FrpProxy {
@@ -608,6 +629,7 @@ func (m *Manager) startLocked(ctx context.Context, proxy *proxy, endpoint *endpo
 		return err
 	}
 	m.procs[proxy.ID] = cmd
+	m.started["proxy:"+proxy.ID] = time.Now()
 	go m.wait(proxy.ID, cmd)
 	return nil
 }
@@ -620,6 +642,7 @@ func (m *Manager) wait(id string, cmd *exec.Cmd) {
 		return
 	}
 	delete(m.procs, id)
+	delete(m.started, "proxy:"+id)
 	proxy := m.findProxyLocked(id)
 	if proxy != nil && proxy.State == contracts.FrpOnline {
 		proxy.State = contracts.FrpError
@@ -672,6 +695,7 @@ func (m *Manager) stopLocked(id string) {
 	if cmd := m.procs[id]; cmd != nil {
 		killProcess(cmd)
 		delete(m.procs, id)
+		delete(m.started, "proxy:"+id)
 	}
 }
 
@@ -805,6 +829,7 @@ func (m *Manager) startEndpointLocked(ctx context.Context, ep *endpoint) error {
 		return err
 	}
 	m.servers[ep.ID] = cmd
+	m.started["server:"+ep.ID] = time.Now()
 	go m.waitServer(ep.ID, cmd)
 	ep.State = contracts.FrpOnline
 	ep.LastErrorCode = ""
@@ -820,6 +845,7 @@ func (m *Manager) waitServer(id string, cmd *exec.Cmd) {
 		return
 	}
 	delete(m.servers, id)
+	delete(m.started, "server:"+id)
 	ep := m.findEndpointLocked(id)
 	if ep != nil && ep.State == contracts.FrpOnline {
 		ep.State = contracts.FrpError
@@ -861,6 +887,7 @@ func (m *Manager) stopServerLocked(id string) {
 	if cmd := m.servers[id]; cmd != nil {
 		killProcess(cmd)
 		delete(m.servers, id)
+		delete(m.started, "server:"+id)
 	}
 }
 

@@ -271,16 +271,23 @@ func TestManagerManagesLocalFrpsLifecycle(t *testing.T) {
 	if applied.State != contracts.FrpOnline {
 		t.Fatalf("applied = %+v", applied)
 	}
+	list = manager.List()
+	if list.Endpoints[0].PID <= 0 || list.Proxies[0].PID <= 0 {
+		t.Fatalf("missing pids: %+v", list)
+	}
+	if list.Proxies[0].UptimeSeconds < 0 {
+		t.Fatalf("negative uptime: %+v", list.Proxies[0])
+	}
 
 	if err := manager.StopEndpoint(context.Background(), endpoint.ID); err != nil {
 		t.Fatalf("StopEndpoint: %v", err)
 	}
 	list = manager.List()
-	if list.Endpoints[0].State != contracts.FrpStopped {
+	if list.Endpoints[0].State != contracts.FrpStopped || list.Endpoints[0].PID != 0 {
 		t.Fatalf("endpoint after stop = %+v", list.Endpoints[0])
 	}
 	for _, proxy := range list.Proxies {
-		if proxy.State != contracts.FrpStopped {
+		if proxy.State != contracts.FrpStopped || proxy.PID != 0 {
 			t.Fatalf("dependent proxy = %+v", proxy)
 		}
 	}
@@ -305,5 +312,16 @@ func TestManagerRemoveDeletesDefinitionAndFiles(t *testing.T) {
 	}
 	if err := manager.Remove(context.Background(), applied.ID); err == nil {
 		t.Fatal("removing twice must fail")
+	}
+}
+
+func TestConfigureProcessSetsDeathSignalOnLinux(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		t.Skip("Pdeathsig is linux-specific")
+	}
+	cmd := exec.Command("true")
+	configureProcess(cmd)
+	if cmd.SysProcAttr == nil || !cmd.SysProcAttr.Setpgid || cmd.SysProcAttr.Pdeathsig != syscall.SIGKILL {
+		t.Fatalf("SysProcAttr = %+v", cmd.SysProcAttr)
 	}
 }

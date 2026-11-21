@@ -1329,7 +1329,10 @@ function renderFRP(): void {
   for (const endpoint of frpEndpoints) {
     const kind = endpoint.managed ? "local" : "remoto"
     const state = endpoint.state ?? "stopped"
-    lines.push(`   ${state} ${kind} ${endpoint.address}:${endpoint.port}`)
+    const stats = endpoint.pid
+      ? ` pid=${endpoint.pid} up=${endpoint.uptimeSeconds ?? 0}s`
+      : ""
+    lines.push(`   ${state} ${kind} ${endpoint.address}:${endpoint.port}${stats}`)
   }
   lines.push("", "  FRP · proxies", "")
   if (frpProxies.length === 0) lines.push("  Sin proxies configurados")
@@ -1342,8 +1345,9 @@ function renderFRP(): void {
           ? `visitor 127.0.0.1:${proxy.bindPort}`
           : `stcp ${proxy.servicePort}`
         : `${proxy.servicePort} → ${proxy.remotePort}`
+    const stats = proxy.pid ? ` pid=${proxy.pid} up=${proxy.uptimeSeconds ?? 0}s` : ""
     const error = proxy.lastErrorLabel ? ` · ${proxy.lastErrorLabel}` : ""
-    lines.push(`  ${marker} ${proxy.state} ${proxy.name} [${proxy.type}] ${target}${error}`)
+    lines.push(`  ${marker} ${proxy.state} ${proxy.name} [${proxy.type}] ${target}${stats}${error}`)
   }
   lines.push("", "  n nuevo · d parar · x eliminar · s iniciar/parar frps · r rotar token · Esc cerrar")
   frpOverlay.content = lines.join("\n")

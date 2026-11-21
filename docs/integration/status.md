@@ -45,10 +45,11 @@
 | FRP supervisor local | **Hecho** | `internal/frp`, endpoints/proxies, procesos |
 | FRP-01 frps local gestionado | **Hecho** | `--frps-listen`, `frp.servers.start/stop` |
 | FRP-02 crear/editar/validar/eliminar | **Hecho** | `frp.proxies.apply/remove` + `verify` |
+| FRP-05 estado, PID y uptime | **Hecho** | `pid`/`uptimeSeconds` en IPC y UI |
 | FRP-06 rotación coordinada de token | **Hecho** | reinicia frps gestionado; rechaza remoto |
 | FRP-08 cierre de pestaña no corta el túnel | **Hecho** | prueba de sesión + proxy online |
 | FRP tokens cifrados, rotación y tipos | **Hecho** | AES-GCM, `frp.tokens.rotate`, 4 tipos |
-| FRP hash de binario y sin huérfanos | **Hecho** | `--frpc-sha256`, grupos de proceso |
+| FRP hash de binario y sin huérfanos | **Hecho** | `--frpc-sha256`, grupos de proceso, `Pdeathsig` |
 | FRP UI (listar/crear/parar/eliminar/rotar) | **Hecho** | `Ctrl+F` |
 | Ruta FRP por visitor | **Hecho** | `RouteForHost` + `RouteID` |
 | RUT-02/RUT-03 sondeo y ruta visible | **Hecho** | `routes.probe`; timeout ≠ cerrado; paleta |

@@ -213,6 +213,8 @@ export interface FrpEndpoint {
   port: number
   managed: boolean
   state?: FrpState
+  pid?: number
+  uptimeSeconds?: number
   lastErrorCode?: string
   lastErrorLabel?: string
 }
@@ -228,6 +230,8 @@ export interface FrpProxy {
   bindPort?: number
   exposure: "private" | "public"
   state: FrpState
+  pid?: number
+  uptimeSeconds?: number
   credentialRef?: CredentialReference
   lastErrorCode?: string
   lastErrorLabel?: string
