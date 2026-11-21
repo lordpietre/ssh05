@@ -33,6 +33,7 @@
 | Workspace persistente (pestañas + tmux) | **Hecho** | `src/workspaces/`, `~/.config/trss/workspace.json` |
 | Restauración como vistas pendientes | **Hecho** | Enter reconecta; nunca simula sesión viva |
 | Backend 100 MB con buffers acotados | **Hecho** | tests de `internal/supervisor` |
+| Barra de pestañas con overflow y activa visible | **Hecho** | `src/tabs/tabbar.ts` + tests |
 | `SessionBackend` y `TabStore` | Definidos | `contracts/session.go`, `contracts/ts/index.ts` |
 | Envelope IPC y métodos del Anexo B | Definidos | `contracts/ipc.go`, `contracts/ts/index.ts` |
 
@@ -41,7 +42,7 @@
 | Prioridad | Trabajo | Criterio de cierre |
 |---|---|---|
 | 1 | FRP H-04 restante: prueba real frpc/frps | Verificar binarios, tipos y túnel real |
-| 2 | Estrés UI: 10 pestañas y caída del renderer (100 MB ya cubierto en backend) | UIX-01/13, OPS-02 |
+| 2 | Estrés UI: caída del renderer (10 pestañas y 100 MB ya cubiertos) | OPS-02, UIX-13 |
 | 2 | Múltiples workspaces con nombre | OPS-01 |
 | 3 | Migrar secretos FRP a KDBX/OS keyring (ADR-04) | H-03 completo |
 | 3 | Inventario con provenance y conflictos | Importar `ssh_config` sin sobrescribir cambios locales |

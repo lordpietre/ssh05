@@ -23,7 +23,6 @@ import type {
   HostProfile,
   IpcEvent,
   SessionId,
-  SessionPhase,
   SessionStatus,
   TabId,
   TabRecord,
@@ -32,6 +31,7 @@ import type {
 } from "../../../contracts/ts/index.ts"
 import { IpcClient } from "./ipc/client.ts"
 import { InMemoryTabStore } from "./tabs/store.ts"
+import { phaseIcon, phaseLabel, renderTabBar } from "./tabs/tabbar.ts"
 import { loadWorkspace, saveWorkspace } from "./workspaces/store.ts"
 
 const HOST_PANEL_WIDTH = 30
@@ -202,59 +202,6 @@ let transientText = ""
 let restoringWorkspace = false
 let saveTimer: ReturnType<typeof setTimeout> | undefined
 
-function phaseIcon(phase: SessionPhase): string {
-  switch (phase) {
-    case "connecting":
-    case "resolving":
-    case "authenticating":
-      return "↻"
-    case "connected":
-      return "●"
-    case "degraded":
-    case "reconnecting":
-      return "!"
-    case "disconnected":
-    case "detached":
-      return "○"
-    case "failed":
-      return "!"
-    case "closing":
-    case "closed":
-      return "×"
-    default:
-      return "·"
-  }
-}
-
-function phaseLabel(phase: SessionPhase): string {
-  switch (phase) {
-    case "connecting":
-      return "conectando"
-    case "resolving":
-      return "resolviendo"
-    case "authenticating":
-      return "autenticando"
-    case "connected":
-      return "conectado"
-    case "degraded":
-      return "degradado"
-    case "reconnecting":
-      return "reconectando"
-    case "disconnected":
-      return "desconectado"
-    case "detached":
-      return "desacoplado"
-    case "failed":
-      return "error"
-    case "closing":
-      return "cerrando"
-    case "closed":
-      return "cerrado"
-    default:
-      return phase
-  }
-}
-
 function truncate(value: string, max: number): string {
   if (value.length <= max) return value
   return `${value.slice(0, Math.max(0, max - 1))}…`
@@ -330,17 +277,11 @@ function renderHosts(): void {
 }
 
 function renderTabs(): void {
-  const tabs = store.list()
-  if (tabs.length === 0) {
-    tabBar.content = " TRSS · supervisor   Ctrl+T hosts   F10 salir"
-    return
-  }
-  const active = store.active()
-  const rendered = tabs.map((tab, index) => {
-    const label = `${index + 1} ${phaseIcon(tab.phase)} ${truncate(tab.title, 18)}`
-    return tab.id === active?.id ? `[${label}]` : ` ${label} `
+  tabBar.content = renderTabBar({
+    tabs: store.list(),
+    activeId: store.active()?.id,
+    width: renderer.width,
   })
-  tabBar.content = ` TRSS · ${rendered.join(" ")}  [+]`
 }
 
 function renderStatus(): void {
