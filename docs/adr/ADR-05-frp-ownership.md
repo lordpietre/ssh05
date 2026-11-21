@@ -53,6 +53,13 @@ El **supervisor es el propietario por defecto** de `frpc`/`frps`:
 - Permisos de configs `0600`, directorios `0700`; token fuera de logs.
 - Rotación de token no presentada como atómica si no lo es.
 
+## Implementación actual
+
+`internal/frp` supervisa procesos `frpc` locales, persiste endpoints/proxies
+con tokens cifrados, permite aplicar/parar/rotar y expone la ruta visitor para
+SSH. Los endpoints `frps` son externos al supervisor; el arranque local de
+`frps` y la actualización verificada quedan en la fase siguiente.
+
 ## Evidencia
 
 - `tssh/frp_proxy.go` (`frpStartLocal`, `frpStopProcess`,

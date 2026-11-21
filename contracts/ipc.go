@@ -34,6 +34,7 @@ const (
 	MethodFrpInstancesList   Method = "frp.instances.list"
 	MethodFrpProxiesApply    Method = "frp.proxies.apply"
 	MethodFrpProxiesStop     Method = "frp.proxies.stop"
+	MethodFrpRotate          Method = "frp.tokens.rotate"
 	MethodVaultStatus        Method = "vault.status"
 	MethodVaultUnlock        Method = "vault.unlockRequest"
 	MethodWorkspacesSave     Method = "workspaces.save"
@@ -58,6 +59,7 @@ var validMethods = map[Method]struct{}{
 	MethodFrpInstancesList:   {},
 	MethodFrpProxiesApply:    {},
 	MethodFrpProxiesStop:     {},
+	MethodFrpRotate:          {},
 	MethodVaultStatus:        {},
 	MethodVaultUnlock:        {},
 	MethodWorkspacesSave:     {},
@@ -150,6 +152,7 @@ type HostsImportResult struct {
 type SessionsOpenParams struct {
 	HostProfileID string `json:"hostProfileId"`
 	RoutePolicyID string `json:"routePolicyId,omitempty"`
+	RouteID       string `json:"routeId,omitempty"`
 	TmuxSession   string `json:"tmuxSession,omitempty"`
 }
 
@@ -227,6 +230,10 @@ type FrpProxiesApplyResult struct {
 
 type FrpProxiesStopParams struct {
 	ProxyID string `json:"proxyId"`
+}
+
+type FrpRotateParams struct {
+	EndpointID string `json:"endpointId"`
 }
 
 // --- vault ---

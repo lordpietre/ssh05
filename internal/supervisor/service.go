@@ -3,11 +3,13 @@ package supervisor
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"strings"
 	"sync"
 
 	"github.com/trzsz/trzsz-ssh/contracts"
 	"github.com/trzsz/trzsz-ssh/internal/audit"
+	frpmanager "github.com/trzsz/trzsz-ssh/internal/frp"
 	"github.com/trzsz/trzsz-ssh/internal/ipc"
 )
 
@@ -30,6 +32,7 @@ type Service struct {
 	backend *Backend
 	hosts   HostProvider
 	audit   *audit.Logger
+	frp     *frpmanager.Manager
 }
 
 // ServiceOption configures optional service integrations.
@@ -38,6 +41,11 @@ type ServiceOption func(*Service)
 // WithAudit enables sanitized operational audit records.
 func WithAudit(logger *audit.Logger) ServiceOption {
 	return func(service *Service) { service.audit = logger }
+}
+
+// WithFRP enables the local FRP supervisor.
+func WithFRP(manager *frpmanager.Manager) ServiceOption {
+	return func(service *Service) { service.frp = manager }
 }
 
 // NewService creates the IPC handler for a supervisor backend.
@@ -81,7 +89,16 @@ func (s *Service) Handle(ctx context.Context, conn *ipc.Conn, req contracts.RPCR
 	case contracts.MethodRoutesConnect:
 		return s.connectRoute(ctx, conn, req)
 	case contracts.MethodFrpInstancesList:
-		return marshal(contracts.FrpInstancesListResult{})
+		if s.frp == nil {
+			return marshal(contracts.FrpInstancesListResult{})
+		}
+		return marshal(s.frp.List())
+	case contracts.MethodFrpProxiesApply:
+		return s.applyFRP(ctx, req)
+	case contracts.MethodFrpProxiesStop:
+		return s.stopFRP(ctx, req)
+	case contracts.MethodFrpRotate:
+		return s.rotateFRP(ctx, req)
 	case contracts.MethodVaultStatus:
 		status := contracts.VaultStatusResult{Provider: "none", Locked: true}
 		if inventory, ok := s.hosts.(HostInventory); ok {
@@ -178,7 +195,7 @@ func (s *Service) openSession(ctx context.Context, conn *ipc.Conn, req contracts
 	if rpcError != nil {
 		return nil, rpcError
 	}
-	destination := s.destinationFor(ctx, params.HostProfileID)
+	destination := s.destinationForRoute(ctx, params.HostProfileID, params.RouteID)
 	id, err := s.backend.Open(ctx, params.HostProfileID, params.RoutePolicyID, contracts.SessionOptions{
 		TmuxSession: params.TmuxSession,
 		Destination: destination,
@@ -190,6 +207,25 @@ func (s *Service) openSession(ctx context.Context, conn *ipc.Conn, req contracts
 	s.log(audit.Event{Action: "session.open", HostProfileID: params.HostProfileID, SessionID: string(id), Result: "ok"})
 	s.attach(conn, id)
 	return marshal(contracts.SessionsOpenResult{SessionID: id})
+}
+
+func (s *Service) destinationForRoute(ctx context.Context, hostProfileID, routeID string) string {
+	if strings.HasPrefix(routeID, "frp:") {
+		routes, _ := s.routeCandidates(ctx, hostProfileID)
+		for _, route := range routes {
+			if route.ID != routeID || len(route.Via) == 0 {
+				continue
+			}
+			user := ""
+			if inventory, ok := s.hosts.(HostInventory); ok {
+				if profile, found := inventory.Resolve(ctx, hostProfileID); found && profile.Target.Username != "" {
+					user = profile.Target.Username + "@"
+				}
+			}
+			return user + route.Via[0]
+		}
+	}
+	return s.destinationFor(ctx, hostProfileID)
 }
 
 func (s *Service) destinationFor(ctx context.Context, hostProfileID string) string {
@@ -320,6 +356,18 @@ func (s *Service) routeCandidates(ctx context.Context, hostProfileID string) ([]
 			reason = "ProxyJump via " + strings.Join(profile.ProxyJump, ", ")
 		}
 	}
+	if s.frp != nil {
+		if port, ok := s.frp.RouteForHost(hostProfileID); ok {
+			routes = append(routes, contracts.ConnectionRoute{
+				ID:            fmt.Sprintf("frp:%s:%d", hostProfileID, port),
+				Kind:          contracts.RouteFRP,
+				HostProfileID: hostProfileID,
+				Via:           []string{fmt.Sprintf("127.0.0.1:%d", port)},
+				Authorized:    true,
+			})
+			reason = fmt.Sprintf("FRP visitor en 127.0.0.1:%d", port)
+		}
+	}
 	return routes, reason
 }
 
@@ -342,13 +390,62 @@ func (s *Service) connectRoute(ctx context.Context, conn *ipc.Conn, req contract
 		}
 	}
 	id, err := s.backend.Open(ctx, params.HostProfileID, "", contracts.SessionOptions{
-		Destination: s.destinationFor(ctx, params.HostProfileID),
+		Destination: s.destinationForRoute(ctx, params.HostProfileID, params.RouteID),
 	})
 	if err != nil {
 		return nil, internalError(err)
 	}
 	s.attach(conn, id)
 	return marshal(contracts.SessionsOpenResult{SessionID: id})
+}
+
+func (s *Service) applyFRP(ctx context.Context, req contracts.RPCRequest) (json.RawMessage, *contracts.RPCError) {
+	if s.frp == nil {
+		return nil, notImplemented()
+	}
+	params, rpcError := decodeParams[contracts.FrpProxiesApplyParams](req)
+	if rpcError != nil {
+		return nil, rpcError
+	}
+	applied, err := s.frp.Apply(ctx, params.Proxy)
+	if err != nil {
+		s.log(audit.Event{Action: "frp.apply", Result: "error", ErrorCode: "internal", Detail: params.Proxy.Name})
+		return nil, internalError(err)
+	}
+	s.log(audit.Event{Action: "frp.apply", Result: "ok", Detail: applied.ID})
+	return marshal(contracts.FrpProxiesApplyResult{Proxy: applied})
+}
+
+func (s *Service) stopFRP(ctx context.Context, req contracts.RPCRequest) (json.RawMessage, *contracts.RPCError) {
+	if s.frp == nil {
+		return nil, notImplemented()
+	}
+	params, rpcError := decodeParams[contracts.FrpProxiesStopParams](req)
+	if rpcError != nil {
+		return nil, rpcError
+	}
+	if err := s.frp.Stop(ctx, params.ProxyID); err != nil {
+		s.log(audit.Event{Action: "frp.stop", Result: "error", ErrorCode: "internal", Detail: params.ProxyID})
+		return nil, internalError(err)
+	}
+	s.log(audit.Event{Action: "frp.stop", Result: "ok", Detail: params.ProxyID})
+	return json.RawMessage(`{}`), nil
+}
+
+func (s *Service) rotateFRP(ctx context.Context, req contracts.RPCRequest) (json.RawMessage, *contracts.RPCError) {
+	if s.frp == nil {
+		return nil, notImplemented()
+	}
+	params, rpcError := decodeParams[contracts.FrpRotateParams](req)
+	if rpcError != nil {
+		return nil, rpcError
+	}
+	if err := s.frp.RotateEndpoint(ctx, params.EndpointID); err != nil {
+		s.log(audit.Event{Action: "frp.rotate", Result: "error", ErrorCode: "internal", Detail: params.EndpointID})
+		return nil, internalError(err)
+	}
+	s.log(audit.Event{Action: "frp.rotate", Result: "ok", Detail: params.EndpointID})
+	return json.RawMessage(`{}`), nil
 }
 
 func (s *Service) log(event audit.Event) {

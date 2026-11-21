@@ -40,6 +40,10 @@
 | Múltiples workspaces con nombre y selector | **Hecho** | `Ctrl+P`, `--workspace`, `TRSS_WORKSPACE_DIR` |
 | Paleta de comandos | **Hecho** | `Ctrl+K` en la UI |
 | Rutas directas/ProxyJump con motivo | **Hecho** | `routes.plan` + `ProxyJump` + estado en UI |
+| FRP supervisor local | **Hecho** | `internal/frp`, endpoints/proxies, procesos |
+| FRP tokens cifrados, rotación y tipos | **Hecho** | AES-GCM, `frp.tokens.rotate`, 4 tipos |
+| FRP UI (listar/crear/parar/rotar) | **Hecho** | `Ctrl+F` |
+| Ruta FRP por visitor | **Hecho** | `RouteForHost` + `RouteID` |
 | Pruebas adversariales (framing, inyección, reconexión) | **Hecho** | fuzz tests + tests de inyección/reconnect |
 | Restauración como vistas pendientes | **Hecho** | Enter reconecta; nunca simula sesión viva |
 | Backend 100 MB con buffers acotados | **Hecho** | tests de `internal/supervisor` |
@@ -54,7 +58,7 @@
 
 | Prioridad | Trabajo | Criterio de cierre |
 |---|---|---|
-| 2 | FRP supervisor ownership y rotación | ADR-05, FRP-06/08 |
+| 2 | FRP frps local y actualización verificada | FRP-01/07 |
 | 3 | Config SSH por conexión | Eliminar serialización de `SshLogin` |
 | 3 | Resolver de rutas FRP | RUT-01/03 para FRP |
 | 3 | Paleta de comandos y colores | UI-02/UI-04 |

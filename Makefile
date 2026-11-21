@@ -81,7 +81,7 @@ clean:
 	$(RM) ${BIN_DIR}/tssh ${BIN_DIR}/tssh.exe ${BIN_DIR}/trssd ${BIN_DIR}/trssd.exe ${BIN_DIR}/frps ${BIN_DIR}/frpc 2>/dev/null; true
 
 test:
-	${GO_TEST} -v -count=1 ./tssh ./contracts ./internal/ipc ./internal/supervisor
+	${GO_TEST} -v -count=1 ./tssh ./contracts ./internal/ipc ./internal/supervisor ./internal/audit ./internal/frp
 
 trssd:
 	CGO_ENABLED=0 go build -o ${BIN_DIR}/ ./cmd/trssd
@@ -99,7 +99,7 @@ frp-smoke:
 	./scripts/frp-smoke.sh
 
 contracts-check:
-	CGO_ENABLED=0 ${GO_TEST} -count=1 ./contracts ./internal/ipc ./internal/supervisor
+	CGO_ENABLED=0 ${GO_TEST} -count=1 ./contracts ./internal/ipc ./internal/supervisor ./internal/audit ./internal/frp
 	cd prototype/terminal && $(BUN) run typecheck:contracts
 
 install: all

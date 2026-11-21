@@ -20,6 +20,7 @@ import { tmpdir } from "node:os"
 import { appendFileSync } from "node:fs"
 import { join } from "node:path"
 import type {
+  FrpProxy,
   HostProfile,
   IpcEvent,
   SessionId,
@@ -220,6 +221,22 @@ const closeOverlay = new TextRenderable(renderer, {
 
 renderer.root.add(closeOverlay)
 
+const frpOverlay = new TextRenderable(renderer, {
+  id: "frp-overlay",
+  position: "absolute",
+  top: 0,
+  left: 0,
+  width: "100%",
+  height: "100%",
+  visible: false,
+  zIndex: 103,
+  content: "",
+  fg: RGBA.fromInts(219, 226, 238),
+  bg: RGBA.fromInts(16, 19, 26),
+})
+
+renderer.root.add(frpOverlay)
+
 const pendingPlaceholder = new TextRenderable(renderer, {
   id: "pending-view",
   position: "absolute",
@@ -272,6 +289,18 @@ let paletteVisible = false
 let paletteCursor = 0
 let closeDialogVisible = false
 let closeDialogCursor = 0
+let frpVisible = false
+let frpCursor = 0
+let frpProxies: FrpProxy[] = []
+let frpEndpoints: { id: string }[] = []
+let frpForm: {
+  field: number
+  name: string
+  type: string
+  servicePort: string
+  remotePort: string
+  bindPort: string
+} | null = null
 
 const paletteCommands = [
   "Ir a hosts",
@@ -279,6 +308,7 @@ const paletteCommands = [
   "Alternar tmux",
   "Cerrar pestaña activa",
   "Cambiar workspace",
+  "FRP",
   "Salir de TRSS",
 ]
 
@@ -401,6 +431,7 @@ function uiDirty(): void {
   renderWorkspacePicker()
   renderPalette()
   renderCloseDialog()
+  renderFRP()
   renderer.requestRender()
 }
 
@@ -525,6 +556,9 @@ function executePalette(index: number): void {
       openWorkspacePicker()
       break
     case 5:
+      void openFRP()
+      break
+    case 6:
       void quit()
       break
   }
@@ -974,6 +1008,16 @@ renderer.keyInput.on("keypress", (key) => {
     handleCloseDialogKey(key)
     return
   }
+  if (frpVisible) {
+    key.stopPropagation()
+    void handleFRPKey(key)
+    return
+  }
+  if (key.ctrl && name === "f") {
+    key.stopPropagation()
+    void openFRP()
+    return
+  }
   if (paletteVisible) {
     key.stopPropagation()
     handlePaletteKey(key)
@@ -1188,6 +1232,187 @@ function handleWorkspaceKey(key: KeyEvent): void {
     }
   }
   uiDirty()
+}
+
+
+function renderFRP(): void {
+  if (!frpVisible) {
+    frpOverlay.visible = false
+    return
+  }
+  frpOverlay.visible = true
+  if (frpForm) {
+    const form = frpForm
+    const fields = [
+      `  Nombre: ${form.name}`,
+      `  Tipo: ${form.type}  (t/←/→)`,
+      `  Service port: ${form.servicePort}`,
+      `  Remote port: ${form.remotePort}`,
+      `  Bind port (visitor STCP/XTCP): ${form.bindPort}`,
+    ]
+    const lines = ["", "  Nuevo proxy FRP", ""]
+    fields.forEach((line, index) => lines.push(`  ${index === form.field ? ">" : " "}${line}`))
+    lines.push("", "  Tab/↑↓ campo · t tipo · Enter aplicar · Esc cancelar")
+    frpOverlay.content = lines.join("\n")
+    return
+  }
+  const lines = ["", "  FRP · proxies", ""]
+  if (frpProxies.length === 0) lines.push("  Sin proxies configurados")
+  for (let index = 0; index < frpProxies.length; index++) {
+    const proxy = frpProxies[index]
+    const marker = index === frpCursor ? ">" : " "
+    const target =
+      proxy.type === "stcp" || proxy.type === "xtcp"
+        ? proxy.bindPort
+          ? `visitor 127.0.0.1:${proxy.bindPort}`
+          : `stcp ${proxy.servicePort}`
+        : `${proxy.servicePort} → ${proxy.remotePort}`
+    lines.push(`  ${marker} ${proxy.state} ${proxy.name} [${proxy.type}] ${target}`)
+  }
+  lines.push("", "  n nuevo · d parar · r rotar token · Esc cerrar")
+  frpOverlay.content = lines.join("\n")
+}
+
+async function refreshFRP(): Promise<void> {
+  if (!client) return
+  try {
+    const result = await client.call("frp.instances.list", {}, { timeoutMs: 5000 })
+    frpProxies = result.proxies ?? []
+    frpEndpoints = (result.endpoints ?? []).map((endpoint) => ({ id: endpoint.id }))
+    frpCursor = Math.min(frpCursor, Math.max(0, frpProxies.length - 1))
+  } catch (error) {
+    transientText = `FRP: ${String(error)}`
+  }
+  uiDirty()
+}
+
+async function openFRP(): Promise<void> {
+  frpVisible = true
+  frpForm = null
+  await refreshFRP()
+}
+
+function closeFRP(): void {
+  frpVisible = false
+  frpForm = null
+  uiDirty()
+}
+
+function currentFormHost(): HostProfile | undefined {
+  const active = store.active()
+  if (active) {
+    const view = sessions.get(active.sessionId)
+    if (view) return view.host
+  }
+  return filteredHosts()[cursor]
+}
+
+async function applyFrpForm(): Promise<void> {
+  if (!client || !frpForm) return
+  const form = frpForm
+  const host = currentFormHost()
+  const proxy: FrpProxy = {
+    id: "",
+    name: form.name || `proxy-${form.servicePort || "0"}`,
+    type: form.type as FrpProxy["type"],
+    endpointId: frpEndpoints[0]?.id ?? "",
+    hostProfileId: host?.id,
+    servicePort: Number.parseInt(form.servicePort, 10) || 0,
+    remotePort: Number.parseInt(form.remotePort, 10) || 0,
+    bindPort: Number.parseInt(form.bindPort, 10) || 0,
+    exposure: form.type === "tcp" || form.type === "udp" ? "public" : "private",
+    state: "stopped",
+  }
+  try {
+    await client.call("frp.proxies.apply", { proxy }, { timeoutMs: 30_000 })
+    frpForm = null
+    await refreshFRP()
+    transientText = `FRP: ${proxy.name} aplicado`
+  } catch (error) {
+    transientText = `FRP apply: ${String(error)}`
+    uiDirty()
+  }
+}
+
+async function handleFRPKey(key: KeyEvent): Promise<void> {
+  const name = key.name.toLowerCase()
+  if (frpForm) {
+    const form = frpForm
+    if (name === "escape") {
+      frpForm = null
+    } else if (name === "tab" || name === "down") {
+      form.field = (form.field + 1) % 5
+    } else if (name === "up") {
+      form.field = (form.field + 4) % 5
+    } else if (name === "t" || name === "left" || name === "right") {
+      form.type = nextFRPFormType(form.type)
+    } else if (name === "backspace") {
+      if (form.field === 0) form.name = form.name.slice(0, -1)
+      else if (form.field === 2) form.servicePort = form.servicePort.slice(0, -1)
+      else if (form.field === 3) form.remotePort = form.remotePort.slice(0, -1)
+      else if (form.field === 4) form.bindPort = form.bindPort.slice(0, -1)
+    } else if (name === "return" || name === "enter") {
+      await applyFrpForm()
+      return
+    } else if (!key.ctrl && !key.meta && key.sequence) {
+      const chars = Array.from(key.sequence)
+      if (chars.length === 1 && chars[0] >= " ") {
+        if (form.field === 0) form.name += chars[0]
+        else if (form.field === 2) form.servicePort += chars[0]
+        else if (form.field === 3) form.remotePort += chars[0]
+        else if (form.field === 4) form.bindPort += chars[0]
+      }
+    }
+    uiDirty()
+    return
+  }
+
+  if (name === "escape") {
+    closeFRP()
+  } else if (name === "up") {
+    frpCursor = Math.max(0, frpCursor - 1)
+  } else if (name === "down") {
+    frpCursor = Math.min(Math.max(0, frpProxies.length - 1), frpCursor + 1)
+  } else if (name === "n") {
+    const host = currentFormHost()
+    frpForm = {
+      field: 0,
+      name: host ? `proxy-${host.alias}` : "proxy",
+      type: "tcp",
+      servicePort: host ? String(host.target.port) : "22",
+      remotePort: "",
+      bindPort: "",
+    }
+  } else if (name === "d" && frpProxies[frpCursor] && client) {
+    try {
+      await client.call("frp.proxies.stop", { proxyId: frpProxies[frpCursor].id }, { timeoutMs: 5000 })
+      await refreshFRP()
+    } catch (error) {
+      transientText = `FRP stop: ${String(error)}`
+    }
+  } else if (name === "r" && frpEndpoints[0] && client) {
+    try {
+      await client.call("frp.tokens.rotate", { endpointId: frpEndpoints[0].id }, { timeoutMs: 15_000 })
+      await refreshFRP()
+      transientText = "FRP: token rotado"
+    } catch (error) {
+      transientText = `FRP rotate: ${String(error)}`
+    }
+  }
+  uiDirty()
+}
+
+function nextFRPFormType(value: string): string {
+  switch (value) {
+    case "tcp":
+      return "udp"
+    case "udp":
+      return "stcp"
+    case "stcp":
+      return "xtcp"
+    default:
+      return "tcp"
+  }
 }
 
 async function start(): Promise<void> {

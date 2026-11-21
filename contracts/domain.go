@@ -146,8 +146,10 @@ type FrpProxy struct {
 	Name           string               `json:"name"`
 	Type           FrpProxyType         `json:"type"`
 	EndpointID     string               `json:"endpointId"`
+	HostProfileID  string               `json:"hostProfileId,omitempty"`
 	ServicePort    int                  `json:"servicePort"`
 	RemotePort     int                  `json:"remotePort"`
+	BindPort       int                  `json:"bindPort,omitempty"`
 	Exposure       string               `json:"exposure"` // "private" or "public"
 	State          FrpState             `json:"state"`
 	CredentialRef  *CredentialReference `json:"credentialRef,omitempty"`

@@ -218,8 +218,10 @@ export interface FrpProxy {
   name: string
   type: FrpProxyType
   endpointId: string
+  hostProfileId?: string
   servicePort: number
   remotePort: number
+  bindPort?: number
   exposure: "private" | "public"
   state: FrpState
   credentialRef?: CredentialReference
@@ -296,6 +298,7 @@ export interface HostsImportResult {
 export interface SessionsOpenParams {
   hostProfileId: string
   routePolicyId?: string
+  routeId?: string
   tmuxSession?: string
 }
 
@@ -378,6 +381,10 @@ export interface FrpProxiesStopParams {
   proxyId: string
 }
 
+export interface FrpRotateParams {
+  endpointId: string
+}
+
 export interface VaultStatusResult {
   provider: string
   locked: boolean
@@ -421,6 +428,7 @@ export interface MethodContracts {
   "frp.instances.list": { params: Record<string, never>; result: FrpInstancesListResult }
   "frp.proxies.apply": { params: FrpProxiesApplyParams; result: FrpProxiesApplyResult }
   "frp.proxies.stop": { params: FrpProxiesStopParams; result: void }
+  "frp.tokens.rotate": { params: FrpRotateParams; result: void }
   "vault.status": { params: Record<string, never>; result: VaultStatusResult }
   "vault.unlockRequest": { params: VaultUnlockParams; result: VaultStatusResult }
   "workspaces.save": { params: WorkspacesSaveParams; result: void }
@@ -449,6 +457,7 @@ export const IPC_METHODS = [
   "frp.instances.list",
   "frp.proxies.apply",
   "frp.proxies.stop",
+  "frp.tokens.rotate",
   "vault.status",
   "vault.unlockRequest",
   "workspaces.save",

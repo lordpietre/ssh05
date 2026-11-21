@@ -100,6 +100,15 @@ send C-k
 assert_contains "Comandos" "command palette opens"
 send Escape
 sleep 0.3
+send C-f
+assert_contains "FRP · proxies" "FRP panel opens"
+send n
+assert_contains "Nuevo proxy FRP" "FRP proxy form opens"
+send Escape
+sleep 0.2
+send Escape
+sleep 0.5
+assert_contains "Hosts (3)" "FRP panel closes"
 send Enter
 assert_contains "[1 ● trss-ui-1]" "tab 1 opens through trssd"
 assert_contains "x@x:" "SSH prompt is visible"

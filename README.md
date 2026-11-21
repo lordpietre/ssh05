@@ -125,6 +125,15 @@ KeePass opcional:
 En la UI, `Ctrl+I` recarga el inventario KeePass. Los hosts KDBX-only se
 resuelven a `usuario@host:puerto`; los de `ssh_config` conservan su alias.
 
+FRP local (frpc) contra un frps autorizado:
+
+```sh
+./bin/trssd --ssh-config ~/.ssh/config \
+  --frp-server frps.example.net --frp-port 7000
+```
+
+En la UI, `Ctrl+F` abre el panel FRP (listar, crear, parar, rotar token).
+
 Reconexión automática configurable:
 
 ```sh

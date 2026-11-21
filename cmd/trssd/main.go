@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/trzsz/trzsz-ssh/internal/audit"
+	frpmanager "github.com/trzsz/trzsz-ssh/internal/frp"
 	"github.com/trzsz/trzsz-ssh/internal/ipc"
 	"github.com/trzsz/trzsz-ssh/internal/supervisor"
 )
@@ -40,6 +41,11 @@ func main() {
 	reconnectDelay := flag.Duration("reconnect-delay", 500*time.Millisecond, "initial reconnect backoff")
 	auditPath := flag.String("audit-log", defaultAuditPath(), "sanitized audit log path (empty disables)")
 	auditMaxBytes := flag.Int64("audit-max-bytes", 10<<20, "audit log rotation threshold")
+	frpServer := flag.String("frp-server", "", "optional frps address for local frpc proxies")
+	frpPort := flag.Int("frp-port", 7000, "frps control port")
+	frpToken := flag.String("frp-token", "", "initial frps token (generated if empty)")
+	frpcBin := flag.String("frpc", "frpc", "frpc binary")
+	frpConfig := flag.String("frp-config", "", "FRP manager config path")
 	flag.Parse()
 
 	logger, err := audit.New(*auditPath, *auditMaxBytes)
@@ -66,7 +72,20 @@ func main() {
 			PasswordCommand: *keepassPasswordCommand,
 		},
 	})
-	service := supervisor.NewService(backend, inventory, supervisor.WithAudit(logger))
+	frpManager, err := frpmanager.NewManager(frpmanager.Options{
+		ConfigPath:      *frpConfig,
+		FrpcBin:         *frpcBin,
+		EndpointAddress: *frpServer,
+		EndpointPort:    *frpPort,
+		EndpointToken:   *frpToken,
+	})
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "trssd: frp: %v\n", err)
+		os.Exit(1)
+	}
+	defer frpManager.Close()
+	service := supervisor.NewService(backend, inventory,
+		supervisor.WithAudit(logger), supervisor.WithFRP(frpManager))
 	server, err := ipc.Listen(*socket, service)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "trssd: %v\n", err)
