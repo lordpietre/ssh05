@@ -59,7 +59,7 @@ Total: 78 archivos Go, ~26.500 líneas; 14 archivos de prueba.
 | DIA-01…03 diagnóstico | No cumple | Solo DNS personalizado/SRV; sin Nmap, GeoIP, ASN ni RDAP. |
 | DAT-01 transferencias | Parcial | trzsz/Zmodem, upload/download; falta SFTP/SCP como motor desacoplado. |
 | SEG-01 host key | Cumple el bloqueo de cambios | `known_hosts.go` avisa y bloquea cambios; `accept-new`/`no` conserva la semántica OpenSSH de aceptar claves nuevas. |
-| SEG-02 inyección/secretos | **Riesgo** | `frpCopyToRemote` interpola rutas en un comando remoto sin citar; ver §5. |
+| SEG-02 inyección/secretos | Mitigado (H-05) | `frpCopyToRemote` usa argumentos citados; quedan otros comandos remotos por auditar. |
 | SEG-03/04/05 | No cumple | Sin IPC autenticado, auditoría estructurada ni pruebas adversariales. |
 
 ## 4. Activos reutilizables para el supervisor
@@ -84,7 +84,7 @@ Total: 78 archivos Go, ~26.500 líneas; 14 archivos de prueba.
 | H-02 | Directorio `~/.tssh` creado con `0755` | `tssh/frp_proxy.go:213`, `:235` | Viola FRP-04; otros usuarios pueden listar | Crear/usar `0700` para configs FRP |
 | H-03 | Token FRP persistido en `~/.tssh_frp` (JSON) y TOML | `frp_proxy.go` (`frpSaveConfig`), `writeFrpcConfig` | Secreto en claro fuera de un proveedor | Referencia a secreto + cifrado/permisos |
 | H-04 | Solo proxies `type = "tcp"` | `tssh/frp_proxy.go:246-258` | No cubre UDP/STCP/XTCP (FRP-02) | Detección de capacidades por versión |
-| H-05 | `frpCopyToRemote` construye `mkdir -p … && cat > …` sin citar rutas | `tssh/frp_proxy.go:464-474` | Inyección de comandos si la ruta es controlable | Citar con `shellescape` o canal SFTP |
+| H-05 | `frpCopyToRemote` construye `mkdir -p … && cat > …` sin citar rutas | `tssh/frp_proxy.go` | Inyección de comandos si la ruta es controlable | **Resuelto:** `sh -c` con argumentos citados, expansión de `~/` en el script y tests de inyección/rutas con espacios |
 | H-06 | Claves nuevas se aceptan automáticamente con `accept-new`/`no` | `tssh/known_hosts.go:199-216` | Comportamiento OpenSSH esperado, pero el SDD pide flujo explícito | No cambiar el default; añadir UX explícita en TRSS |
 | H-07 | Sin bloqueo de secretos por inactividad | `tssh/config.go` (cifrado AES-GCM) | AUT-05 pendiente | Diseñar vault y temporalidad |
 | H-08 | Prueba `TestTableExample` falla por color en el entorno | `internal/table/table_test.go` | Línea base ruidosa | Arreglar aparte; no relacionado con Fase 0 |
@@ -125,6 +125,7 @@ H-01 y H-05 y sin cerrar ADR-01/ADR-03.
 Estado de la integración posterior a esta auditoría:
 
 - **H-01 resuelto**: token CSPRNG con fallo cerrado y tests.
+- **H-05 resuelto**: copia remota FRP con argumentos citados y tests de inyección.
 - **ADR-01 cerrada**: motor SSH Go aceptado, con contrato `contracts.SessionBackend`.
 - **Contratos definidos**: `contracts/` (Go) y `contracts/ts/` (TypeScript).
-- Pendiente: H-05, ADR-03 (IPC implementado) y el supervisor de la Fase 1.
+- Pendiente: H-02/H-03/H-04, ADR-03 (IPC implementado) y el supervisor de la Fase 1.

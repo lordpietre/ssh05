@@ -75,9 +75,10 @@ make install                   # copies ./bin/tssh to /usr/bin/tssh
   make contracts-check
   ```
 - H-01 is resolved (`generateToken` fails closed; see `tssh/frp_proxy_test.go`).
-- Phase 0 does **not** change runtime behavior of `tssh`; the only runtime change
-  so far is the H-01 FRP token fix. Respect the status in each ADR: only
-  ADR-01/ADR-02 are accepted.
+- H-05 is resolved (remote FRP copy uses quoted `sh -c` arguments and tests).
+- Phase 0 does **not** change runtime behavior of `tssh`; the runtime changes so
+  far are the H-01 FRP token fix and the H-05 remote-copy quoting fix. Respect
+  the status in each ADR: only ADR-01/ADR-02 are accepted.
 
 ## Release
 - GoReleaser multi-platform: linux, darwin, windows, android, freebsd; 386/amd64/arm/arm64/loong64

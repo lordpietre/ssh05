@@ -16,6 +16,7 @@
 | ADR-01 motor SSH | **Aceptada** | `docs/adr/ADR-01-ssh-engine.md` |
 | ADR-02 terminal embebido | Aceptada (prototipo) | `docs/adr/ADR-02-vt-emulator.md` |
 | H-01 token FRP con fallback estático | **Resuelto** | `tssh/frp_proxy.go`, `tssh/frp_proxy_test.go` |
+| H-05 inyección en copia remota FRP | **Resuelto** | `tssh/frp_proxy.go`, `tssh/frp_proxy_test.go` |
 | Contratos UI ↔ supervisor | **Definidos** | `contracts/`, `contracts/ts/` |
 | `SessionBackend` y `TabStore` | Definidos | `contracts/session.go`, `contracts/ts/index.ts` |
 | Envelope IPC y métodos del Anexo B | Definidos | `contracts/ipc.go`, `contracts/ts/index.ts` |
@@ -24,7 +25,6 @@
 
 | Prioridad | Trabajo | Criterio de cierre |
 |---|---|---|
-| 1 | H-05: citar rutas en `frpCopyToRemote` o usar SFTP | Test con ruta con espacios/metacaracteres |
 | 1 | ADR-03: implementar IPC local autenticado | Cliente no autorizado rechazado; UI caída no mata sesiones |
 | 2 | Supervisor Go mínimo (`SessionBackend`) | 3 sesiones, cierre independiente, señales y resize |
 | 2 | `TabStore` en la UI | 10 pestañas, overflow y activa visible (UIX-01) |

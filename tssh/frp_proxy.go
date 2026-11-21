@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
 	"sort"
 	"strconv"
@@ -19,6 +20,7 @@ import (
 	"time"
 
 	"charm.land/bubbletea/v2"
+	"github.com/trzsz/shellescape"
 )
 
 // No longer hardcoded — use findFreePort() instead.
@@ -455,7 +457,48 @@ func frpExecRemote(alias string, cmdStr string) (string, error) {
 	}
 }
 
+// frpRemoteCopyScript receives every path as a quoted positional argument. It
+// expands a leading "~/" itself because POSIX shells do not expand a tilde
+// inside single quotes.
+const frpRemoteCopyScript = `set -e
+dir=$1
+file=$2
+mode=$3
+case "$dir" in "~/"*) dir="$HOME/${dir#"~/"}" ;; esac
+case "$file" in "~/"*) file="$HOME/${file#"~/"}" ;; esac
+mkdir -p "$dir"
+cat > "$file"
+chmod "$mode" "$file"`
+
+func frpRemoteCopyCommand(remotePath, mode string) string {
+	remoteDir := path.Dir(remotePath)
+	return fmt.Sprintf("sh -c %s sh %s %s %s",
+		shellescape.Quote(frpRemoteCopyScript),
+		shellescape.Quote(remoteDir),
+		shellescape.Quote(remotePath),
+		shellescape.Quote(mode),
+	)
+}
+
+func validRemoteFileMode(mode string) bool {
+	if len(mode) < 3 || len(mode) > 4 {
+		return false
+	}
+	for _, r := range mode {
+		if r < '0' || r > '7' {
+			return false
+		}
+	}
+	return true
+}
+
 func frpCopyToRemote(alias string, data []byte, remotePath string, mode string) error {
+	if remotePath == "" || strings.ContainsRune(remotePath, 0) {
+		return fmt.Errorf("invalid remote path")
+	}
+	if !validRemoteFileMode(mode) {
+		return fmt.Errorf("invalid remote file mode %q", mode)
+	}
 	client, err := SshLogin(&SshArgs{
 		Destination: alias,
 		ConfigFile:  userConfig.configPath,
@@ -475,8 +518,7 @@ func frpCopyToRemote(alias string, data []byte, remotePath string, mode string) 
 	if err != nil {
 		return fmt.Errorf("stdin pipe failed: %v", err)
 	}
-	remoteDir := filepath.Dir(remotePath)
-	cmdStr := fmt.Sprintf("mkdir -p %s && cat > %s && chmod %s %s", remoteDir, remotePath, mode, remotePath)
+	cmdStr := frpRemoteCopyCommand(remotePath, mode)
 	if err := session.Start(cmdStr); err != nil {
 		return fmt.Errorf("remote command failed: %v", err)
 	}
