@@ -69,6 +69,8 @@ make install                   # copies ./bin/tssh to /usr/bin/tssh
   - `Ctrl+K` abre la paleta de comandos; incluye exportar diagnóstico saneado.
   - `--workspace <nombre>` o `TRSS_WORKSPACE_NAME`; `TRSS_WORKSPACE_DIR`.
   - `Ctrl+I` importa/recarga KeePass si `trssd` tiene KDBX configurado.
+  `F2` favorito, `F3` color, `F4` etiquetas; overrides en
+  `~/.config/trss/hosts.json` (`TRSS_HOST_OVERRIDES`).
   Atajos configurables en `~/.config/trss/keybindings.json`.
   - Barra de pestañas con overflow (`‹N`/`N›`) y activa siempre visible.
   - Tras caer la UI, `sessions.list`/`sessions.attach` recuperan sesiones vivas.

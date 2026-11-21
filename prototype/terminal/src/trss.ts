@@ -35,6 +35,7 @@ import type {
 } from "../../../contracts/ts/index.ts"
 import { loadKeybindings, matchesAction } from "./config/keybindings.ts"
 import { exportDiagnostics } from "./diagnostics/export.ts"
+import { normalizeHex } from "./theme/color.ts"
 import { IpcClient } from "./ipc/client.ts"
 import { InMemoryTabStore } from "./tabs/store.ts"
 import { phaseIcon, phaseLabel, renderTabBar, renderTabBarStyled } from "./tabs/tabbar.ts"
@@ -244,6 +245,22 @@ const frpOverlay = new TextRenderable(renderer, {
 
 renderer.root.add(frpOverlay)
 
+const labelsOverlay = new TextRenderable(renderer, {
+  id: "labels-overlay",
+  position: "absolute",
+  top: 0,
+  left: 0,
+  width: "100%",
+  height: "100%",
+  visible: false,
+  zIndex: 104,
+  content: "",
+  fg: RGBA.fromInts(219, 226, 238),
+  bg: RGBA.fromInts(16, 19, 26),
+})
+
+renderer.root.add(labelsOverlay)
+
 const pendingPlaceholder = new TextRenderable(renderer, {
   id: "pending-view",
   position: "absolute",
@@ -296,6 +313,9 @@ let paletteVisible = false
 let paletteCursor = 0
 let closeDialogVisible = false
 let closeDialogCursor = 0
+let labelsEditing = false
+let labelsHostID = ""
+let labelsInput = ""
 let vaultAgent = "sin agente"
 let vaultState = "sin vault"
 let frpVisible = false
@@ -428,8 +448,8 @@ function renderStatus(): void {
   }
   if (hostFocused) {
     status.content =
-      ` Hosts · ↑↓ Enter conectar · Ctrl+I KeePass · Ctrl+K paleta · tmux:${tmuxMode ? "on" : "off"}` +
-      ` · vault:${vaultState} · agente:${vaultAgent} · F10 salir`
+      ` Hosts · ↑↓ Enter conectar · F2 favorito · F3 color · F4 etiquetas · Ctrl+I KeePass` +
+      ` · tmux:${tmuxMode ? "on" : "off"} · F10 salir`
     return
   }
   const active = store.active()
@@ -457,6 +477,7 @@ function uiDirty(): void {
   renderPalette()
   renderCloseDialog()
   renderFRP()
+  renderLabelsEditor()
   renderer.requestRender()
 }
 
@@ -1009,11 +1030,87 @@ async function quit(): Promise<void> {
   process.exit(0)
 }
 
+const HOST_COLORS = ["", "#5878CC", "#27AE60", "#F2C94C", "#EB5757", "#9B51E0", "#56CCF2"]
+
+async function applyHostOverride(
+  hostID: string,
+  patch: { labels?: string[]; favorite?: boolean; color?: string },
+): Promise<boolean> {
+  if (!client) return false
+  try {
+    await client.call(
+      "hosts.overrides.set",
+      { hostProfileId: hostID, ...patch },
+      { timeoutMs: 8000 },
+    )
+    await loadHosts()
+    const index = filteredHosts().findIndex((item) => item.id === hostID)
+    if (index >= 0) cursor = index
+    return true
+  } catch (error) {
+    transientText = `Host: ${String(error)}`
+    return false
+  } finally {
+    uiDirty()
+  }
+}
+
+async function toggleFavorite(): Promise<void> {
+  const host = filteredHosts()[cursor]
+  if (!host) return
+  if (await applyHostOverride(host.id, { favorite: !host.favorite })) {
+    transientText = host.favorite ? `${host.alias} ya no es favorito` : `${host.alias} es favorito`
+  }
+  uiDirty()
+}
+
+async function cycleHostColor(): Promise<void> {
+  const host = filteredHosts()[cursor]
+  if (!host) return
+  const current = normalizeHex(host.color) ?? ""
+  const index = HOST_COLORS.findIndex((color) => normalizeHex(color) === current)
+  const next = HOST_COLORS[(index + 1) % HOST_COLORS.length]
+  if (await applyHostOverride(host.id, { color: next })) {
+    transientText = next ? `Color de ${host.alias}: ${next}` : `Color de ${host.alias}: automático`
+  }
+  uiDirty()
+}
+
+function openLabelsEditor(): void {
+  const host = filteredHosts()[cursor]
+  if (!host) return
+  labelsEditing = true
+  labelsHostID = host.id
+  labelsInput = (host.labels ?? []).join(" ")
+  uiDirty()
+}
+
+async function handleLabelsKey(key: KeyEvent): Promise<void> {
+  const name = key.name.toLowerCase()
+  if (name === "escape") {
+    labelsEditing = false
+  } else if (name === "return" || name === "enter") {
+    const labels = labelsInput.split(/\s+/).filter(Boolean)
+    const hostID = labelsHostID
+    labelsEditing = false
+    await applyHostOverride(hostID, { labels })
+  } else if (name === "backspace" || name === "delete") {
+    labelsInput = name === "delete" ? "" : labelsInput.slice(0, -1)
+  } else if (!key.ctrl && !key.meta && key.sequence) {
+    const chars = Array.from(key.sequence)
+    if (chars.length === 1 && chars[0] >= " ") labelsInput += chars[0]
+  }
+  uiDirty()
+}
+
 function handleHostKey(key: KeyEvent): void {
   const name = key.name.toLowerCase()
   const all = filteredHosts()
 
-  if (name === "up") cursor = Math.max(0, cursor - 1)
+  if (name === "f2") void toggleFavorite()
+  else if (name === "f3") void cycleHostColor()
+  else if (name === "f4") openLabelsEditor()
+  else if (name === "up") cursor = Math.max(0, cursor - 1)
   else if (name === "down") cursor = Math.min(Math.max(0, all.length - 1), cursor + 1)
   else if (name === "pageup") cursor = Math.max(0, cursor - 10)
   else if (name === "pagedown") cursor = Math.min(Math.max(0, all.length - 1), cursor + 10)
@@ -1045,6 +1142,11 @@ function handleHostKey(key: KeyEvent): void {
 
 renderer.keyInput.on("keypress", (key) => {
   const name = key.name.toLowerCase()
+  if (labelsEditing) {
+    key.stopPropagation()
+    void handleLabelsKey(key)
+    return
+  }
   if (closeDialogVisible) {
     key.stopPropagation()
     handleCloseDialogKey(key)
@@ -1329,6 +1431,22 @@ function handleWorkspaceKey(key: KeyEvent): void {
   uiDirty()
 }
 
+
+function renderLabelsEditor(): void {
+  if (!labelsEditing) {
+    labelsOverlay.visible = false
+    return
+  }
+  labelsOverlay.visible = true
+  labelsOverlay.content = [
+    "",
+    "  Etiquetas del host",
+    "",
+    `  ${labelsInput}▌`,
+    "",
+    "  Enter guardar · Esc cancelar",
+  ].join("\n")
+}
 
 function renderFRP(): void {
   if (!frpVisible) {

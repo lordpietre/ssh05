@@ -17,6 +17,7 @@ import (
 // InventoryConfig configures the canonical, non-secret host inventory.
 type InventoryConfig struct {
 	SSHConfigPath    string
+	OverridesPath    string
 	Keepass          KeePassConfig
 	VaultIdleTimeout time.Duration
 }
@@ -31,6 +32,7 @@ type Inventory struct {
 	kpHosts   []contracts.HostProfile
 	profiles  []contracts.HostProfile
 	conflicts []contracts.HostConflict
+	overrides map[string]hostOverride
 	vault     contracts.VaultStatusResult
 	lastVault time.Time
 	lastErr   error
@@ -49,6 +51,7 @@ func (i *Inventory) ensureLoaded(ctx context.Context) {
 		return
 	}
 	i.loaded = true
+	i.loadOverridesLocked()
 	i.reloadLocked(ctx)
 	i.touchVaultLocked(time.Now())
 }
@@ -143,6 +146,7 @@ func (i *Inventory) mergeLocked() {
 	for _, profile := range i.kpHosts {
 		add(profile)
 	}
+	i.applyOverridesLocked()
 	sort.Slice(i.profiles, func(a, b int) bool {
 		if i.profiles[a].Favorite != i.profiles[b].Favorite {
 			return i.profiles[a].Favorite

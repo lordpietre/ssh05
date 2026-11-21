@@ -85,7 +85,8 @@ Host trss-ui-1 trss-ui-2 trss-ui-3
 EOF
 
 rm -f "$SOCKET" "$LOG"
-"$TRSSD" --socket "$SOCKET" --ssh-config "$CONFIG" --audit-log "$SOCKET_DIR/audit.log" 2>>"$LOG" &
+TRSS_HOST_OVERRIDES="$SOCKET_DIR/hosts.json" \
+  "$TRSSD" --socket "$SOCKET" --ssh-config "$CONFIG" --audit-log "$SOCKET_DIR/audit.log" 2>>"$LOG" &
 TRSSD_PID=$!
 for _ in $(seq 1 50); do
   [[ -S "$SOCKET" ]] && break
@@ -98,6 +99,12 @@ done
   "cd $(printf '%q' "$HERE") && TERM=xterm-256color TRSS_SOCKET=$(printf '%q' "$SOCKET") TRSS_WORKSPACE=$(printf '%q' "$SOCKET_DIR/workspace.json") TRSS_UI_DEBUG=$(printf '%q' "$LOG") $(printf '%q' "$BUN") run src/trss.ts"
 
 assert_contains "Hosts (3)" "UI loads the real host inventory"
+send F2
+assert_contains "★trss-ui-1" "favorite metadata is persisted"
+send F4
+send prod
+send Enter
+assert_contains "(prod)" "label metadata is persisted"
 send C-k
 assert_contains "Comandos" "command palette opens"
 assert_contains "Probar ruta" "route probe command listed"

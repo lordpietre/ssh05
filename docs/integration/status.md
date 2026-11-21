@@ -58,7 +58,7 @@
 | Restauración como vistas pendientes | **Hecho** | Enter reconecta; nunca simula sesión viva |
 | Backend 100 MB con buffers acotados | **Hecho** | tests de `internal/supervisor` |
 | Barra de pestañas con overflow y activa visible | **Hecho** | `src/tabs/tabbar.ts` + tests |
-| INV-05 grupos, favoritos y colores | **Hecho** | `#!! GroupLabels`, `#!! Favorite`, `#!! Color` |
+| INV-05 grupos, favoritos y colores | **Hecho** | `#!!` + overrides editables (`F2/F3/F4`) |
 | UI-02 color RGB con degradación | **Hecho** | `src/theme/color.ts`, 256/16/mono |
 | UI-03 estado por símbolo y texto | **Hecho** | `phaseIcon` + `phaseLabel` + estado textual |
 | Smoke real de 10 pestañas + contadores | **Hecho** | `make ui-smoke` |

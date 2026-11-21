@@ -31,7 +31,7 @@ Los binarios FRP se obtienen con `make download-frp`.
 | INV-02 | Cumplido | `tssh.ListHostEntries` respeta `Include`; `TestSSHHostsInclude` |
 | INV-03 | Cumplido | `internal/supervisor/keepass.go` importa KDBX con `keepassxc-cli` |
 | INV-04 | Cumplido | `Inventory.mergeLocked` conserva procedencia y expone conflictos sin sobrescribir |
-| INV-05 | Cumplido | `#!! GroupLabels`, `#!! Favorite`, `#!! Color`; favoritos primero y búsqueda por etiquetas |
+| INV-05 | Cumplido | `#!!` + overrides persistentes en `~/.config/trss/hosts.json`; `F2` favorito, `F3` color, `F4` etiquetas |
 | AUT-02 | Cumplido | `SSH_AUTH_SOCK` + `ssh-add -l`; solo proveedor/identidades, sin extraer claves |
 | AUT-03 | Cumplido | `AuthRef` estable por UUID de KeePass; nunca contiene el secreto |
 | AUT-04 | Cumplido | Tokens/secretos cifrados, auditoría saneada, sin credenciales en perfiles ni logs |

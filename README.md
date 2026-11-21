@@ -171,6 +171,10 @@ Host lab
 Los colores usan RGB cuando la terminal lo soporta y degradan a 256/16
 colores; `NO_COLOR=1` o `TRSS_THEME=mono` desactivan el color.
 
+Desde la lista de hosts, `F2` marca favorito, `F3` cicla el color y `F4` edita
+etiquetas. Los cambios se guardan en `~/.config/trss/hosts.json` sin tocar
+`~/.ssh/config` (`TRSS_HOST_OVERRIDES` permite otra ruta).
+
 Si `SSH_AUTH_SOCK` apunta a un agente (OpenSSH o KeePassXC), `trssd` lo usa
 para autenticar y solo expone el proveedor y el número de identidades; nunca
 extrae claves privadas del agente.
