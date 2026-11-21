@@ -86,3 +86,20 @@ CGO_ENABLED=0 go build -o ./bin/ ./cmd/tssh
 Ejecuta `tssh --help-config` para ver la referencia completa de opciones de `~/.tssh.conf`.
 
 Para documentación detallada de todas las features (trzsz, zmodem, UDP, expect, scp/sftp, remember passwords, external password managers, Wayland, clipboard, themes, etc.), visita [trzsz.github.io/tssh](https://trzsz.github.io/tssh) o lee [README.en.md](README.en.md).
+
+### TRSS — Fase 0
+
+El diseño de la evolución multipestaña TRSS vive en [TRSS_SDD_v0.2.md](TRSS_SDD_v0.2.md).
+La Fase 0 (auditoría, ADRs y prototipo PTY/OpenTUI) está documentada en:
+
+- [Auditoría del código actual](docs/audit/phase-0-audit.md)
+- [ADRs de arquitectura](docs/adr/README.md)
+- [Prototipo y resultados reproducibles](docs/phase-0/README.md)
+- [Contratos UI ↔ supervisor](contracts/README.md)
+- [Estado de integración del SDD](docs/integration/status.md)
+
+```sh
+cd prototype/terminal
+bun install
+bun run smoke        # tmux + vim + htop + SSH real + resize
+```

@@ -2,6 +2,7 @@ BIN_DIR := ./bin
 BIN_DST := /usr/bin
 FRP_DIR := ./frp
 FRP_VERSION := 0.69.1
+BUN ?= bun
 
 ifdef GOOS
 	ifeq (${GOOS}, windows)
@@ -27,7 +28,7 @@ else
 	GO_TEST := ${shell basename `which gotest 2>/dev/null` 2>/dev/null || echo go test}
 endif
 
-.PHONY: all clean test install download-frp
+.PHONY: all clean test install download-frp phase0 contracts-check
 
 # Check if frp source is available (may not exist on clone since /frp/ is gitignored)
 ifneq ("$(wildcard $(FRP_DIR)/go.mod)","")
@@ -80,7 +81,14 @@ clean:
 	$(RM) ${BIN_DIR}/tssh ${BIN_DIR}/tssh.exe ${BIN_DIR}/frps ${BIN_DIR}/frpc 2>/dev/null; true
 
 test:
-	${GO_TEST} -v -count=1 ./tssh
+	${GO_TEST} -v -count=1 ./tssh ./contracts
+
+phase0:
+	cd prototype/terminal && $(BUN) install && $(BUN) run typecheck && $(BUN) run smoke
+
+contracts-check:
+	CGO_ENABLED=0 ${GO_TEST} -count=1 ./contracts
+	cd prototype/terminal && $(BUN) run typecheck:contracts
 
 install: all
 ifdef WIN_TARGET

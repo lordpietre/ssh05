@@ -176,12 +176,19 @@ func untrackEntry(entry *frpProxyEntry) {
 	}
 }
 
-func generateToken() string {
-	b := make([]byte, 16)
-	if _, err := rand.Read(b); err != nil {
-		return "tssh-frp-default-token"
+// cryptoRandRead is replaceable in tests to prove fail-closed behavior.
+var cryptoRandRead = rand.Read
+
+func generateToken() (string, error) {
+	b := make([]byte, 32)
+	n, err := cryptoRandRead(b)
+	if err != nil {
+		return "", fmt.Errorf("secure FRP token generation failed: %w", err)
 	}
-	return hex.EncodeToString(b)
+	if n != len(b) {
+		return "", fmt.Errorf("secure FRP token generation failed: short read %d/%d", n, len(b))
+	}
+	return hex.EncodeToString(b), nil
 }
 
 // --- Binary management ---
@@ -533,7 +540,10 @@ func frpSetupCmd(alias string, direction string) tea.Cmd {
 			return frpSetupProgressMsg{step: fmt.Sprintf("Setup failed: %v", err), err: err}
 		}
 
-		token := generateToken()
+		token, err := generateToken()
+		if err != nil {
+			return frpSetupProgressMsg{step: "Token generation failed", err: err}
+		}
 		port := findFreePort(7000)
 		adminPort := findFreePort(7400)
 

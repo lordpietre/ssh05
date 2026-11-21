@@ -47,6 +47,37 @@ make install                   # copies ./bin/tssh to /usr/bin/tssh
 - Integration-level tests depend on SSH server fixtures within the repo
 - Run single test: `go test -v -count=1 -run TestName ./tssh`
 - Run single package: `go test -v -count=1 ./internal/table`
+- Known baseline failure: `TestTableExample` in `internal/table` fails on a
+  color-capable environment (pre-existing, unrelated to Phase 0 changes)
+
+## TRSS Phase 0 / integration
+- Source design: `TRSS_SDD_v0.2.md`
+- Audit: `docs/audit/phase-0-audit.md`
+- ADRs: `docs/adr/README.md` (ADR-01 accepted; ADR-02 accepted for prototype)
+- Shared contracts: `contracts/` (Go) and `contracts/ts/` (TypeScript)
+- Integration status: `docs/integration/status.md`
+- Prototype: `prototype/terminal` (Bun 1.4.5 + `@opentui/core` 0.8.2, pinned)
+- Evidence/results: `docs/phase-0/README.md`
+- Toolchain used locally (not on PATH by default):
+  `~/.local/go/bin/go` and `~/.bun/bin/bun`
+- Prototype commands:
+  ```
+  cd prototype/terminal
+  bun install
+  bun run typecheck
+  bun run typecheck:contracts
+  bun run smoke      # tmux + vim + htop + local sshd + resize
+  ```
+  or `make phase0` from the repo root (requires `bun` on `PATH`).
+- Contract checks:
+  ```
+  CGO_ENABLED=0 go test -count=1 ./contracts
+  make contracts-check
+  ```
+- H-01 is resolved (`generateToken` fails closed; see `tssh/frp_proxy_test.go`).
+- Phase 0 does **not** change runtime behavior of `tssh`; the only runtime change
+  so far is the H-01 FRP token fix. Respect the status in each ADR: only
+  ADR-01/ADR-02 are accepted.
 
 ## Release
 - GoReleaser multi-platform: linux, darwin, windows, android, freebsd; 386/amd64/arm/arm64/loong64

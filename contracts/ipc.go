@@ -1,0 +1,229 @@
+package contracts
+
+import (
+	"encoding/json"
+	"time"
+)
+
+// ProtocolVersion is bumped whenever the JSON envelope or method semantics
+// change incompatibly.
+const ProtocolVersion = 1
+
+// RequestID correlates a request with its response and cancellation.
+type RequestID string
+
+// Method is an IPC command name from SDD Annex B.
+type Method string
+
+const (
+	MethodHostsList          Method = "hosts.list"
+	MethodHostsImport        Method = "hosts.import"
+	MethodHostsResolve       Method = "hosts.resolve"
+	MethodSessionsOpen       Method = "sessions.open"
+	MethodSessionsWrite      Method = "sessions.write"
+	MethodSessionsResize     Method = "sessions.resize"
+	MethodSessionsClose      Method = "sessions.close"
+	MethodSessionsDetachTmux Method = "sessions.detachTmux"
+	MethodSessionsAttachTmux Method = "sessions.attachTmux"
+	MethodRoutesPlan         Method = "routes.plan"
+	MethodRoutesConnect      Method = "routes.connect"
+	MethodFrpInstancesList   Method = "frp.instances.list"
+	MethodFrpProxiesApply    Method = "frp.proxies.apply"
+	MethodFrpProxiesStop     Method = "frp.proxies.stop"
+	MethodVaultStatus        Method = "vault.status"
+	MethodVaultUnlock        Method = "vault.unlockRequest"
+	MethodWorkspacesSave     Method = "workspaces.save"
+	MethodWorkspacesRestore  Method = "workspaces.restore"
+)
+
+var validMethods = map[Method]struct{}{
+	MethodHostsList:          {},
+	MethodHostsImport:        {},
+	MethodHostsResolve:       {},
+	MethodSessionsOpen:       {},
+	MethodSessionsWrite:      {},
+	MethodSessionsResize:     {},
+	MethodSessionsClose:      {},
+	MethodSessionsDetachTmux: {},
+	MethodSessionsAttachTmux: {},
+	MethodRoutesPlan:         {},
+	MethodRoutesConnect:      {},
+	MethodFrpInstancesList:   {},
+	MethodFrpProxiesApply:    {},
+	MethodFrpProxiesStop:     {},
+	MethodVaultStatus:        {},
+	MethodVaultUnlock:        {},
+	MethodWorkspacesSave:     {},
+	MethodWorkspacesRestore:  {},
+}
+
+// Valid reports whether m is part of ProtocolVersion.
+func (m Method) Valid() bool {
+	_, ok := validMethods[m]
+	return ok
+}
+
+// RPCRequest is the JSON control envelope. Large PTY payloads travel through
+// the separate framed binary channel, never as unbounded JSON events.
+type RPCRequest struct {
+	ProtocolVersion int             `json:"protocolVersion"`
+	RequestID       RequestID       `json:"requestId"`
+	Method          Method          `json:"method"`
+	Params          json.RawMessage `json:"params,omitempty"`
+	SessionID       SessionID       `json:"sessionId,omitempty"`
+	Timestamp       time.Time       `json:"timestamp"`
+}
+
+// RPCResponse is the reply to one request.
+type RPCResponse struct {
+	ProtocolVersion int             `json:"protocolVersion"`
+	RequestID       RequestID       `json:"requestId"`
+	Result          json.RawMessage `json:"result,omitempty"`
+	Error           *RPCError       `json:"error,omitempty"`
+}
+
+// RPCError is a stable, non-sensitive error shape.
+type RPCError struct {
+	Code    int             `json:"code"`
+	Message string          `json:"message"`
+	Data    json.RawMessage `json:"data,omitempty"`
+}
+
+// Event is an ordered, typed notification from supervisor to UI.
+type Event struct {
+	ProtocolVersion int             `json:"protocolVersion"`
+	Event           string          `json:"event"`
+	SessionID       SessionID       `json:"sessionId,omitempty"`
+	Seq             uint64          `json:"seq"`
+	Timestamp       time.Time       `json:"timestamp"`
+	Payload         json.RawMessage `json:"payload,omitempty"`
+}
+
+// --- hosts ---
+
+type HostsListParams struct {
+	Query  string `json:"query,omitempty"`
+	Source string `json:"source,omitempty"`
+}
+
+type HostConflict struct {
+	HostProfileID string   `json:"hostProfileId"`
+	Field         string   `json:"field"`
+	LocalValue    string   `json:"localValue"`
+	RemoteValue   string   `json:"remoteValue"`
+	Sources       []string `json:"sources"`
+}
+
+type HostsListResult struct {
+	Hosts     []HostProfile  `json:"hosts"`
+	Conflicts []HostConflict `json:"conflicts,omitempty"`
+}
+
+type HostsImportParams struct {
+	Source string `json:"source"` // "ssh_config" or "keepass"
+	Path   string `json:"path,omitempty"`
+}
+
+type HostsImportResult struct {
+	Imported  int            `json:"imported"`
+	Skipped   int            `json:"skipped"`
+	Conflicts []HostConflict `json:"conflicts,omitempty"`
+}
+
+// --- sessions ---
+
+type SessionsOpenParams struct {
+	HostProfileID string `json:"hostProfileId"`
+	RoutePolicyID string `json:"routePolicyId,omitempty"`
+}
+
+type SessionsOpenResult struct {
+	SessionID SessionID `json:"sessionId"`
+}
+
+type SessionsWriteParams struct {
+	SessionID SessionID `json:"sessionId"`
+	// Data is only for small control writes. Bulk PTY bytes use the binary channel.
+	Data []byte `json:"data,omitempty"`
+}
+
+type SessionsResizeParams struct {
+	SessionID SessionID `json:"sessionId"`
+	Cols      int       `json:"cols"`
+	Rows      int       `json:"rows"`
+}
+
+type SessionsCloseParams struct {
+	SessionID SessionID   `json:"sessionId"`
+	Intent    CloseIntent `json:"intent"`
+}
+
+type SessionsTmuxParams struct {
+	SessionID SessionID `json:"sessionId"`
+	Name      string    `json:"name,omitempty"`
+}
+
+// --- routes ---
+
+type RoutesPlanParams struct {
+	HostProfileID string `json:"hostProfileId"`
+	RoutePolicyID string `json:"routePolicyId,omitempty"`
+}
+
+type RoutesPlanResult struct {
+	Routes   []ConnectionRoute `json:"routes"`
+	Selected string            `json:"selected,omitempty"`
+	Reason   string            `json:"reason,omitempty"`
+}
+
+type RoutesConnectParams struct {
+	HostProfileID string `json:"hostProfileId"`
+	RouteID       string `json:"routeId"`
+}
+
+// --- FRP ---
+
+type FrpInstancesListResult struct {
+	Endpoints []FrpEndpoint `json:"endpoints"`
+	Proxies   []FrpProxy    `json:"proxies"`
+}
+
+type FrpProxiesApplyParams struct {
+	Proxy FrpProxy `json:"proxy"`
+}
+
+type FrpProxiesApplyResult struct {
+	Proxy FrpProxy `json:"proxy"`
+}
+
+type FrpProxiesStopParams struct {
+	ProxyID string `json:"proxyId"`
+}
+
+// --- vault ---
+
+type VaultStatusResult struct {
+	Provider string `json:"provider"`
+	Locked   bool   `json:"locked"`
+	Profiles int    `json:"profiles"`
+}
+
+type VaultUnlockParams struct {
+	Provider string `json:"provider"`
+	Reason   string `json:"reason"`
+}
+
+// --- workspaces ---
+
+type WorkspacesSaveParams struct {
+	Workspace Workspace `json:"workspace"`
+}
+
+type WorkspacesRestoreParams struct {
+	WorkspaceID WorkspaceID `json:"workspaceId"`
+}
+
+type WorkspacesRestoreResult struct {
+	Workspace Workspace        `json:"workspace"`
+	Plan      RoutesPlanResult `json:"plan"`
+}

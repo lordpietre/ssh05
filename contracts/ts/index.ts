@@ -1,0 +1,421 @@
+/**
+ * TRSS shared contracts — TypeScript side.
+ *
+ * This file mirrors the Go package `contracts/`. It is deliberately free of
+ * runtime dependencies so the UI and the supervisor can version it together.
+ * PTY bulk data does NOT travel through these JSON events: it uses a separate
+ * length-prefixed binary channel over the authenticated local socket.
+ */
+
+export const PROTOCOL_VERSION = 1 as const
+export type ProtocolVersion = typeof PROTOCOL_VERSION
+
+export type SessionId = string
+export type TabId = string
+export type WorkspaceId = string
+
+// ---------------------------------------------------------------------------
+// Sessions
+// ---------------------------------------------------------------------------
+
+export const SESSION_PHASES = [
+  "created",
+  "resolving",
+  "connecting",
+  "authenticating",
+  "connected",
+  "degraded",
+  "reconnecting",
+  "disconnected",
+  "detached",
+  "failed",
+  "closing",
+  "closed",
+] as const
+
+export type SessionPhase = (typeof SESSION_PHASES)[number]
+
+export const CLOSE_INTENTS = ["close-view", "disconnect-ssh", "detach-remote-tmux"] as const
+export type CloseIntent = (typeof CLOSE_INTENTS)[number]
+
+export interface Capabilities {
+  supportsDetach: boolean
+  supportsReattach: boolean
+  supportsRemoteTmux: boolean
+  supportsPersistentProcess: boolean
+  supportsBinaryStreaming: boolean
+}
+
+export interface SessionStatus {
+  sessionId: SessionId
+  phase: SessionPhase
+  seq: number
+  at: string
+  errorCode?: string
+  message?: string
+}
+
+export type DataHandler = (data: Uint8Array) => void
+export type StatusHandler = (status: SessionStatus) => void
+
+/**
+ * Stable backend contract from SDD §17.3. Implementations must preserve order
+ * per session and apply bounded queues; they must not buffer PTY output in the
+ * UI process without limits.
+ */
+export interface SessionBackend {
+  open(profileId: string, routeId?: string): Promise<SessionId>
+  write(id: SessionId, bytes: Uint8Array): Promise<void>
+  resize(id: SessionId, cols: number, rows: number): Promise<void>
+  requestClose(id: SessionId, intent: CloseIntent): Promise<void>
+  attach(id: SessionId, cursor?: bigint): Promise<void>
+  onData(id: SessionId, cb: DataHandler): () => void
+  onStatus(id: SessionId, cb: StatusHandler): () => void
+  capabilities(): Promise<Capabilities>
+}
+
+// ---------------------------------------------------------------------------
+// Tabs / workspaces
+// ---------------------------------------------------------------------------
+
+export interface TmuxBinding {
+  hostProfileId: string
+  sessionName: string
+  verified: boolean
+}
+
+export interface TabState {
+  id: TabId
+  sessionId: SessionId
+  title: string
+  phase: SessionPhase
+  color?: string
+  tmux?: TmuxBinding
+}
+
+export type TabStoreEvent =
+  | { type: "added"; tabId: TabId; index: number }
+  | { type: "removed"; tabId: TabId }
+  | { type: "activated"; tabId: TabId }
+  | { type: "moved"; tabId: TabId; index: number }
+  | { type: "updated"; tabId: TabId }
+
+/**
+ * Renderer-independent tab state. Closing a tab removes its view only; whether
+ * the session survives is a SessionBackend capability and an explicit intent.
+ */
+export interface TabStore {
+  list(): readonly TabState[]
+  active(): TabState | undefined
+  add(tab: TabState, index?: number): void
+  remove(id: TabId): void
+  activate(id: TabId): void
+  move(id: TabId, index: number): void
+  update(id: TabId, patch: Partial<Omit<TabState, "id">>): void
+  subscribe(listener: (event: TabStoreEvent) => void): () => void
+}
+
+export interface TabRecord {
+  id: TabId
+  title: string
+  hostProfileId: string
+  tmux?: TmuxBinding
+  color?: string
+  order: number
+}
+
+export interface Workspace {
+  id: WorkspaceId
+  name: string
+  tabs: TabRecord[]
+  preferences?: Record<string, string>
+}
+
+// ---------------------------------------------------------------------------
+// Hosts, routes and FRP
+// ---------------------------------------------------------------------------
+
+export type SourceKind = "manual" | "ssh_config" | "keepass"
+
+export interface SourceReference {
+  kind: SourceKind
+  entryId: string
+  fingerprint?: string
+}
+
+export interface CredentialReference {
+  provider: string
+  entryId: string
+  fingerprint?: string
+}
+
+export interface HostTarget {
+  hostname: string
+  port: number
+  username?: string
+}
+
+export interface HostProfile {
+  id: string
+  alias: string
+  target: HostTarget
+  sourceRefs?: SourceReference[]
+  authRef?: CredentialReference
+  routePolicyId?: string
+  labels?: string[]
+  color?: string
+  verifiedIdentity: boolean
+  discovered: boolean
+}
+
+export type RouteKind = "direct" | "proxy_jump" | "frp"
+
+export interface ConnectionRoute {
+  id: string
+  kind: RouteKind
+  hostProfileId: string
+  via?: string[]
+  frpProxyId?: string
+  authorized: boolean
+}
+
+export interface RoutePolicy {
+  id: string
+  name: string
+  preferred?: RouteKind[]
+  allowPublicExposure: boolean
+}
+
+export type FrpProxyType = "tcp" | "udp" | "stcp" | "xtcp"
+
+export type FrpState =
+  | "stopped"
+  | "starting"
+  | "online"
+  | "degraded"
+  | "restarting"
+  | "error"
+  | "stopping"
+
+export interface FrpEndpoint {
+  id: string
+  role: "frps" | "frpc"
+  address: string
+  port: number
+  managed: boolean
+}
+
+export interface FrpProxy {
+  id: string
+  name: string
+  type: FrpProxyType
+  endpointId: string
+  servicePort: number
+  remotePort: number
+  exposure: "private" | "public"
+  state: FrpState
+  credentialRef?: CredentialReference
+  lastErrorCode?: string
+  lastErrorLabel?: string
+}
+
+// ---------------------------------------------------------------------------
+// IPC envelopes and method contracts (SDD Annex B)
+// ---------------------------------------------------------------------------
+
+export type RequestId = string
+
+export interface RpcError {
+  code: number
+  message: string
+  data?: unknown
+}
+
+export interface RpcRequest<P = unknown> {
+  protocolVersion: ProtocolVersion
+  requestId: RequestId
+  method: Method
+  params?: P
+  sessionId?: SessionId
+  timestamp: string
+}
+
+export interface RpcResponse<R = unknown> {
+  protocolVersion: ProtocolVersion
+  requestId: RequestId
+  result?: R
+  error?: RpcError
+}
+
+export interface IpcEvent<P = unknown> {
+  protocolVersion: ProtocolVersion
+  event: string
+  sessionId?: SessionId
+  seq: number
+  timestamp: string
+  payload?: P
+}
+
+export interface HostsListParams {
+  query?: string
+  source?: string
+}
+
+export interface HostConflict {
+  hostProfileId: string
+  field: string
+  localValue: string
+  remoteValue: string
+  sources: string[]
+}
+
+export interface HostsListResult {
+  hosts: HostProfile[]
+  conflicts?: HostConflict[]
+}
+
+export interface HostsImportParams {
+  source: "ssh_config" | "keepass"
+  path?: string
+}
+
+export interface HostsImportResult {
+  imported: number
+  skipped: number
+  conflicts?: HostConflict[]
+}
+
+export interface SessionsOpenParams {
+  hostProfileId: string
+  routePolicyId?: string
+}
+
+export interface SessionsOpenResult {
+  sessionId: SessionId
+}
+
+export interface SessionsWriteParams {
+  sessionId: SessionId
+  /** Small control writes only. Bulk PTY bytes use the binary channel. */
+  data?: Uint8Array
+}
+
+export interface SessionsResizeParams {
+  sessionId: SessionId
+  cols: number
+  rows: number
+}
+
+export interface SessionsCloseParams {
+  sessionId: SessionId
+  intent: CloseIntent
+}
+
+export interface SessionsTmuxParams {
+  sessionId: SessionId
+  name?: string
+}
+
+export interface RoutesPlanParams {
+  hostProfileId: string
+  routePolicyId?: string
+}
+
+export interface RoutesPlanResult {
+  routes: ConnectionRoute[]
+  selected?: string
+  reason?: string
+}
+
+export interface RoutesConnectParams {
+  hostProfileId: string
+  routeId: string
+}
+
+export interface FrpInstancesListResult {
+  endpoints: FrpEndpoint[]
+  proxies: FrpProxy[]
+}
+
+export interface FrpProxiesApplyParams {
+  proxy: FrpProxy
+}
+
+export interface FrpProxiesApplyResult {
+  proxy: FrpProxy
+}
+
+export interface FrpProxiesStopParams {
+  proxyId: string
+}
+
+export interface VaultStatusResult {
+  provider: string
+  locked: boolean
+  profiles: number
+}
+
+export interface VaultUnlockParams {
+  provider: string
+  reason: string
+}
+
+export interface WorkspacesSaveParams {
+  workspace: Workspace
+}
+
+export interface WorkspacesRestoreParams {
+  workspaceId: WorkspaceId
+}
+
+export interface WorkspacesRestoreResult {
+  workspace: Workspace
+  plan: RoutesPlanResult
+}
+
+/** Every IPC method and its typed params/result. */
+export interface MethodContracts {
+  "hosts.list": { params: HostsListParams; result: HostsListResult }
+  "hosts.import": { params: HostsImportParams; result: HostsImportResult }
+  "hosts.resolve": { params: HostsListParams; result: RoutesPlanResult }
+  "sessions.open": { params: SessionsOpenParams; result: SessionsOpenResult }
+  "sessions.write": { params: SessionsWriteParams; result: void }
+  "sessions.resize": { params: SessionsResizeParams; result: void }
+  "sessions.close": { params: SessionsCloseParams; result: void }
+  "sessions.detachTmux": { params: SessionsTmuxParams; result: void }
+  "sessions.attachTmux": { params: SessionsTmuxParams; result: void }
+  "routes.plan": { params: RoutesPlanParams; result: RoutesPlanResult }
+  "routes.connect": { params: RoutesConnectParams; result: SessionsOpenResult }
+  "frp.instances.list": { params: Record<string, never>; result: FrpInstancesListResult }
+  "frp.proxies.apply": { params: FrpProxiesApplyParams; result: FrpProxiesApplyResult }
+  "frp.proxies.stop": { params: FrpProxiesStopParams; result: void }
+  "vault.status": { params: Record<string, never>; result: VaultStatusResult }
+  "vault.unlockRequest": { params: VaultUnlockParams; result: VaultStatusResult }
+  "workspaces.save": { params: WorkspacesSaveParams; result: void }
+  "workspaces.restore": { params: WorkspacesRestoreParams; result: WorkspacesRestoreResult }
+}
+
+export type Method = keyof MethodContracts
+export type ParamsOf<M extends Method> = MethodContracts[M]["params"]
+export type ResultOf<M extends Method> = MethodContracts[M]["result"]
+
+export const IPC_METHODS = [
+  "hosts.list",
+  "hosts.import",
+  "hosts.resolve",
+  "sessions.open",
+  "sessions.write",
+  "sessions.resize",
+  "sessions.close",
+  "sessions.detachTmux",
+  "sessions.attachTmux",
+  "routes.plan",
+  "routes.connect",
+  "frp.instances.list",
+  "frp.proxies.apply",
+  "frp.proxies.stop",
+  "vault.status",
+  "vault.unlockRequest",
+  "workspaces.save",
+  "workspaces.restore",
+] as const satisfies readonly Method[]
