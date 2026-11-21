@@ -30,6 +30,7 @@
 | Conflictos de inventario sin sobrescritura | **Hecho** | `HostsListResult.conflicts` + tests |
 | Importación desde UI (`Ctrl+I`) | **Hecho** | `hosts.import` |
 | Reconexión con backoff y cancelación | **Hecho** | `internal/supervisor/backend.go` + tests |
+| Auditoría saneada con rotación | **Hecho** | `internal/audit/`, `--audit-log` |
 | Cliente TS/Bun del IPC | **Hecho** | `prototype/terminal/src/ipc/` |
 | `TabStore` renderer-independent | **Hecho** | `prototype/terminal/src/tabs/store.ts` |
 | UI OpenTUI conectada al supervisor | **Hecho** | `prototype/terminal/src/trss.ts` |

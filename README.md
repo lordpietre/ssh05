@@ -130,6 +130,12 @@ Reconexión automática configurable:
 ./bin/trssd --ssh-config ~/.ssh/config --reconnect-max 3 --reconnect-delay 500ms
 ```
 
+Auditoría saneada (sin secretos, con rotación):
+
+```sh
+./bin/trssd --audit-log ~/.local/state/trss/audit.log --audit-max-bytes 10485760
+```
+
 UI OpenTUI (en otra terminal):
 
 ```sh

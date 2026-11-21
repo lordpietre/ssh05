@@ -10,12 +10,23 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 	"time"
 
+	"github.com/trzsz/trzsz-ssh/internal/audit"
 	"github.com/trzsz/trzsz-ssh/internal/ipc"
 	"github.com/trzsz/trzsz-ssh/internal/supervisor"
 )
+
+func defaultAuditPath() string {
+	stateHome := os.Getenv("XDG_STATE_HOME")
+	if stateHome == "" {
+		home, _ := os.UserHomeDir()
+		stateHome = filepath.Join(home, ".local", "state")
+	}
+	return filepath.Join(stateHome, "trss", "audit.log")
+}
 
 func main() {
 	socket := flag.String("socket", ipc.DefaultSocketPath(), "control socket path")
@@ -27,7 +38,15 @@ func main() {
 	maxSessions := flag.Int("max-sessions", 16, "maximum concurrent sessions")
 	reconnectMax := flag.Int("reconnect-max", 3, "reconnect attempts before failing")
 	reconnectDelay := flag.Duration("reconnect-delay", 500*time.Millisecond, "initial reconnect backoff")
+	auditPath := flag.String("audit-log", defaultAuditPath(), "sanitized audit log path (empty disables)")
+	auditMaxBytes := flag.Int64("audit-max-bytes", 10<<20, "audit log rotation threshold")
 	flag.Parse()
+
+	logger, err := audit.New(*auditPath, *auditMaxBytes)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "trssd: audit log: %v\n", err)
+		os.Exit(1)
+	}
 
 	backend := supervisor.NewBackend(
 		&supervisor.SSHRunner{Config: supervisor.SSHConfig{ConfigPath: *sshConfig, Terminal: *terminal}},
@@ -47,7 +66,7 @@ func main() {
 			PasswordCommand: *keepassPasswordCommand,
 		},
 	})
-	service := supervisor.NewService(backend, inventory)
+	service := supervisor.NewService(backend, inventory, supervisor.WithAudit(logger))
 	server, err := ipc.Listen(*socket, service)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "trssd: %v\n", err)

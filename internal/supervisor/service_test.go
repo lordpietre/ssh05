@@ -4,11 +4,14 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/trzsz/trzsz-ssh/contracts"
+	"github.com/trzsz/trzsz-ssh/internal/audit"
 	"github.com/trzsz/trzsz-ssh/internal/ipc"
 )
 
@@ -207,6 +210,52 @@ func TestServiceInventoryKeePassImport(t *testing.T) {
 	}
 	if imported.Imported < 3 {
 		t.Fatalf("imported = %+v", imported)
+	}
+}
+
+func TestServiceWritesAuditRecords(t *testing.T) {
+	logPath := filepath.Join(t.TempDir(), "state", "audit.log")
+	logger, err := audit.New(logPath, 1<<20)
+	if err != nil {
+		t.Fatal(err)
+	}
+	service := NewService(NewBackend(&fakeRunner{}, Options{}), nil, WithAudit(logger))
+	socket := startServiceServer(t, service)
+
+	client, err := ipc.Dial(socket)
+	if err != nil {
+		t.Fatalf("dial: %v", err)
+	}
+	defer client.Close()
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	opened, err := ipc.CallTyped[contracts.SessionsOpenParams, contracts.SessionsOpenResult](
+		ctx, client, contracts.MethodSessionsOpen, contracts.SessionsOpenParams{HostProfileID: "host-1"},
+	)
+	if err != nil {
+		t.Fatalf("sessions.open: %v", err)
+	}
+	if _, err := ipc.CallTyped[contracts.SessionsCloseParams, struct{}](
+		ctx, client, contracts.MethodSessionsClose,
+		contracts.SessionsCloseParams{SessionID: opened.SessionID, Intent: contracts.CloseView},
+	); err != nil {
+		t.Fatalf("sessions.close: %v", err)
+	}
+
+	deadline := time.Now().Add(2 * time.Second)
+	for {
+		data, err := os.ReadFile(logPath)
+		if err == nil && strings.Contains(string(data), "session.open") && strings.Contains(string(data), "session.close") {
+			if strings.Contains(string(data), "password") || strings.Contains(string(data), "token") {
+				t.Fatalf("secret-like text in audit: %s", data)
+			}
+			return
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("audit events missing: %s (%v)", data, err)
+		}
+		time.Sleep(10 * time.Millisecond)
 	}
 }
 

@@ -83,7 +83,7 @@ Host trss-ui-1 trss-ui-2 trss-ui-3
 EOF
 
 rm -f "$SOCKET" "$LOG"
-"$TRSSD" --socket "$SOCKET" --ssh-config "$CONFIG" 2>>"$LOG" &
+"$TRSSD" --socket "$SOCKET" --ssh-config "$CONFIG" --audit-log "$SOCKET_DIR/audit.log" 2>>"$LOG" &
 TRSSD_PID=$!
 for _ in $(seq 1 50); do
   [[ -S "$SOCKET" ]] && break

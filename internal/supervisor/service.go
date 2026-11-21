@@ -7,6 +7,7 @@ import (
 	"sync"
 
 	"github.com/trzsz/trzsz-ssh/contracts"
+	"github.com/trzsz/trzsz-ssh/internal/audit"
 	"github.com/trzsz/trzsz-ssh/internal/ipc"
 )
 
@@ -28,11 +29,24 @@ type HostInventory interface {
 type Service struct {
 	backend *Backend
 	hosts   HostProvider
+	audit   *audit.Logger
+}
+
+// ServiceOption configures optional service integrations.
+type ServiceOption func(*Service)
+
+// WithAudit enables sanitized operational audit records.
+func WithAudit(logger *audit.Logger) ServiceOption {
+	return func(service *Service) { service.audit = logger }
 }
 
 // NewService creates the IPC handler for a supervisor backend.
-func NewService(backend *Backend, hosts HostProvider) *Service {
-	return &Service{backend: backend, hosts: hosts}
+func NewService(backend *Backend, hosts HostProvider, options ...ServiceOption) *Service {
+	service := &Service{backend: backend, hosts: hosts}
+	for _, option := range options {
+		option(service)
+	}
+	return service
 }
 
 // Handle implements ipc.Handler.
@@ -120,8 +134,10 @@ func (s *Service) importHosts(ctx context.Context, req contracts.RPCRequest) (js
 	}
 	result, err := inventory.Import(ctx, params.Source, params.Path)
 	if err != nil {
+		s.log(audit.Event{Action: "hosts.import", Result: "error", ErrorCode: "internal", Detail: params.Source})
 		return nil, internalError(err)
 	}
+	s.log(audit.Event{Action: "hosts.import", Result: "ok", Detail: params.Source})
 	return marshal(result)
 }
 
@@ -168,8 +184,10 @@ func (s *Service) openSession(ctx context.Context, conn *ipc.Conn, req contracts
 		Destination: destination,
 	})
 	if err != nil {
+		s.log(audit.Event{Action: "session.open", HostProfileID: params.HostProfileID, Result: "error", ErrorCode: "internal"})
 		return nil, internalError(err)
 	}
+	s.log(audit.Event{Action: "session.open", HostProfileID: params.HostProfileID, SessionID: string(id), Result: "ok"})
 	s.attach(conn, id)
 	return marshal(contracts.SessionsOpenResult{SessionID: id})
 }
@@ -214,8 +232,10 @@ func (s *Service) closeSession(ctx context.Context, req contracts.RPCRequest) (j
 		return nil, rpcError
 	}
 	if err := s.backend.RequestClose(ctx, params.SessionID, params.Intent); err != nil {
+		s.log(audit.Event{Action: "session.close", SessionID: string(params.SessionID), Result: "error", ErrorCode: "internal", Detail: string(params.Intent)})
 		return nil, internalError(err)
 	}
+	s.log(audit.Event{Action: "session.close", SessionID: string(params.SessionID), Result: "ok", Detail: string(params.Intent)})
 	return json.RawMessage(`{}`), nil
 }
 
@@ -295,6 +315,12 @@ func (s *Service) connectRoute(ctx context.Context, conn *ipc.Conn, req contract
 	}
 	s.attach(conn, id)
 	return marshal(contracts.SessionsOpenResult{SessionID: id})
+}
+
+func (s *Service) log(event audit.Event) {
+	if s.audit != nil {
+		s.audit.Log(event)
+	}
 }
 
 func (s *Service) attach(conn *ipc.Conn, id contracts.SessionID) {
