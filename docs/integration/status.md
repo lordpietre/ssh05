@@ -18,7 +18,7 @@
 | H-01 token FRP con fallback estático | **Resuelto** | `tssh/frp_proxy.go`, `tssh/frp_proxy_test.go` |
 | H-02 permisos del directorio FRP | **Resuelto** | `ensurePrivateDir`, test |
 | H-03 token FRP en reposo | **Mitigado (interino)** | AES-GCM + `~/.tssh/frp.key` 0600; TOML remoto 0600 |
-| H-04 tipos de proxy FRP | **Parcial avanzado** | 4 tipos validados por `frpc verify`; túnel TCP real |
+| H-04 tipos de proxy FRP | **Parcial avanzado** | 4 tipos validados; runtime TCP/STCP/UDP |
 | H-05 inyección en copia remota FRP | **Resuelto** | `tssh/frp_proxy.go`, `tssh/frp_proxy_test.go` |
 | Contratos UI ↔ supervisor | **Definidos** | `contracts/`, `contracts/ts/` |
 | IPC local autenticado (transporte) | **Hecho** | `internal/ipc/`, tests |

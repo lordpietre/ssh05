@@ -98,8 +98,8 @@ make install                   # copies ./bin/tssh to /usr/bin/tssh
 - H-03 is mitigated: FRP tokens are AES-GCM encrypted at rest with a local
   `~/.tssh/frp.key` (`0600`); remote TOML files are copied with `0600`.
 - H-04 is partial (advanced): tcp/udp/stcp/xtcp, dedicated STCP/XTCP secret,
-  local/remote version gating, `frpc verify` for all four types and a real TCP
-  tunnel smoke. UDP/STCP/XTCP runtime tests remain open.
+  local/remote version gating, `frpc verify` for all four types and real
+  TCP/STCP/UDP tunnels. XTCP runtime remains open.
 - H-05 is resolved (remote FRP copy uses quoted `sh -c` arguments and tests).
 - Phase 0 does **not** change runtime behavior of `tssh`; the runtime changes so
   far are the H-01 token fix, H-02 private FRP directories, H-03 encrypted FRP
