@@ -88,6 +88,7 @@ make install                   # copies ./bin/tssh to /usr/bin/tssh
   or `make phase0` from the repo root (requires `bun` on `PATH`).
 - UI smoke (starts sshd/trssd automatically): `make ui-smoke` (3 sesiones,
   tmux/reattach, restore de workspace y 10 pestañas con overflow).
+- Fase 1 P0: `make phase1-smoke` (host key estricta + UI smoke).
 - FRP smoke (requiere `make download-frp`): `make frp-smoke`.
 - Contract checks:
   ```

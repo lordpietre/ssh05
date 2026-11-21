@@ -28,7 +28,7 @@ else
 	GO_TEST := ${shell basename `which gotest 2>/dev/null` 2>/dev/null || echo go test}
 endif
 
-.PHONY: all clean test install download-frp phase0 contracts-check ui-check ui-smoke trssd frp-smoke
+.PHONY: all clean test install download-frp phase0 contracts-check ui-check ui-smoke trssd frp-smoke hostkey-smoke phase1-smoke
 
 # Check if frp source is available (may not exist on clone since /frp/ is gitignored)
 ifneq ("$(wildcard $(FRP_DIR)/go.mod)","")
@@ -109,3 +109,9 @@ else
 	@mkdir -p ${DESTDIR}${BIN_DST}
 	cp ${BIN_DIR}/tssh ${DESTDIR}${BIN_DST}/
 endif
+
+hostkey-smoke:
+	./scripts/hostkey-smoke.sh
+
+phase1-smoke: hostkey-smoke
+	$(MAKE) ui-smoke

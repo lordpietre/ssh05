@@ -5,7 +5,7 @@
 | Fecha | 21/11/2026 |
 | Commit base | `6e98b8d` |
 | Documento | `TRSS_SDD_v0.2.md` |
-| Fase actual | Fases 0-2 completas; Fase 3/4 en curso |
+| Fase actual | Fase 1 P0 aprobada; Fase 2 completada; Fase 3/4 en curso |
 
 ## Hecho
 
@@ -46,6 +46,7 @@
 | Barra de pestañas con overflow y activa visible | **Hecho** | `src/tabs/tabbar.ts` + tests |
 | Smoke real de 10 pestañas + contadores | **Hecho** | `make ui-smoke` |
 | Recuperación tras caída de UI (`sessions.list`/`attach`) | **Hecho** | reengancha sesiones vivas sin duplicar |
+| Aceptación Fase 1 P0 | **Aprobada** | `docs/phase-1/acceptance.md`, `make phase1-smoke` |
 | `SessionBackend` y `TabStore` | Definidos | `contracts/session.go`, `contracts/ts/index.ts` |
 | Envelope IPC y métodos del Anexo B | Definidos | `contracts/ipc.go`, `contracts/ts/index.ts` |
 

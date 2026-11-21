@@ -97,6 +97,7 @@ La Fase 0 (auditoría, ADRs y prototipo PTY/OpenTUI) está documentada en:
 - [Prototipo y resultados reproducibles](docs/phase-0/README.md)
 - [Contratos UI ↔ supervisor](contracts/README.md)
 - [Estado de integración del SDD](docs/integration/status.md)
+- [Aceptación Fase 1 P0](docs/phase-1/acceptance.md)
 
 ```sh
 cd prototype/terminal

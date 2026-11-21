@@ -134,6 +134,8 @@ assert_contains "UI_TAB1_SURVIVES" "background tab 1 survived tab 2"
 send C-2
 sleep 0.3
 send C-w
+assert_contains "Cerrar pestaña" "close dialog shows the close intents"
+send Enter
 assert_not_contains "[2 ● trss-ui-2]" "closing tab 2 removes only that tab"
 assert_contains "1 ● trss-ui-1" "tab 1 remains in the tab bar"
 
@@ -154,6 +156,7 @@ if command -v tmux >/dev/null; then
   assert_contains "TMUX_ACTIVE" "session runs inside remote tmux"
 
   send C-w
+  send Enter
   sleep 0.8
   send C-t
   sleep 0.2

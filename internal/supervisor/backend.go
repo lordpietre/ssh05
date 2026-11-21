@@ -254,7 +254,15 @@ func (b *Backend) RequestClose(ctx context.Context, id contracts.SessionID, inte
 		return ErrUnsupportedIntent
 	}
 	if intent == contracts.DetachRemoteTmux {
-		return ErrUnsupportedIntent
+		b.mu.RLock()
+		s := b.sessions[id]
+		b.mu.RUnlock()
+		if s == nil {
+			return ErrSessionNotFound
+		}
+		if s.tmuxSession == "" {
+			return ErrUnsupportedIntent
+		}
 	}
 
 	b.mu.Lock()
@@ -374,7 +382,7 @@ func (b *Backend) Capabilities(ctx context.Context) (contracts.Capabilities, err
 	return contracts.Capabilities{
 		Detach:            false,
 		Reattach:          false,
-		RemoteTmux:        false,
+		RemoteTmux:        true,
 		PersistentProcess: false,
 		BinaryStreaming:   true,
 	}, nil

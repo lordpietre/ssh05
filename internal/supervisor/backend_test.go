@@ -261,6 +261,20 @@ func TestBackendRejectsUnsupportedDetach(t *testing.T) {
 	}
 }
 
+func TestBackendDetachesRemoteTmux(t *testing.T) {
+	runner := &fakeRunner{}
+	backend := NewBackend(runner, Options{})
+	id, err := backend.Open(context.Background(), "host-1", "", contracts.SessionOptions{TmuxSession: "trss-lab"})
+	if err != nil {
+		t.Fatalf("Open: %v", err)
+	}
+	if err := backend.RequestClose(context.Background(), id, contracts.DetachRemoteTmux); err != nil {
+		t.Fatalf("DetachRemoteTmux: %v", err)
+	}
+	runner.last().finish(0)
+	eventually(t, func() bool { return len(backend.List()) == 0 })
+}
+
 func TestBackendBoundsSessions(t *testing.T) {
 	backend := NewBackend(&fakeRunner{}, Options{MaxSessions: 1})
 	if _, err := backend.Open(context.Background(), "host-1", "", contracts.SessionOptions{}); err != nil {
@@ -321,7 +335,7 @@ func TestBackendCapabilities(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if caps.Detach || caps.Reattach || caps.RemoteTmux || caps.PersistentProcess {
+	if caps.Detach || caps.Reattach || caps.PersistentProcess || !caps.RemoteTmux {
 		t.Fatalf("unexpected capabilities: %+v", caps)
 	}
 	if !caps.BinaryStreaming {

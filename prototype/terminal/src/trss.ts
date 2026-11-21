@@ -204,6 +204,22 @@ const paletteOverlay = new TextRenderable(renderer, {
 
 renderer.root.add(paletteOverlay)
 
+const closeOverlay = new TextRenderable(renderer, {
+  id: "close-overlay",
+  position: "absolute",
+  top: 0,
+  left: 0,
+  width: "100%",
+  height: "100%",
+  visible: false,
+  zIndex: 102,
+  content: "",
+  fg: RGBA.fromInts(219, 226, 238),
+  bg: RGBA.fromInts(16, 19, 26),
+})
+
+renderer.root.add(closeOverlay)
+
 const pendingPlaceholder = new TextRenderable(renderer, {
   id: "pending-view",
   position: "absolute",
@@ -254,6 +270,8 @@ let workspaceNewMode = false
 let workspaceInput = ""
 let paletteVisible = false
 let paletteCursor = 0
+let closeDialogVisible = false
+let closeDialogCursor = 0
 
 const paletteCommands = [
   "Ir a hosts",
@@ -382,7 +400,82 @@ function uiDirty(): void {
   renderStatus()
   renderWorkspacePicker()
   renderPalette()
+  renderCloseDialog()
   renderer.requestRender()
+}
+
+type CloseChoice = {
+  label: string
+  intent: "close-view" | "disconnect-ssh" | "detach-remote-tmux"
+}
+
+function closeChoices(): CloseChoice[] {
+  const choices: CloseChoice[] = [
+    { label: "Cerrar vista (desconecta SSH)", intent: "close-view" },
+    { label: "Desconectar SSH", intent: "disconnect-ssh" },
+  ]
+  if (store.active()?.tmux) {
+    choices.push({
+      label: "Desacoplar tmux (mantener sesión remota)",
+      intent: "detach-remote-tmux",
+    })
+  }
+  return choices
+}
+
+function renderCloseDialog(): void {
+  if (!closeDialogVisible) {
+    closeOverlay.visible = false
+    return
+  }
+  closeOverlay.visible = true
+  const choices = closeChoices()
+  closeDialogCursor = Math.min(closeDialogCursor, choices.length - 1)
+  const lines = ["", "  Cerrar pestaña", ""]
+  for (let index = 0; index < choices.length; index++) {
+    lines.push(`  ${index === closeDialogCursor ? ">" : " "} ${choices[index].label}`)
+  }
+  lines.push("", "  Enter confirmar · Esc cancelar")
+  closeOverlay.content = lines.join("\n")
+}
+
+function openCloseDialog(): void {
+  const active = store.active()
+  if (!active) return
+  if (!sessions.has(active.sessionId)) {
+    void closeActive("close-view")
+    return
+  }
+  closeDialogCursor = 0
+  closeDialogVisible = true
+  uiDirty()
+}
+
+function closeCloseDialog(): void {
+  closeDialogVisible = false
+  uiDirty()
+}
+
+function executeCloseDialog(): void {
+  const choice = closeChoices()[closeDialogCursor]
+  if (!choice) return
+  closeDialogVisible = false
+  void closeActive(choice.intent)
+}
+
+function handleCloseDialogKey(key: KeyEvent): void {
+  const name = key.name.toLowerCase()
+  if (name === "up") closeDialogCursor = Math.max(0, closeDialogCursor - 1)
+  else if (name === "down") {
+    closeDialogCursor = Math.min(closeChoices().length - 1, closeDialogCursor + 1)
+  } else if (name === "escape") {
+    closeCloseDialog()
+    return
+  } else if (name === "return" || name === "enter") {
+    executeCloseDialog()
+    return
+  }
+  uiDirty()
 }
 
 function renderPalette(): void {
@@ -426,7 +519,7 @@ function executePalette(index: number): void {
       uiDirty()
       break
     case 3:
-      void closeActive()
+      openCloseDialog()
       break
     case 4:
       openWorkspacePicker()
@@ -765,7 +858,7 @@ function scheduleResize(sessionId: SessionId, cols: number, rows: number): void 
   }, 80)
 }
 
-async function closeActive(): Promise<void> {
+async function closeActive(intent: "close-view" | "disconnect-ssh" | "detach-remote-tmux" = "close-view"): Promise<void> {
   const active = store.active()
   if (!active) return
   const view = sessions.get(active.sessionId)
@@ -773,7 +866,7 @@ async function closeActive(): Promise<void> {
     try {
       await client.call(
         "sessions.close",
-        { sessionId: active.sessionId, intent: "close-view" },
+        { sessionId: active.sessionId, intent },
         { timeoutMs: 5000 },
       )
     } catch (error) {
@@ -876,6 +969,11 @@ function handleHostKey(key: KeyEvent): void {
 
 renderer.keyInput.on("keypress", (key) => {
   const name = key.name.toLowerCase()
+  if (closeDialogVisible) {
+    key.stopPropagation()
+    handleCloseDialogKey(key)
+    return
+  }
   if (paletteVisible) {
     key.stopPropagation()
     handlePaletteKey(key)
@@ -919,7 +1017,7 @@ renderer.keyInput.on("keypress", (key) => {
   }
   if (key.ctrl && name === "w") {
     key.stopPropagation()
-    void closeActive()
+    openCloseDialog()
     return
   }
   if (key.ctrl && name === "tab") {
