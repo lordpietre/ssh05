@@ -27,6 +27,7 @@ type HostProfile struct {
 	ProxyJump        []string             `json:"proxyJump,omitempty"`
 	Labels           []string             `json:"labels,omitempty"`
 	Color            string               `json:"color,omitempty"`
+	Favorite         bool                 `json:"favorite,omitempty"`
 	VerifiedIdentity bool                 `json:"verifiedIdentity"`
 	Discovered       bool                 `json:"discovered"`
 }

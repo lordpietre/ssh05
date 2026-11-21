@@ -2,7 +2,6 @@ package supervisor
 
 import (
 	"context"
-	"strconv"
 
 	"github.com/trzsz/trzsz-ssh/contracts"
 	"github.com/trzsz/trzsz-ssh/tssh"
@@ -24,29 +23,7 @@ func (h SSHHosts) List(ctx context.Context) ([]contracts.HostProfile, error) {
 	}
 	profiles := make([]contracts.HostProfile, 0, len(entries))
 	for _, entry := range entries {
-		port := 22
-		if parsed, err := strconv.Atoi(entry.Port); err == nil && parsed > 0 && parsed <= 65535 {
-			port = parsed
-		}
-		hostname := entry.Host
-		if hostname == "" {
-			hostname = entry.Alias
-		}
-		profiles = append(profiles, contracts.HostProfile{
-			ID:    entry.Alias,
-			Alias: entry.Alias,
-			Target: contracts.HostTarget{
-				Hostname: hostname,
-				Port:     port,
-				Username: entry.User,
-			},
-			SourceRefs: []contracts.SourceReference{{
-				Kind:    contracts.SourceSSHConfig,
-				EntryID: entry.Alias,
-			}},
-			Discovered:       true,
-			VerifiedIdentity: false,
-		})
+		profiles = append(profiles, sshProfile(entry))
 	}
 	return profiles, nil
 }

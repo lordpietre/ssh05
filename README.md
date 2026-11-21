@@ -134,6 +134,19 @@ FRP local (frpc) contra un frps autorizado:
 
 En la UI, `Ctrl+F` abre el panel FRP (listar, crear, parar, rotar token).
 
+Metadatos de host en `~/.ssh/config` (siempre con `#!!`):
+
+```sshconfig
+Host lab
+    HostName 10.0.0.5
+    #!! GroupLabels lab produccion
+    #!! Favorite Yes
+    #!! Color 5878CC
+```
+
+Los colores usan RGB cuando la terminal lo soporta y degradan a 256/16
+colores; `NO_COLOR=1` o `TRSS_THEME=mono` desactivan el color.
+
 Reconexión automática configurable:
 
 ```sh

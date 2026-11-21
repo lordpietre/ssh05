@@ -48,6 +48,9 @@
 | Restauración como vistas pendientes | **Hecho** | Enter reconecta; nunca simula sesión viva |
 | Backend 100 MB con buffers acotados | **Hecho** | tests de `internal/supervisor` |
 | Barra de pestañas con overflow y activa visible | **Hecho** | `src/tabs/tabbar.ts` + tests |
+| INV-05 grupos, favoritos y colores | **Hecho** | `#!! GroupLabels`, `#!! Favorite`, `#!! Color` |
+| UI-02 color RGB con degradación | **Hecho** | `src/theme/color.ts`, 256/16/mono |
+| UI-03 estado por símbolo y texto | **Hecho** | `phaseIcon` + `phaseLabel` + estado textual |
 | Smoke real de 10 pestañas + contadores | **Hecho** | `make ui-smoke` |
 | Recuperación tras caída de UI (`sessions.list`/`attach`) | **Hecho** | reengancha sesiones vivas sin duplicar |
 | Aceptación Fase 1 P0 | **Aprobada** | `docs/phase-1/acceptance.md`, `make phase1-smoke` |
@@ -61,7 +64,7 @@
 | 2 | FRP frps local y actualización verificada | FRP-01/07 |
 | 3 | Config SSH por conexión | Eliminar serialización de `SshLogin` |
 | 3 | Resolver de rutas FRP | RUT-01/03 para FRP |
-| 3 | Paleta de comandos y colores | UI-02/UI-04 |
+| 3 | Atajos configurables | UI-04 |
 
 ## Invariantes que no se negocian
 

@@ -67,6 +67,8 @@ type sshHost struct {
 	ProxyJump     string
 	RemoteCommand string
 	GroupLabels   string
+	Color         string
+	Favorite      bool
 	Selected      bool `json:"-"`
 	LastLogin     string
 	System        bool
@@ -74,35 +76,35 @@ type sshHost struct {
 }
 
 type tsshConfig struct {
-	language              string
-	configPath            string
-	sysConfigPath         string
-	exConfigPath          string
-	useOpenSSHConfig      bool
-	defaultUploadPath     string
-	defaultDownloadPath   string
-	dragFileUploadCommand string
-	progressColorPair     string
-	promptThemeLayout     string
-	promptThemeColors     map[string]string
-	promptPageSize        uint8
-	promptDefaultMode     string
-	promptDetailItems     string
-	promptCursorIcon      string
+	language                   string
+	configPath                 string
+	sysConfigPath              string
+	exConfigPath               string
+	useOpenSSHConfig           bool
+	defaultUploadPath          string
+	defaultDownloadPath        string
+	dragFileUploadCommand      string
+	progressColorPair          string
+	promptThemeLayout          string
+	promptThemeColors          map[string]string
+	promptPageSize             uint8
+	promptDefaultMode          string
+	promptDetailItems          string
+	promptCursorIcon           string
 	promptSelectedIcon         string
 	defaultServerAliveInterval uint32
-	dockerEnabled             bool
+	dockerEnabled              bool
 	setTerminalTitle           string
 	loadConfig                 sync.Once
 	loadExConfig               sync.Once
 	loadHosts                  sync.Once
-	config                *ssh_config.Config
-	sysConfig             *ssh_config.Config
-	exConfig              *ssh_config.Config
-	loadDefaultColors     sync.Once
-	defaultThemeColors    map[string]string
-	allHosts              []*sshHost
-	wildcardPatterns      []*ssh_config.Pattern
+	config                     *ssh_config.Config
+	sysConfig                  *ssh_config.Config
+	exConfig                   *ssh_config.Config
+	loadDefaultColors          sync.Once
+	defaultThemeColors         map[string]string
+	allHosts                   []*sshHost
+	wildcardPatterns           []*ssh_config.Pattern
 }
 
 var userConfig *tsshConfig
@@ -769,6 +771,8 @@ func appendPromptHosts(hosts []*sshHost, seen map[string]bool, cfgHosts ...*ssh_
 				ProxyJump:     getConfig(alias, "ProxyJump"),
 				RemoteCommand: getConfig(alias, "RemoteCommand"),
 				GroupLabels:   getGroupLabels(alias),
+				Color:         getConfig(alias, "Color"),
+				Favorite:      isFavorite(alias),
 			})
 		}
 	}
@@ -801,6 +805,11 @@ func readRawExConfig(alias, key string) string {
 		}
 	}
 	return ""
+}
+
+func isFavorite(alias string) bool {
+	value := strings.ToLower(strings.TrimSpace(getConfig(alias, "Favorite")))
+	return value == "yes" || value == "true" || value == "1"
 }
 
 func getGroupLabels(alias string) string {

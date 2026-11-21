@@ -172,6 +172,7 @@ export interface HostProfile {
   proxyJump?: string[]
   labels?: string[]
   color?: string
+  favorite?: boolean
   verifiedIdentity: boolean
   discovered: boolean
 }

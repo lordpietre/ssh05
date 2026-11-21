@@ -1,6 +1,8 @@
 import { describe, expect, test } from "bun:test"
 import type { TabState } from "../../../../contracts/ts/index.ts"
-import { renderTabBar } from "./tabbar.ts"
+import { renderTabBar, renderTabBarStyled } from "./tabbar.ts"
+import { StyledText } from "@opentui/core"
+import { resetColorLevel } from "../theme/color.ts"
 
 function tabs(count: number): TabState[] {
   return Array.from({ length: count }, (_, index) => ({
@@ -45,5 +47,52 @@ describe("renderTabBar", () => {
 
   test("handles an empty workspace", () => {
     expect(renderTabBar({ tabs: [], width: 80 })).toContain("Ctrl+T hosts")
+  })
+})
+
+describe("renderTabBarStyled", () => {
+  test("preserves the computed text and colors tabs", () => {
+    process.env.TRSS_COLOR_LEVEL = "truecolor"
+    resetColorLevel()
+    try {
+      const options = { tabs: tabs(3), activeId: "tab-2", width: 120 }
+      const styled = renderTabBarStyled(options)
+      expect(styled).toBeInstanceOf(StyledText)
+      if (!(styled instanceof StyledText)) return
+      expect(styled.chunks.map((chunk) => chunk.text).join("")).toBe(renderTabBar(options))
+      expect(styled.chunks.filter((chunk) => chunk.fg).length).toBe(3)
+    } finally {
+      delete process.env.TRSS_COLOR_LEVEL
+      resetColorLevel()
+    }
+  })
+
+  test("prefers the tab color over the phase color", () => {
+    process.env.TRSS_COLOR_LEVEL = "truecolor"
+    resetColorLevel()
+    try {
+      const list = tabs(1)
+      list[0].color = "#112233"
+      const styled = renderTabBarStyled({ tabs: list, activeId: undefined, width: 80 })
+      if (!(styled instanceof StyledText)) throw new Error("expected styled output")
+      const colored = styled.chunks.find((chunk) => chunk.fg)
+      expect(colored?.fg?.toInts().slice(0, 3)).toEqual([0x11, 0x22, 0x33])
+    } finally {
+      delete process.env.TRSS_COLOR_LEVEL
+      resetColorLevel()
+    }
+  })
+
+  test("honors NO_COLOR", () => {
+    const previous = process.env.NO_COLOR
+    process.env.NO_COLOR = "1"
+    resetColorLevel()
+    try {
+      expect(typeof renderTabBarStyled({ tabs: tabs(2), activeId: "tab-1", width: 80 })).toBe("string")
+    } finally {
+      if (previous === undefined) delete process.env.NO_COLOR
+      else process.env.NO_COLOR = previous
+      resetColorLevel()
+    }
   })
 })

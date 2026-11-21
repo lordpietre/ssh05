@@ -45,3 +45,45 @@ func TestSSHHostsList(t *testing.T) {
 		t.Fatalf("source refs = %+v", found.SourceRefs)
 	}
 }
+
+func TestSSHHostsInventoryMetadata(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "ssh_config")
+	content := `Host lab
+    HostName 10.0.0.5
+    User admin
+    #!! Color 5878CC
+    #!! Favorite Yes
+    #!! GroupLabels lab prod
+Host plain
+    HostName 10.0.0.6
+`
+	if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	hosts, err := (SSHHosts{ConfigPath: path}).List(context.Background())
+	if err != nil {
+		t.Fatalf("List: %v", err)
+	}
+	byAlias := map[string]contracts.HostProfile{}
+	for _, host := range hosts {
+		byAlias[host.Alias] = host
+	}
+	lab, ok := byAlias["lab"]
+	if !ok {
+		t.Fatalf("lab missing from %+v", hosts)
+	}
+	if lab.Color != "5878CC" {
+		t.Fatalf("color = %q", lab.Color)
+	}
+	if !lab.Favorite {
+		t.Fatalf("favorite = %v", lab.Favorite)
+	}
+	if len(lab.Labels) != 2 || lab.Labels[0] != "lab" || lab.Labels[1] != "prod" {
+		t.Fatalf("labels = %+v", lab.Labels)
+	}
+	if byAlias["plain"].Favorite || byAlias["plain"].Color != "" {
+		t.Fatalf("plain = %+v", byAlias["plain"])
+	}
+}

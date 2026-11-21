@@ -34,7 +34,7 @@ import type {
 } from "../../../contracts/ts/index.ts"
 import { IpcClient } from "./ipc/client.ts"
 import { InMemoryTabStore } from "./tabs/store.ts"
-import { phaseIcon, phaseLabel, renderTabBar } from "./tabs/tabbar.ts"
+import { phaseIcon, phaseLabel, renderTabBar, renderTabBarStyled } from "./tabs/tabbar.ts"
 import { listWorkspaceNames, loadWorkspace, safeWorkspaceName, saveWorkspace } from "./workspaces/store.ts"
 
 const HOST_PANEL_WIDTH = 30
@@ -331,7 +331,15 @@ function filteredHosts(): HostProfile[] {
   const needle = query.trim().toLowerCase()
   if (!needle) return hosts
   return hosts.filter((host) =>
-    `${host.alias} ${host.target.hostname} ${host.target.username ?? ""} ${host.target.port}`
+    [
+      host.alias,
+      host.target.hostname,
+      host.target.username ?? "",
+      String(host.target.port),
+      (host.labels ?? []).join(" "),
+      host.favorite ? "favorite" : "",
+    ]
+      .join(" ")
       .toLowerCase()
       .includes(needle),
   )
@@ -381,13 +389,16 @@ function renderHosts(): void {
     const tab = session ? store.list().find((item) => item.sessionId === session.sessionId) : undefined
     const pending = !session && pendingHostFor(host) !== undefined
     const state = tab ? phaseIcon(tab.phase) : pending ? "○" : " "
-    lines.push(`${index === cursor ? ">" : " "} ${state} ${truncate(host.alias, HOST_PANEL_WIDTH - 5)}`)
+    const favorite = host.favorite ? "★" : " "
+    const group = host.labels && host.labels.length > 0 ? ` (${host.labels[0]})` : ""
+    const label = `${favorite}${host.alias}${group}`
+    lines.push(`${index === cursor ? ">" : " "} ${state} ${truncate(label, HOST_PANEL_WIDTH - 4)}`)
   }
   hostList.content = lines.join("\n")
 }
 
 function renderTabs(): void {
-  tabBar.content = renderTabBar({
+  tabBar.content = renderTabBarStyled({
     tabs: store.list(),
     activeId: store.active()?.id,
     width: renderer.width,
@@ -665,7 +676,7 @@ async function restoreWorkspace(
         sessionId: id,
         title: record.title || host.alias,
         phase: "disconnected",
-        color: record.color,
+        color: record.color || host.color,
         tmux: record.tmux,
       })
       pendingHosts.set(id, host)
@@ -804,6 +815,7 @@ function tabForSession(sessionId: SessionId, host: HostProfile, phase: SessionPh
     sessionId,
     title: host.alias,
     phase,
+    color: host.color,
     tmux: tmuxSession ? { hostProfileId: host.id, sessionName: tmuxSession, verified: true } : undefined,
   }
 }

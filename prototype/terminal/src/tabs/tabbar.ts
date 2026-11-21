@@ -1,4 +1,6 @@
+import { StyledText, bold, fg, type TextChunk } from "@opentui/core"
 import type { SessionPhase, TabId, TabState } from "../../../../contracts/ts/index.ts"
+import { colorLevel, degradeColor } from "../theme/color.ts"
 
 export function phaseIcon(phase: SessionPhase): string {
   switch (phase) {
@@ -53,6 +55,27 @@ export function phaseLabel(phase: SessionPhase): string {
   }
 }
 
+function phaseColor(phase: SessionPhase): string {
+  switch (phase) {
+    case "connected":
+      return "#7BD88F"
+    case "connecting":
+    case "resolving":
+    case "authenticating":
+    case "reconnecting":
+    case "degraded":
+      return "#F2C94C"
+    case "failed":
+      return "#EB5757"
+    case "closed":
+    case "disconnected":
+    case "detached":
+      return "#8A94A6"
+    default:
+      return "#C9D1D9"
+  }
+}
+
 function widthOf(value: string): number {
   return Array.from(value).length
 }
@@ -71,25 +94,67 @@ export interface TabBarOptions {
   suffix?: string
 }
 
+interface TabBarWindow {
+  prefix: string
+  suffix: string
+  labels: string[]
+  start: number
+  end: number
+  leftHidden: string
+  rightHidden: string
+  text: string
+}
+
 /**
  * Renders a fixed-width tab bar. The active tab is always visible; hidden tabs
  * are represented by ‹N left and N› right counters. The window maximizes the
  * number of visible tabs that fit in `width`.
  */
 export function renderTabBar(options: TabBarOptions): string {
+  const window = computeWindow(options)
+  return window ? window.text : fit(" TRSS · supervisor   Ctrl+T hosts   F10 salir", Math.max(20, options.width))
+}
+
+/**
+ * Colored variant. Tab color wins over the phase fallback. Colors degrade to
+ * the terminal palette (truecolor → 256 → 16) and `NO_COLOR`/`TRSS_THEME=mono`
+ * yield a plain, monochrome string.
+ */
+export function renderTabBarStyled(options: TabBarOptions): StyledText | string {
+  const level = colorLevel()
+  if (level === "none") return renderTabBar(options)
+  const window = computeWindow(options)
+  if (!window) return renderTabBar(options)
+
+  const chunks: TextChunk[] = [{ __isChunk: true, text: window.prefix }]
+  if (window.leftHidden) chunks.push({ __isChunk: true, text: window.leftHidden })
+  for (let index = window.start; index <= window.end; index++) {
+    if (index > window.start) chunks.push({ __isChunk: true, text: " " })
+    const tab = options.tabs[index]
+    const color = degradeColor(tab.color || phaseColor(tab.phase), level)
+    const label = window.labels[index]
+    if (!color) {
+      chunks.push({ __isChunk: true, text: label })
+    } else {
+      chunks.push(tab.id === options.activeId ? bold(fg(color)(label)) : fg(color)(label))
+    }
+  }
+  if (window.rightHidden) chunks.push({ __isChunk: true, text: window.rightHidden })
+  chunks.push({ __isChunk: true, text: window.suffix })
+  return new StyledText(chunks)
+}
+
+function computeWindow(options: TabBarOptions): TabBarWindow | undefined {
   const width = Math.max(20, options.width)
   const prefix = options.prefix ?? " TRSS · "
   const suffix = options.suffix ?? " [+]"
   const tabs = options.tabs
-  if (tabs.length === 0) {
-    return fit(" TRSS · supervisor   Ctrl+T hosts   F10 salir", width)
-  }
+  if (tabs.length === 0) return undefined
 
   const labels = tabs.map((tab, index) => {
     const label = `${index + 1} ${phaseIcon(tab.phase)} ${truncateTabTitle(tab.title, 18)}`
     return tab.id === options.activeId ? `[${label}]` : ` ${label} `
   })
-
   const activeIndex = Math.max(
     0,
     tabs.findIndex((tab) => tab.id === options.activeId),
@@ -112,13 +177,33 @@ export function renderTabBar(options: TabBarOptions): string {
     }
   }
 
-  if (bestText !== "") return bestText
+  if (bestText !== "") {
+    return {
+      prefix,
+      suffix,
+      labels,
+      start: bestStart,
+      end: bestEnd,
+      leftHidden: bestStart > 0 ? `‹${bestStart} ` : "",
+      rightHidden: bestEnd < tabs.length - 1 ? ` ${tabs.length - 1 - bestEnd}›` : "",
+      text: bestText,
+    }
+  }
 
   // Even the active tab plus prefix/suffix does not fit: truncate it.
   const budget = Math.max(4, width - widthOf(prefix) - widthOf(suffix) - 2)
   const active = tabs[activeIndex]
   const label = `[${activeIndex + 1} ${phaseIcon(active.phase)} ${truncateTabTitle(active.title, budget - 4)}]`
-  return fit(`${prefix}${label}${suffix}`, width)
+  return {
+    prefix,
+    suffix,
+    labels,
+    start: activeIndex,
+    end: activeIndex,
+    leftHidden: "",
+    rightHidden: "",
+    text: fit(`${prefix}${label}${suffix}`, width),
+  }
 }
 
 function fit(value: string, width: number): string {

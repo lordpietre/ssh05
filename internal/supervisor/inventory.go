@@ -112,6 +112,9 @@ func (i *Inventory) mergeLocked() {
 		add(profile)
 	}
 	sort.Slice(i.profiles, func(a, b int) bool {
+		if i.profiles[a].Favorite != i.profiles[b].Favorite {
+			return i.profiles[a].Favorite
+		}
 		return strings.ToLower(i.profiles[a].Alias) < strings.ToLower(i.profiles[b].Alias)
 	})
 }
@@ -146,6 +149,9 @@ func mergeProfile(destination *contracts.HostProfile, source contracts.HostProfi
 	}
 	if destination.Color == "" {
 		destination.Color = source.Color
+	}
+	if !destination.Favorite {
+		destination.Favorite = source.Favorite
 	}
 }
 
@@ -269,9 +275,12 @@ func sshProfile(entry tssh.HostEntry) contracts.HostProfile {
 			Kind:    contracts.SourceSSHConfig,
 			EntryID: entry.Alias,
 		}},
+		Color:            entry.Color,
+		Favorite:         entry.Favorite,
 		Discovered:       true,
 		VerifiedIdentity: false,
 	}
+	profile.Labels = append(profile.Labels, strings.Fields(entry.GroupLabels)...)
 	for _, jump := range strings.Split(entry.ProxyJump, ",") {
 		if jump = strings.TrimSpace(jump); jump != "" {
 			profile.ProxyJump = append(profile.ProxyJump, jump)
