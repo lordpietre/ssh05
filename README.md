@@ -143,6 +143,14 @@ Para levantar un `frps` local gestionado por el supervisor:
 En la UI, `Ctrl+F` abre el panel FRP (endpoints, proxies, crear, parar,
 iniciar/parar `frps` con `s`, rotar token).
 
+Atajos configurables en `~/.config/trss/keybindings.json` (o
+`TRSS_KEYBINDINGS`); los valores ausentes conservan el atajo por defecto y
+`null` lo desactiva:
+
+```json
+{"palette": "ctrl+space", "frp": "ctrl+shift+f", "quit": "ctrl+q"}
+```
+
 La paleta (`Ctrl+K`) incluye «Probar ruta del host»: informa `reachable`,
 `refused`, `timeout`, `dns_failure` o `unknown` sin interpretar un timeout como
 puerto cerrado.

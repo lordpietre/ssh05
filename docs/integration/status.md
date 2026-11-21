@@ -49,6 +49,7 @@
 | FRP UI (listar/crear/parar/eliminar/rotar) | **Hecho** | `Ctrl+F` |
 | Ruta FRP por visitor | **Hecho** | `RouteForHost` + `RouteID` |
 | RUT-02/RUT-03 sondeo y ruta visible | **Hecho** | `routes.probe`; timeout ≠ cerrado; paleta |
+| UI-04 atajos configurables | **Hecho** | `keybindings.json` + paleta |
 | Pruebas adversariales (framing, inyección, reconexión) | **Hecho** | fuzz tests + tests de inyección/reconnect |
 | Restauración como vistas pendientes | **Hecho** | Enter reconecta; nunca simula sesión viva |
 | Backend 100 MB con buffers acotados | **Hecho** | tests de `internal/supervisor` |
@@ -69,7 +70,6 @@
 | 2 | FRP frps local y actualización verificada | FRP-01/07 |
 | 3 | Config SSH por conexión | Eliminar serialización de `SshLogin` |
 | 3 | Resolver de rutas FRP | RUT-01/03 para FRP |
-| 3 | Atajos configurables | UI-04 |
 
 ## Invariantes que no se negocian
 

@@ -65,6 +65,7 @@ make install                   # copies ./bin/tssh to /usr/bin/tssh
   - `Ctrl+K` abre la paleta de comandos.
   - `--workspace <nombre>` o `TRSS_WORKSPACE_NAME`; `TRSS_WORKSPACE_DIR`.
   - `Ctrl+I` importa/recarga KeePass si `trssd` tiene KDBX configurado.
+  Atajos configurables en `~/.config/trss/keybindings.json`.
   - Barra de pestañas con overflow (`‹N`/`N›`) y activa siempre visible.
   - Tras caer la UI, `sessions.list`/`sessions.attach` recuperan sesiones vivas.
   - Workspace en `~/.config/trss/workspace.json` (`TRSS_WORKSPACE` override).

@@ -33,6 +33,7 @@ import type {
   TabState,
   Workspace,
 } from "../../../contracts/ts/index.ts"
+import { loadKeybindings, matchesAction } from "./config/keybindings.ts"
 import { IpcClient } from "./ipc/client.ts"
 import { InMemoryTabStore } from "./tabs/store.ts"
 import { phaseIcon, phaseLabel, renderTabBar, renderTabBarStyled } from "./tabs/tabbar.ts"
@@ -52,6 +53,10 @@ const debug = (message: string) => {
     }
   }
 }
+
+const loadedBindings = loadKeybindings()
+const keybindings = loadedBindings.bindings
+for (const error of loadedBindings.errors) debug(error)
 
 function defaultSocketPath(): string {
   if (process.env.TRSS_SOCKET) return process.env.TRSS_SOCKET
@@ -1031,7 +1036,7 @@ renderer.keyInput.on("keypress", (key) => {
     void handleFRPKey(key)
     return
   }
-  if (key.ctrl && name === "f") {
+  if (matchesAction(key, keybindings, "frp")) {
     key.stopPropagation()
     void openFRP()
     return
@@ -1046,38 +1051,38 @@ renderer.keyInput.on("keypress", (key) => {
     handleWorkspaceKey(key)
     return
   }
-  if (key.ctrl && name === "k") {
+  if (matchesAction(key, keybindings, "palette")) {
     key.stopPropagation()
     openPalette()
     return
   }
-  if (key.ctrl && name === "p") {
+  if (matchesAction(key, keybindings, "workspaces")) {
     key.stopPropagation()
     openWorkspacePicker()
     return
   }
-  if (name === "f10") {
+  if (matchesAction(key, keybindings, "quit")) {
     key.stopPropagation()
     void quit()
     return
   }
-  if (key.ctrl && name === "t") {
+  if (matchesAction(key, keybindings, "hosts")) {
     key.stopPropagation()
     focusHosts()
     return
   }
-  if (key.ctrl && name === "g") {
+  if (matchesAction(key, keybindings, "tmux")) {
     key.stopPropagation()
     tmuxMode = !tmuxMode
     uiDirty()
     return
   }
-  if (key.ctrl && name === "i") {
+  if (matchesAction(key, keybindings, "import")) {
     key.stopPropagation()
     void importHosts()
     return
   }
-  if (key.ctrl && name === "w") {
+  if (matchesAction(key, keybindings, "close")) {
     key.stopPropagation()
     openCloseDialog()
     return
