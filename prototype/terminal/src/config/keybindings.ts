@@ -11,6 +11,9 @@ export type KeyAction =
   | "tmux"
   | "close"
   | "quit"
+  | "favorite"
+  | "color"
+  | "labels"
 
 export type KeyBindings = Record<KeyAction, string>
 
@@ -23,6 +26,9 @@ export const DEFAULT_KEYBINDINGS: KeyBindings = {
   tmux: "ctrl+g",
   close: "ctrl+w",
   quit: "f10",
+  favorite: "f2",
+  color: "f3",
+  labels: "f4",
 }
 
 export interface LoadedKeybindings {

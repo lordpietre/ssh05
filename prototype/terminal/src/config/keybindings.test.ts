@@ -62,6 +62,12 @@ describe("loadKeybindings", () => {
 })
 
 describe("matchesAction", () => {
+  test("exposes metadata shortcuts", () => {
+    expect(matchesAction({ name: "f2" }, DEFAULT_KEYBINDINGS, "favorite")).toBe(true)
+    expect(matchesAction({ name: "f3" }, DEFAULT_KEYBINDINGS, "color")).toBe(true)
+    expect(matchesAction({ name: "f4" }, DEFAULT_KEYBINDINGS, "labels")).toBe(true)
+  })
+
   test("matches a configured action", () => {
     const bindings = { ...DEFAULT_KEYBINDINGS, hosts: "ctrl+h" }
     expect(matchesAction({ name: "h", ctrl: true }, bindings, "hosts")).toBe(true)

@@ -71,7 +71,8 @@ make install                   # copies ./bin/tssh to /usr/bin/tssh
   - `Ctrl+I` importa/recarga KeePass si `trssd` tiene KDBX configurado.
   `F2` favorito, `F3` color, `F4` etiquetas; overrides en
   `~/.config/trss/hosts.json` (`TRSS_HOST_OVERRIDES`).
-  Atajos configurables en `~/.config/trss/keybindings.json`.
+  Atajos configurables (incl. `favorite`, `color`, `labels`) en
+  `~/.config/trss/keybindings.json`.
   - Barra de pestañas con overflow (`‹N`/`N›`) y activa siempre visible.
   - Tras caer la UI, `sessions.list`/`sessions.attach` recuperan sesiones vivas.
   - Workspace en `~/.config/trss/workspace.json` (`TRSS_WORKSPACE` override).

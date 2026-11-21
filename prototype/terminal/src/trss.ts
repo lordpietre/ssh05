@@ -1107,9 +1107,9 @@ function handleHostKey(key: KeyEvent): void {
   const name = key.name.toLowerCase()
   const all = filteredHosts()
 
-  if (name === "f2") void toggleFavorite()
-  else if (name === "f3") void cycleHostColor()
-  else if (name === "f4") openLabelsEditor()
+  if (matchesAction(key, keybindings, "favorite")) void toggleFavorite()
+  else if (matchesAction(key, keybindings, "color")) void cycleHostColor()
+  else if (matchesAction(key, keybindings, "labels")) openLabelsEditor()
   else if (name === "up") cursor = Math.max(0, cursor - 1)
   else if (name === "down") cursor = Math.min(Math.max(0, all.length - 1), cursor + 1)
   else if (name === "pageup") cursor = Math.max(0, cursor - 10)

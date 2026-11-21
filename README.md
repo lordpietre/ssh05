@@ -150,7 +150,7 @@ Atajos configurables en `~/.config/trss/keybindings.json` (o
 `null` lo desactiva:
 
 ```json
-{"palette": "ctrl+space", "frp": "ctrl+shift+f", "quit": "ctrl+q"}
+{"palette": "ctrl+space", "frp": "ctrl+shift+f", "favorite": "f6", "quit": "ctrl+q"}
 ```
 
 La paleta (`Ctrl+K`) incluye «Exportar diagnóstico saneado», que escribe un
