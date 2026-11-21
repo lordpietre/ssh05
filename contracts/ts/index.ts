@@ -360,6 +360,20 @@ export interface RoutesPlanResult {
   reason?: string
 }
 
+export interface RoutesProbeParams {
+  hostProfileId: string
+  routeId?: string
+}
+
+export interface RoutesProbeResult {
+  routeId: string
+  kind: RouteKind
+  address: string
+  state: "reachable" | "refused" | "timeout" | "dns_failure" | "unknown"
+  latencyMs: number
+  message?: string
+}
+
 export interface RoutesConnectParams {
   hostProfileId: string
   routeId: string
@@ -425,6 +439,7 @@ export interface MethodContracts {
   "sessions.list": { params: Record<string, never>; result: SessionsListResult }
   "sessions.attach": { params: SessionsAttachParams; result: void }
   "routes.plan": { params: RoutesPlanParams; result: RoutesPlanResult }
+  "routes.probe": { params: RoutesProbeParams; result: RoutesProbeResult }
   "routes.connect": { params: RoutesConnectParams; result: SessionsOpenResult }
   "frp.instances.list": { params: Record<string, never>; result: FrpInstancesListResult }
   "frp.proxies.apply": { params: FrpProxiesApplyParams; result: FrpProxiesApplyResult }
@@ -454,6 +469,7 @@ export const IPC_METHODS = [
   "sessions.list",
   "sessions.attach",
   "routes.plan",
+  "routes.probe",
   "routes.connect",
   "frp.instances.list",
   "frp.proxies.apply",

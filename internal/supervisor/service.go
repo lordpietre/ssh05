@@ -3,9 +3,13 @@ package supervisor
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"net"
 	"strings"
 	"sync"
+	"syscall"
+	"time"
 
 	"github.com/trzsz/trzsz-ssh/contracts"
 	"github.com/trzsz/trzsz-ssh/internal/audit"
@@ -88,6 +92,8 @@ func (s *Service) Handle(ctx context.Context, conn *ipc.Conn, req contracts.RPCR
 		return s.planRoute(req)
 	case contracts.MethodRoutesConnect:
 		return s.connectRoute(ctx, conn, req)
+	case contracts.MethodRoutesProbe:
+		return s.probeRoute(ctx, req)
 	case contracts.MethodFrpInstancesList:
 		if s.frp == nil {
 			return marshal(contracts.FrpInstancesListResult{})
@@ -355,6 +361,118 @@ func (s *Service) planRoute(req contracts.RPCRequest) (json.RawMessage, *contrac
 		selected = routes[len(routes)-1].ID
 	}
 	return marshal(contracts.RoutesPlanResult{Routes: routes, Selected: selected, Reason: reason})
+}
+
+func (s *Service) probeRoute(ctx context.Context, req contracts.RPCRequest) (json.RawMessage, *contracts.RPCError) {
+	params, rpcError := decodeParams[contracts.RoutesProbeParams](req)
+	if rpcError != nil {
+		return nil, rpcError
+	}
+	routes, _ := s.routeCandidates(ctx, params.HostProfileID)
+	var route contracts.ConnectionRoute
+	found := false
+	for _, candidate := range routes {
+		if candidate.ID == params.RouteID {
+			route, found = candidate, true
+			break
+		}
+	}
+	if !found {
+		if len(routes) == 0 {
+			return nil, internalError(fmt.Errorf("no authorized route for %q", params.HostProfileID))
+		}
+		route = routes[len(routes)-1]
+	}
+	address, err := s.routeAddress(ctx, route)
+	if err != nil {
+		return nil, internalError(err)
+	}
+	probeCtx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	defer cancel()
+	started := time.Now()
+	dialer := net.Dialer{}
+	conn, err := dialer.DialContext(probeCtx, "tcp", address)
+	latency := time.Since(started).Milliseconds()
+	if conn != nil {
+		_ = conn.Close()
+	}
+	state := classifyProbeError(err)
+	message := ""
+	if err != nil {
+		message = err.Error()
+		if state == "timeout" {
+			message = "sin respuesta dentro del plazo; no demuestra que el puerto esté cerrado"
+		}
+	}
+	return marshal(contracts.RoutesProbeResult{
+		RouteID: route.ID, Kind: route.Kind, Address: address,
+		State: state, LatencyMS: latency, Message: message,
+	})
+}
+
+func (s *Service) routeAddress(ctx context.Context, route contracts.ConnectionRoute) (string, error) {
+	switch route.Kind {
+	case contracts.RouteFRP:
+		if len(route.Via) > 0 {
+			return route.Via[0], nil
+		}
+	case contracts.RouteProxyJump:
+		if len(route.Via) > 0 {
+			host, port := splitJump(route.Via[0])
+			return net.JoinHostPort(host, port), nil
+		}
+	case contracts.RouteDirect:
+		if inventory, ok := s.hosts.(HostInventory); ok {
+			if profile, found := inventory.Resolve(ctx, route.HostProfileID); found {
+				port := profile.Target.Port
+				if port <= 0 {
+					port = 22
+				}
+				return net.JoinHostPort(profile.Target.Hostname, fmt.Sprintf("%d", port)), nil
+			}
+		}
+	}
+	return "", fmt.Errorf("route %q has no probe address", route.ID)
+}
+
+func splitJump(value string) (string, string) {
+	hostPart := value
+	if at := strings.LastIndex(hostPart, "@"); at >= 0 {
+		hostPart = hostPart[at+1:]
+	}
+	if strings.HasPrefix(hostPart, "[") {
+		if end := strings.Index(hostPart, "]"); end >= 0 {
+			host := strings.Trim(hostPart[:end+1], "[]")
+			port := "22"
+			if rest := strings.TrimPrefix(hostPart[end+1:], ":"); rest != "" {
+				port = rest
+			}
+			return host, port
+		}
+	}
+	host, port, err := net.SplitHostPort(hostPart)
+	if err == nil {
+		return host, port
+	}
+	return hostPart, "22"
+}
+
+func classifyProbeError(err error) string {
+	if err == nil {
+		return "reachable"
+	}
+	var dnsErr *net.DNSError
+	if errors.As(err, &dnsErr) {
+		return "dns_failure"
+	}
+	var netErr net.Error
+	if errors.As(err, &netErr) && netErr.Timeout() {
+		return "timeout"
+	}
+	if errors.Is(err, syscall.ECONNREFUSED) {
+		return "refused"
+	}
+	return "unknown"
 }
 
 func (s *Service) routeCandidates(ctx context.Context, hostProfileID string) ([]contracts.ConnectionRoute, string) {

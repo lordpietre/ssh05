@@ -135,6 +135,10 @@ FRP local (frpc) contra un frps autorizado:
 
 En la UI, `Ctrl+F` abre el panel FRP (listar, crear, parar, rotar token).
 
+La paleta (`Ctrl+K`) incluye «Probar ruta del host»: informa `reachable`,
+`refused`, `timeout`, `dns_failure` o `unknown` sin interpretar un timeout como
+puerto cerrado.
+
 Metadatos de host en `~/.ssh/config` (siempre con `#!!`):
 
 ```sshconfig

@@ -98,6 +98,7 @@ done
 assert_contains "Hosts (3)" "UI loads the real host inventory"
 send C-k
 assert_contains "Comandos" "command palette opens"
+assert_contains "Probar ruta" "route probe command listed"
 send Escape
 sleep 0.3
 send C-f

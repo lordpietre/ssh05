@@ -308,6 +308,7 @@ const paletteCommands = [
   "Alternar tmux",
   "Cerrar pestaña activa",
   "Cambiar workspace",
+  "Probar ruta del host",
   "FRP",
   "Salir de TRSS",
 ]
@@ -567,9 +568,12 @@ function executePalette(index: number): void {
       openWorkspacePicker()
       break
     case 5:
-      void openFRP()
+      void probeCurrentHost()
       break
     case 6:
+      void openFRP()
+      break
+    case 7:
       void quit()
       break
   }
@@ -1126,6 +1130,29 @@ async function loadHosts(): Promise<void> {
     return a.alias.localeCompare(b.alias)
   })
   conflicts = result.conflicts?.length ?? 0
+}
+
+async function probeCurrentHost(): Promise<void> {
+  if (!client) return
+  const host = currentFormHost()
+  if (!host) {
+    transientText = "Ruta: no hay host seleccionado"
+    uiDirty()
+    return
+  }
+  try {
+    const plan = await client.call("routes.plan", { hostProfileId: host.id }, { timeoutMs: 3000 })
+    const result = await client.call(
+      "routes.probe",
+      { hostProfileId: host.id, routeId: plan.selected },
+      { timeoutMs: 8000 },
+    )
+    const detail = result.message ? ` · ${result.message}` : ""
+    transientText = `Ruta ${result.kind} ${result.address}: ${result.state} (${result.latencyMs}ms)${detail}`
+  } catch (error) {
+    transientText = `Ruta: ${String(error)}`
+  }
+  uiDirty()
 }
 
 async function importHosts(): Promise<void> {

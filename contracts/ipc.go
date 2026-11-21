@@ -31,6 +31,7 @@ const (
 	MethodSessionsAttach     Method = "sessions.attach"
 	MethodRoutesPlan         Method = "routes.plan"
 	MethodRoutesConnect      Method = "routes.connect"
+	MethodRoutesProbe        Method = "routes.probe"
 	MethodFrpInstancesList   Method = "frp.instances.list"
 	MethodFrpProxiesApply    Method = "frp.proxies.apply"
 	MethodFrpProxiesStop     Method = "frp.proxies.stop"
@@ -56,6 +57,7 @@ var validMethods = map[Method]struct{}{
 	MethodSessionsAttach:     {},
 	MethodRoutesPlan:         {},
 	MethodRoutesConnect:      {},
+	MethodRoutesProbe:        {},
 	MethodFrpInstancesList:   {},
 	MethodFrpProxiesApply:    {},
 	MethodFrpProxiesStop:     {},
@@ -206,6 +208,20 @@ type RoutesPlanResult struct {
 	Routes   []ConnectionRoute `json:"routes"`
 	Selected string            `json:"selected,omitempty"`
 	Reason   string            `json:"reason,omitempty"`
+}
+
+type RoutesProbeParams struct {
+	HostProfileID string `json:"hostProfileId"`
+	RouteID       string `json:"routeId,omitempty"`
+}
+
+type RoutesProbeResult struct {
+	RouteID   string    `json:"routeId"`
+	Kind      RouteKind `json:"kind"`
+	Address   string    `json:"address"`
+	State     string    `json:"state"`
+	LatencyMS int64     `json:"latencyMs"`
+	Message   string    `json:"message,omitempty"`
 }
 
 type RoutesConnectParams struct {

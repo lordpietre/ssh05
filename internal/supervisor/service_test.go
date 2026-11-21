@@ -4,9 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"net"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 
@@ -323,3 +326,84 @@ func TestServiceHostsAndRoutes(t *testing.T) {
 		t.Fatalf("workspaces.save error = %v", err)
 	}
 }
+
+func TestServiceProbeRouteReachableAndRefused(t *testing.T) {
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	port := listener.Addr().(*net.TCPAddr).Port
+	dir := t.TempDir()
+	path := filepath.Join(dir, "ssh_config")
+	content := "Host probe\n    HostName 127.0.0.1\n    Port " + strconv.Itoa(port) + "\n"
+	if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	service := NewService(NewBackend(&fakeRunner{}, Options{}), NewInventory(InventoryConfig{SSHConfigPath: path}))
+	ctx := context.Background()
+
+	result := callProbe(t, ctx, service, "probe", "direct:probe")
+	if result.State != "reachable" || result.Address != "127.0.0.1:"+strconv.Itoa(port) {
+		t.Fatalf("reachable probe = %+v", result)
+	}
+	_ = listener.Close()
+
+	result = callProbe(t, ctx, service, "probe", "direct:probe")
+	if result.State != "refused" && result.State != "unknown" {
+		t.Fatalf("closed port probe = %+v", result)
+	}
+}
+
+func TestClassifyProbeErrorDoesNotTreatTimeoutAsClosed(t *testing.T) {
+	if got := classifyProbeError(probeTimeout{}); got != "timeout" {
+		t.Fatalf("timeout = %q", got)
+	}
+	if got := classifyProbeError(syscall.ECONNREFUSED); got != "refused" {
+		t.Fatalf("refused = %q", got)
+	}
+	if got := classifyProbeError(&net.DNSError{Err: "no such host", IsNotFound: true}); got != "dns_failure" {
+		t.Fatalf("dns = %q", got)
+	}
+	if got := classifyProbeError(errors.New("boom")); got != "unknown" {
+		t.Fatalf("unknown = %q", got)
+	}
+}
+
+func TestSplitJump(t *testing.T) {
+	cases := map[string][2]string{
+		"bastion":            {"bastion", "22"},
+		"user@bastion":       {"bastion", "22"},
+		"user@bastion:2222":  {"bastion", "2222"},
+		"[2001:db8::1]:2200": {"2001:db8::1", "2200"},
+		"2001:db8::1":        {"2001:db8::1", "22"},
+	}
+	for input, want := range cases {
+		host, port := splitJump(input)
+		if host != want[0] || port != want[1] {
+			t.Fatalf("splitJump(%q) = %q/%q", input, host, port)
+		}
+	}
+}
+
+func callProbe(t *testing.T, ctx context.Context, service *Service, host, route string) contracts.RoutesProbeResult {
+	t.Helper()
+	payload, err := json.Marshal(contracts.RoutesProbeParams{HostProfileID: host, RouteID: route})
+	if err != nil {
+		t.Fatal(err)
+	}
+	raw, rpcErr := service.probeRoute(ctx, contracts.RPCRequest{Params: payload})
+	if rpcErr != nil {
+		t.Fatalf("probeRoute: %v", rpcErr)
+	}
+	var result contracts.RoutesProbeResult
+	if err := json.Unmarshal(raw, &result); err != nil {
+		t.Fatal(err)
+	}
+	return result
+}
+
+type probeTimeout struct{}
+
+func (probeTimeout) Error() string   { return "i/o timeout" }
+func (probeTimeout) Timeout() bool   { return true }
+func (probeTimeout) Temporary() bool { return true }

@@ -46,6 +46,7 @@
 | FRP hash de binario y sin huérfanos | **Hecho** | `--frpc-sha256`, grupos de proceso |
 | FRP UI (listar/crear/parar/rotar) | **Hecho** | `Ctrl+F` |
 | Ruta FRP por visitor | **Hecho** | `RouteForHost` + `RouteID` |
+| RUT-02/RUT-03 sondeo y ruta visible | **Hecho** | `routes.probe`; timeout ≠ cerrado; paleta |
 | Pruebas adversariales (framing, inyección, reconexión) | **Hecho** | fuzz tests + tests de inyección/reconnect |
 | Restauración como vistas pendientes | **Hecho** | Enter reconecta; nunca simula sesión viva |
 | Backend 100 MB con buffers acotados | **Hecho** | tests de `internal/supervisor` |
@@ -67,6 +68,7 @@
 | 3 | Config SSH por conexión | Eliminar serialización de `SshLogin` |
 | 3 | Resolver de rutas FRP | RUT-01/03 para FRP |
 | 3 | Atajos configurables | UI-04 |
+| 3 | frps local gestionado | FRP-01 |
 
 ## Invariantes que no se negocian
 
