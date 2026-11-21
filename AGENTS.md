@@ -55,6 +55,7 @@ make install                   # copies ./bin/tssh to /usr/bin/tssh
 - Audit: `docs/audit/phase-0-audit.md`
 - ADRs: `docs/adr/README.md` (ADR-01 accepted; ADR-02 accepted for prototype)
 - Shared contracts: `contracts/` (Go) and `contracts/ts/` (TypeScript)
+- IPC transport: `internal/ipc/` (Unix socket, framing, server/client, tests)
 - Integration status: `docs/integration/status.md`
 - Prototype: `prototype/terminal` (Bun 1.4.5 + `@opentui/core` 0.8.2, pinned)
 - Evidence/results: `docs/phase-0/README.md`
@@ -71,14 +72,15 @@ make install                   # copies ./bin/tssh to /usr/bin/tssh
   or `make phase0` from the repo root (requires `bun` on `PATH`).
 - Contract checks:
   ```
-  CGO_ENABLED=0 go test -count=1 ./contracts
+  CGO_ENABLED=0 go test -count=1 ./contracts ./internal/ipc
   make contracts-check
   ```
 - H-01 is resolved (`generateToken` fails closed; see `tssh/frp_proxy_test.go`).
 - H-05 is resolved (remote FRP copy uses quoted `sh -c` arguments and tests).
 - Phase 0 does **not** change runtime behavior of `tssh`; the runtime changes so
   far are the H-01 FRP token fix and the H-05 remote-copy quoting fix. Respect
-  the status in each ADR: only ADR-01/ADR-02 are accepted.
+  the status in each ADR: ADR-01, ADR-02 (prototype) and ADR-03 (transport) are
+  accepted; the rest remain open.
 
 ## Release
 - GoReleaser multi-platform: linux, darwin, windows, android, freebsd; 386/amd64/arm/arm64/loong64

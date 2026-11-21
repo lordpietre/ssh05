@@ -81,13 +81,13 @@ clean:
 	$(RM) ${BIN_DIR}/tssh ${BIN_DIR}/tssh.exe ${BIN_DIR}/frps ${BIN_DIR}/frpc 2>/dev/null; true
 
 test:
-	${GO_TEST} -v -count=1 ./tssh ./contracts
+	${GO_TEST} -v -count=1 ./tssh ./contracts ./internal/ipc
 
 phase0:
 	cd prototype/terminal && $(BUN) install && $(BUN) run typecheck && $(BUN) run smoke
 
 contracts-check:
-	CGO_ENABLED=0 ${GO_TEST} -count=1 ./contracts
+	CGO_ENABLED=0 ${GO_TEST} -count=1 ./contracts ./internal/ipc
 	cd prototype/terminal && $(BUN) run typecheck:contracts
 
 install: all

@@ -9,6 +9,7 @@ capacidades.
 | `domain.go` / `ts/index.ts` | Go / TS | Hosts, rutas, workspaces, FRP |
 | `session.go` / `ts/index.ts` | Go / TS | `SessionBackend`, fases, intents, capacidades |
 | `ipc.go` / `ts/index.ts` | Go / TS | `RPCRequest`, `RPCResponse`, eventos y métodos |
+| `internal/ipc/` | Go | Transporte local: socket, frames, servidor y cliente |
 | `contracts_test.go` | Go | Validación de fases, métodos, JSON y ausencia de secretos |
 
 ## Reglas de compatibilidad
@@ -37,7 +38,7 @@ capacidades.
 ## Verificación
 
 ```sh
-CGO_ENABLED=0 go test -count=1 ./contracts
+CGO_ENABLED=0 go test -count=1 ./contracts ./internal/ipc
 cd prototype/terminal && bun run typecheck:contracts
 # o, desde la raíz:
 make contracts-check

@@ -2,6 +2,7 @@ package contracts
 
 import (
 	"encoding/json"
+	"fmt"
 	"time"
 )
 
@@ -87,6 +88,14 @@ type RPCError struct {
 	Code    int             `json:"code"`
 	Message string          `json:"message"`
 	Data    json.RawMessage `json:"data,omitempty"`
+}
+
+// Error lets RPCError be returned as a normal Go error.
+func (e *RPCError) Error() string {
+	if e == nil {
+		return "rpc error"
+	}
+	return fmt.Sprintf("rpc error %d: %s", e.Code, e.Message)
 }
 
 // Event is an ordered, typed notification from supervisor to UI.

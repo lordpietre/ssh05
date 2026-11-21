@@ -1,6 +1,6 @@
 # ADR-03: IPC local entre UI y supervisor
 
-- **Estado:** Propuesto
+- **Estado:** Aceptado (transporte)
 - **Fecha:** 21/11/2026
 - **Requisitos afectados:** SES-01…06, OPS-02, SEG-03/04
 
@@ -23,10 +23,10 @@ del renderer no mate sesiones ni túneles.
    - Ventaja: ecosistema.
    - Riesgo: autenticación y permisos de socket menos directos.
 
-## Decisión propuesta
+## Decisión
 
-Usar **JSON-RPC 2.0** para control y un **canal binario con encuadre de longitud**
-para bytes de PTY, sobre un Unix domain socket en
+Se acepta **JSON-RPC 2.0** para control y un **canal binario con encuadre de
+longitud** para bytes de PTY, sobre un Unix domain socket en
 `$XDG_RUNTIME_DIR/trss/control.sock` (modo `0600`, directorio `0700`).
 
 Reglas:
@@ -40,6 +40,33 @@ Reglas:
 - La UI no envía shell interpolado: solo operaciones tipadas.
 - En Windows, named pipes con el mismo contrato (fase posterior).
 
+## Implementación actual
+
+`internal/ipc` implementa el transporte:
+
+| Elemento | Estado |
+|---|---|
+| Socket Unix con dir `0700` y socket `0600` | Hecho |
+| Detección de socket vivo (`ErrAlreadyRunning`) y limpieza de huérfano | Hecho |
+| Frames JSON (1 MiB) y binarios (4 MiB), con `sessionId` | Hecho |
+| `Server`/`Client` con correlación por `requestId` | Hecho |
+| Versión de protocolo y `Method.Valid()` | Hecho |
+| `SO_PEERCRED` en Linux; permisos de socket en otros Unix | Hecho |
+| Panic del handler sin filtrar el valor | Hecho |
+| Cancelación por contexto y cierre de llamadas pendientes | Hecho |
+| `CallTyped[P,R]` para métodos del contrato | Hecho |
+| Conectar el supervisor real y el cliente Bun | Pendiente |
+
+Tests: `internal/ipc/ipc_test.go` y `internal/ipc/frame_test.go` cubren round
+trip, versión, método desconocido, panics, permisos, segundo servidor,
+JSON malformado, cancelación y framing binario.
+
+Comando:
+
+```sh
+CGO_ENABLED=0 go test -count=1 ./internal/ipc
+```
+
 ## Consecuencias
 
 - El contrato se puede versionar y probar con un cliente CLI de diagnóstico.
@@ -49,13 +76,15 @@ Reglas:
 
 ## Validación pendiente
 
-- Cliente no autorizado rechazado.
+- Cliente no autorizado rechazado en un escenario multi-usuario real.
 - Renderer caído: supervisor y túneles sobreviven.
 - 100 MB de salida con colas acotadas y UI responsiva.
-- Cancelación de `open`, `resize`, `close` y `frp.apply`.
+- Cancelación de `open`, `resize`, `close` y `frp.apply` contra el supervisor.
 - Compatibilidad de protocolo entre versiones.
+- Cliente TypeScript/Bun y named pipes en Windows.
 
 ## Evidencia
 
 - SDD Anexo B y §17.5.
-- `docs/audit/phase-0-audit.md` (no existe IPC en el código actual).
+- `internal/ipc/` (transporte implementado y probado).
+- `contracts/ipc.go` y `contracts/ts/index.ts` (envelopes y métodos).
