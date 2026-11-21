@@ -84,6 +84,7 @@ make install                   # copies ./bin/tssh to /usr/bin/tssh
   or `make phase0` from the repo root (requires `bun` on `PATH`).
 - UI smoke (starts sshd/trssd automatically): `make ui-smoke` (3 sesiones,
   tmux/reattach, restore de workspace y 10 pestañas con overflow).
+- FRP smoke (requiere `make download-frp`): `make frp-smoke`.
 - Contract checks:
   ```
   CGO_ENABLED=0 go test -count=1 ./contracts ./internal/ipc ./internal/supervisor
@@ -96,9 +97,9 @@ make install                   # copies ./bin/tssh to /usr/bin/tssh
 - H-02 is resolved (`ensurePrivateDir` forces FRP config/log dirs to `0700`).
 - H-03 is mitigated: FRP tokens are AES-GCM encrypted at rest with a local
   `~/.tssh/frp.key` (`0600`); remote TOML files are copied with `0600`.
-- H-04 is partial (advanced): tcp/udp/stcp/xtcp, dedicated STCP/XTCP secret and
-  local/remote version gating (>=0.31.0). A real frpc/frps integration test
-  remains open.
+- H-04 is partial (advanced): tcp/udp/stcp/xtcp, dedicated STCP/XTCP secret,
+  local/remote version gating, `frpc verify` for all four types and a real TCP
+  tunnel smoke. UDP/STCP/XTCP runtime tests remain open.
 - H-05 is resolved (remote FRP copy uses quoted `sh -c` arguments and tests).
 - Phase 0 does **not** change runtime behavior of `tssh`; the runtime changes so
   far are the H-01 token fix, H-02 private FRP directories, H-03 encrypted FRP

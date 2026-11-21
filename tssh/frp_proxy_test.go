@@ -480,3 +480,49 @@ func TestFRPProxySecretPersistsEncrypted(t *testing.T) {
 		t.Fatalf("loaded = %+v", loaded)
 	}
 }
+
+func TestFRPCProxyBlocksAcceptedByFRPBinary(t *testing.T) {
+	frpc := os.Getenv("FRPC_BIN")
+	if frpc == "" {
+		for _, candidate := range []string{"../bin/frpc", "bin/frpc"} {
+			if info, err := os.Stat(candidate); err == nil && info.Mode()&0o111 != 0 {
+				frpc = candidate
+				break
+			}
+		}
+	}
+	if frpc == "" {
+		frpc = frpFindBin("frpc")
+	}
+	if frpc == "" {
+		t.Skip("frpc not available (run make download-frp)")
+	}
+
+	base := `serverAddr = "127.0.0.1"
+serverPort = 7000
+
+auth.method = "token"
+auth.token = "test-token"
+
+webServer.addr = "127.0.0.1"
+webServer.port = 7400
+`
+	for _, proxyType := range []string{"tcp", "udp", "stcp", "xtcp"} {
+		entry := &frpProxyEntry{
+			Name:        "smoke-" + proxyType,
+			Type:        proxyType,
+			ServicePort: 18080,
+			ExposedPort: 18081,
+			Token:       "test-token",
+			Secret:      "dedicated-secret",
+		}
+		path := filepath.Join(t.TempDir(), proxyType+".toml")
+		if err := os.WriteFile(path, []byte(base+frpcProxyBlock(entry)), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		output, err := exec.Command(frpc, "verify", "-c", path).CombinedOutput()
+		if err != nil {
+			t.Fatalf("%s config rejected: %v\n%s", proxyType, err, output)
+		}
+	}
+}
