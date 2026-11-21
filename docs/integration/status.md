@@ -40,6 +40,7 @@
 | Múltiples workspaces con nombre y selector | **Hecho** | `Ctrl+P`, `--workspace`, `TRSS_WORKSPACE_DIR` |
 | Paleta de comandos | **Hecho** | `Ctrl+K` en la UI |
 | Rutas directas/ProxyJump con motivo | **Hecho** | `routes.plan` + `ProxyJump` + estado en UI |
+| Pruebas adversariales (framing, inyección, reconexión) | **Hecho** | fuzz tests + tests de inyección/reconnect |
 | Restauración como vistas pendientes | **Hecho** | Enter reconecta; nunca simula sesión viva |
 | Backend 100 MB con buffers acotados | **Hecho** | tests de `internal/supervisor` |
 | Barra de pestañas con overflow y activa visible | **Hecho** | `src/tabs/tabbar.ts` + tests |

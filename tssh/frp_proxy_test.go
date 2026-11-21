@@ -300,6 +300,27 @@ func TestFRPTokenSealFailsOnRNGError(t *testing.T) {
 	}
 }
 
+func FuzzFRPRemoteCopyCommand(f *testing.F) {
+	f.Add("~/dir/file.toml", "644")
+	f.Add(`/tmp/x' ; touch /tmp/pwned ; '`, "600")
+	f.Add("normal", "755")
+	f.Fuzz(func(t *testing.T, path, mode string) {
+		command := frpRemoteCopyCommand(path, mode)
+		if !strings.HasPrefix(command, "sh -c ") {
+			t.Fatalf("unexpected command prefix: %q", command)
+		}
+	})
+}
+
+func FuzzParseFRPVersion(f *testing.F) {
+	f.Add("0.69.1")
+	f.Add("frpc version 0.31.0")
+	f.Add("")
+	f.Fuzz(func(t *testing.T, value string) {
+		_, _ = parseFRPVersion(value)
+	})
+}
+
 func TestNormalizeFRPProxyType(t *testing.T) {
 	cases := map[string]string{
 		"":      "tcp",
