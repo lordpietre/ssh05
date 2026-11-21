@@ -30,6 +30,8 @@ make install                   # copies ./bin/tssh to /usr/bin/tssh
 - `enc` prefix on config values means encrypted with `tssh --enc-secret`
 - Android/Termux quirk: `cmd/tssh/main.go` adjusts `os.Args` when `TERMUX_EXEC__PROC_SELF_EXE` is set
 - Keepalive defaults: `ServerAliveInterval=30` (was 0), configurable via `~/.tssh.conf` `defaultServerAliveInterval`. Set `#!! ServerAliveInterval 0` in `~/.ssh/config` to disable.
+- tmux en restauración/reconexión es solo `attach`; si la sesión no existe se abre
+  una shell y se elimina el binding (nunca se recrea en silencio).
 - `SshLogin` comparte config: init serializado, conexiones de la misma config en paralelo
   (`acquireConfigRead`); los defaults de `ssh_config` y UDP tienen mutex propio.
 - `~/.tssh.conf` settings: `promptThemeLayout=tiny|simple|table`, `promptDefaultMode=search`, `promptPageSize=N`, `promptDetailItems=...`, `defaultServerAliveInterval=N`

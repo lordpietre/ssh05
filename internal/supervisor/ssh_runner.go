@@ -22,6 +22,20 @@ func tmuxStartCommand(sessionName string) string {
 	return "tmux new-session -A -s " + shellescape.Quote(sessionName)
 }
 
+func tmuxAttachCommand(sessionName string) string {
+	return "tmux attach-session -t " + shellescape.Quote(sessionName)
+}
+
+func tmuxSessionExists(client tssh.SshClient, sessionName string) bool {
+	probe, err := client.NewSession()
+	if err != nil {
+		return false
+	}
+	defer func() { _ = probe.Close() }()
+	_, err = probe.CombinedOutput("tmux has-session -t " + shellescape.Quote(sessionName))
+	return err == nil
+}
+
 // SSHRunner starts sessions with the in-repo Go SSH client.
 type SSHRunner struct {
 	Config SSHConfig
@@ -78,8 +92,19 @@ func (r *SSHRunner) Start(ctx context.Context, profileID string, cols, rows int,
 		_ = client.Close()
 		return nil, fmt.Errorf("supervisor: stdout pipe: %w", err)
 	}
+	attachedTmux := ""
+	command := ""
 	if options.TmuxSession != "" {
-		if err := session.Start(tmuxStartCommand(options.TmuxSession)); err != nil {
+		if options.TmuxCreate {
+			attachedTmux = options.TmuxSession
+			command = tmuxStartCommand(options.TmuxSession)
+		} else if tmuxSessionExists(client, options.TmuxSession) {
+			attachedTmux = options.TmuxSession
+			command = tmuxAttachCommand(options.TmuxSession)
+		}
+	}
+	if command != "" {
+		if err := session.Start(command); err != nil {
 			_ = session.Close()
 			_ = client.Close()
 			return nil, fmt.Errorf("supervisor: start tmux: %w", err)
@@ -97,6 +122,7 @@ func (r *SSHRunner) Start(ctx context.Context, profileID string, cols, rows int,
 		stdout:  stdout,
 		output:  make(chan []byte, 64),
 		done:    make(chan struct{}),
+		tmux:    attachedTmux,
 	}
 	go run.pump()
 	go run.wait()
@@ -115,6 +141,7 @@ type sshRun struct {
 	session tssh.SshSession
 	stdin   io.WriteCloser
 	stdout  io.Reader
+	tmux    string
 
 	output chan []byte
 	done   chan struct{}
@@ -124,6 +151,10 @@ type sshRun struct {
 	exitCode  int
 	closeOnce sync.Once
 }
+
+// AttachedTmux reports the tmux session actually attached; empty means the
+// requested session was missing and a plain shell was opened instead.
+func (r *sshRun) AttachedTmux() string { return r.tmux }
 
 func (r *sshRun) Output() <-chan []byte {
 	return r.output

@@ -265,6 +265,7 @@ func (s *Service) openSession(ctx context.Context, conn *ipc.Conn, req contracts
 	destination := s.destinationForRoute(ctx, params.HostProfileID, params.RouteID)
 	id, err := s.backend.Open(ctx, params.HostProfileID, params.RoutePolicyID, contracts.SessionOptions{
 		TmuxSession: params.TmuxSession,
+		TmuxCreate:  params.TmuxCreate,
 		Destination: destination,
 	})
 	if err != nil {
@@ -273,7 +274,14 @@ func (s *Service) openSession(ctx context.Context, conn *ipc.Conn, req contracts
 	}
 	s.log(audit.Event{Action: "session.open", HostProfileID: params.HostProfileID, SessionID: string(id), Result: "ok"})
 	s.attach(conn, id)
-	return marshal(contracts.SessionsOpenResult{SessionID: id})
+	attachedTmux := ""
+	for _, info := range s.backend.List() {
+		if info.ID == id {
+			attachedTmux = info.TmuxSession
+			break
+		}
+	}
+	return marshal(contracts.SessionsOpenResult{SessionID: id, TmuxSession: attachedTmux})
 }
 
 func (s *Service) destinationForRoute(ctx context.Context, hostProfileID, routeID string) string {

@@ -76,12 +76,13 @@ type Capabilities struct {
 
 // SessionStatus is emitted whenever a phase changes.
 type SessionStatus struct {
-	ID        SessionID    `json:"sessionId"`
-	Phase     SessionPhase `json:"phase"`
-	Seq       uint64       `json:"seq"`
-	At        time.Time    `json:"at"`
-	ErrorCode string       `json:"errorCode,omitempty"`
-	Message   string       `json:"message,omitempty"`
+	ID          SessionID    `json:"sessionId"`
+	Phase       SessionPhase `json:"phase"`
+	Seq         uint64       `json:"seq"`
+	At          time.Time    `json:"at"`
+	ErrorCode   string       `json:"errorCode,omitempty"`
+	Message     string       `json:"message,omitempty"`
+	TmuxSession string       `json:"tmuxSession"`
 }
 
 // SessionInfo is the non-secret summary used to reattach a live session after
@@ -102,6 +103,9 @@ type StatusHandler func(status SessionStatus)
 // SessionOptions carries non-secret session preferences.
 type SessionOptions struct {
 	TmuxSession string `json:"tmuxSession,omitempty"`
+	// TmuxCreate allows creating a missing session. Reattach/restore paths set
+	// it to false so a missing remote session is not silently recreated.
+	TmuxCreate bool `json:"tmuxCreate,omitempty"`
 	// Destination is the SSH destination resolved by the inventory. It is
 	// internal to the supervisor and never contains a secret.
 	Destination string `json:"-"`

@@ -27,7 +27,7 @@ Los binarios FRP se obtienen con `make download-frp`.
 |---|---|---|
 | SES-06 | Cumplido | `internal/supervisor/backend.go`: backoff, límite y cancelación; tests de reconexión |
 | SES-07 | Cumplido | tmux opcional con `Ctrl+G`; nombres `trss-<alias>`; `tmuxStartCommand` en el runner |
-| SES-08 | Cumplido | Restauración como vistas pendientes; `Enter` reconecta y reengancha tmux solo si existe |
+| SES-08 | Cumplido | Restauración pendiente; `TmuxCreate=false` + `tmux has-session`; si falta, shell y se borra el binding |
 | INV-02 | Cumplido | `tssh.ListHostEntries` respeta `Include`; `TestSSHHostsInclude` |
 | INV-03 | Cumplido | `internal/supervisor/keepass.go` importa KDBX con `keepassxc-cli` |
 | INV-04 | Cumplido | `Inventory.mergeLocked` conserva procedencia y expone conflictos sin sobrescribir |

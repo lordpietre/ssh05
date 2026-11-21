@@ -132,6 +132,11 @@ func (b *Backend) Open(ctx context.Context, profileID string, routeID string, op
 
 	b.mu.Lock()
 	s.run = run
+	if info, ok := run.(interface{ AttachedTmux() string }); ok {
+		s.tmuxSession = info.AttachedTmux()
+	}
+	// Reconnects must attach only; a missing tmux session becomes a plain shell.
+	s.options.TmuxCreate = false
 	b.mu.Unlock()
 	b.emitStatus(s, contracts.PhaseConnected, "", "")
 
@@ -192,6 +197,9 @@ func (b *Backend) tryReconnect(s *session) bool {
 			return false
 		}
 		s.run = run
+		if info, ok := run.(interface{ AttachedTmux() string }); ok {
+			s.tmuxSession = info.AttachedTmux()
+		}
 		b.mu.Unlock()
 		b.emitStatus(s, contracts.PhaseConnected, "", "")
 		go b.readSession(s, run)
@@ -475,11 +483,12 @@ func (b *Backend) emitData(s *session, data []byte) {
 
 func (s *session) status() contracts.SessionStatus {
 	return contracts.SessionStatus{
-		ID:        s.id,
-		Phase:     s.phase,
-		Seq:       s.seq,
-		At:        time.Now().UTC(),
-		ErrorCode: s.errorCode,
-		Message:   s.message,
+		ID:          s.id,
+		Phase:       s.phase,
+		Seq:         s.seq,
+		At:          time.Now().UTC(),
+		ErrorCode:   s.errorCode,
+		Message:     s.message,
+		TmuxSession: s.tmuxSession,
 	}
 }

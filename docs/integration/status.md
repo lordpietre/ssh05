@@ -67,6 +67,7 @@
 | Aceptación P1 completa | **Aprobada** | `docs/phase-1/p1-acceptance.md`, `make p1-smoke` |
 | SshLogin concurrente con la misma config | **Hecho** | `acquireConfigRead`, `TestSshLoginConcurrent` |
 | Informe de diagnóstico saneado | **Hecho** | `diagnostics.report`, `src/diagnostics/export.ts` |
+| tmux solo se reengancha si existe | **Hecho** | `TmuxCreate=false`, sonda `has-session`, prueba real |
 | FRP real de extremo a extremo | **Hecho** | `scripts/trssd-frp-smoke.sh`: TCP/UDP/STCP/XTCP |
 | `SessionBackend` y `TabStore` | Definidos | `contracts/session.go`, `contracts/ts/index.ts` |
 | Envelope IPC y métodos del Anexo B | Definidos | `contracts/ipc.go`, `contracts/ts/index.ts` |

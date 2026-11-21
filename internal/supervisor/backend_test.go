@@ -19,6 +19,7 @@ type fakeRunner struct {
 	startErr    error
 	startErrs   []error
 	lastOptions contracts.SessionOptions
+	dropTmux    bool
 }
 
 func (r *fakeRunner) Start(_ context.Context, _ string, cols, rows int, options contracts.SessionOptions) (RunSession, error) {
@@ -34,11 +35,16 @@ func (r *fakeRunner) Start(_ context.Context, _ string, cols, rows int, options 
 	if r.startErr != nil {
 		return nil, r.startErr
 	}
+	tmux := options.TmuxSession
+	if r.dropTmux {
+		tmux = ""
+	}
 	run := &fakeRun{
 		output: make(chan []byte, 16),
 		done:   make(chan struct{}),
 		cols:   cols,
 		rows:   rows,
+		tmux:   tmux,
 	}
 	r.runs = append(r.runs, run)
 	return run, nil
@@ -62,7 +68,10 @@ type fakeRun struct {
 	signals  []string
 	closed   bool
 	exitCode int
+	tmux     string
 }
+
+func (r *fakeRun) AttachedTmux() string { return r.tmux }
 
 func (r *fakeRun) Output() <-chan []byte { return r.output }
 func (r *fakeRun) Done() <-chan struct{} { return r.done }
@@ -514,4 +523,52 @@ func TestBackendReconnectCanBeCancelled(t *testing.T) {
 			t.Fatal("reconnecting status not observed")
 		}
 	}
+}
+
+func TestBackendTmuxFallbackClearsBinding(t *testing.T) {
+	runner := &fakeRunner{dropTmux: true}
+	backend := NewBackend(runner, Options{})
+	defer backend.CloseAll()
+	id, err := backend.Open(context.Background(), "host-1", "", contracts.SessionOptions{
+		TmuxSession: "trss-missing",
+		TmuxCreate:  false,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	infos := backend.List()
+	if len(infos) != 1 || infos[0].ID != id || infos[0].TmuxSession != "" {
+		t.Fatalf("infos = %+v", infos)
+	}
+	if runner.lastOptions.TmuxCreate {
+		t.Fatal("backend changed the requested tmuxCreate flag")
+	}
+}
+
+func TestBackendReconnectAttachesOnly(t *testing.T) {
+	runner := &fakeRunner{}
+	backend := NewBackend(runner, Options{ReconnectMax: 1, ReconnectBase: time.Millisecond})
+	defer backend.CloseAll()
+	if _, err := backend.Open(context.Background(), "host-1", "", contracts.SessionOptions{
+		TmuxSession: "trss-demo",
+		TmuxCreate:  true,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	runner.last().finish(1)
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		runner.mu.Lock()
+		starts := runner.starts
+		last := runner.lastOptions.TmuxCreate
+		runner.mu.Unlock()
+		if starts >= 2 {
+			if last {
+				t.Fatal("reconnect must attach only, not create")
+			}
+			return
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+	t.Fatal("reconnect did not start")
 }

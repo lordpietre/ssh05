@@ -164,10 +164,12 @@ type SessionsOpenParams struct {
 	RoutePolicyID string `json:"routePolicyId,omitempty"`
 	RouteID       string `json:"routeId,omitempty"`
 	TmuxSession   string `json:"tmuxSession,omitempty"`
+	TmuxCreate    bool   `json:"tmuxCreate,omitempty"`
 }
 
 type SessionsOpenResult struct {
-	SessionID SessionID `json:"sessionId"`
+	SessionID   SessionID `json:"sessionId"`
+	TmuxSession string    `json:"tmuxSession,omitempty"`
 }
 
 type SessionsWriteParams struct {

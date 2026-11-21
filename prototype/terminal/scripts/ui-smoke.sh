@@ -303,6 +303,13 @@ send Down
 send Enter
 assert_contains "[1 ● trss-ui-2]" "switching to lab reuses its live tab"
 
+echo "== tmux restore policy =="
+TRSS_SOCKET="$SOCKET" TRSS_TEST_SSH_ALIAS=trss-ui-1 \
+  "$BUN" "$HERE/scripts/tmux-reattach-smoke.ts" || fail "tmux restore policy"
+for name in $("$TMUX" list-sessions -F '#S' 2>/dev/null | grep '^trss-created-' || true); do
+  "$TMUX" kill-session -t "$name" 2>/dev/null || true
+done
+
 echo "== concurrent SSH logins =="
 if command -v "$GO" >/dev/null; then
   (cd "$ROOT" && TRSS_TEST_SSH_ALIAS=trss-ui-1 TRSS_TEST_SSH_CONFIG="$CONFIG" \

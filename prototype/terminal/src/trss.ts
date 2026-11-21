@@ -788,7 +788,10 @@ function flushPending(sessionId: SessionId, view: SessionView): void {
   const status = pendingStatus.get(sessionId)
   if (status) {
     const tab = store.list().find((item) => item.sessionId === sessionId)
-    if (tab) store.update(tab.id, { phase: status.phase })
+    if (tab) {
+      store.update(tab.id, { phase: status.phase })
+      if (status.tmuxSession === "") store.update(tab.id, { tmux: undefined })
+    }
     pendingStatus.delete(sessionId)
   }
 }
@@ -842,7 +845,7 @@ function tabForSession(sessionId: SessionId, host: HostProfile, phase: SessionPh
 
 async function connectHost(
   host: HostProfile,
-  options: { tmuxSession?: string; replaceTabId?: TabId } = {},
+  options: { tmuxSession?: string; tmuxCreate?: boolean; replaceTabId?: TabId } = {},
 ): Promise<void> {
   if (!client || quitting) return
   if (sessions.size >= MAX_SESSIONS) {
@@ -852,7 +855,9 @@ async function connectHost(
   }
   transientText = ""
   errorText = ""
-  const tmuxSession = options.tmuxSession ?? (tmuxMode ? tmuxSessionName(host.alias) : undefined)
+  const wantNewTmux = options.tmuxSession === undefined && options.tmuxCreate !== false && tmuxMode
+  const tmuxSession = options.tmuxSession ?? (wantNewTmux ? tmuxSessionName(host.alias) : undefined)
+  const tmuxCreate = options.tmuxSession === undefined ? wantNewTmux : options.tmuxCreate === true
   let route = "SSH directo"
   try {
     const plan = await client.call(
@@ -867,15 +872,19 @@ async function connectHost(
   try {
     const opened = await client.call(
       "sessions.open",
-      { hostProfileId: host.id, tmuxSession },
+      { hostProfileId: host.id, tmuxSession, tmuxCreate },
       { timeoutMs: 20_000 },
     )
     if (options.replaceTabId) {
       pendingHosts.delete(options.replaceTabId)
       store.remove(options.replaceTabId)
     }
-    const view = createTerminalView(opened.sessionId, host, tmuxSession, "connected", route)
-    const tab = tabForSession(opened.sessionId, host, "connected", tmuxSession)
+    const attachedTmux = opened.tmuxSession || undefined
+    if (tmuxSession && !attachedTmux) {
+      transientText = `tmux ${tmuxSession} no existía; se abrió una shell nueva`
+    }
+    const view = createTerminalView(opened.sessionId, host, attachedTmux, "connected", route)
+    const tab = tabForSession(opened.sessionId, host, "connected", attachedTmux)
     store.add(tab)
     activate(tab.id)
     flushPending(opened.sessionId, view)
@@ -969,6 +978,7 @@ function reconnectActive(): void {
   void connectHost(host, {
     replaceTabId: active.id,
     tmuxSession: active.tmux?.sessionName,
+    tmuxCreate: false,
   })
 }
 
@@ -1583,7 +1593,10 @@ async function start(): Promise<void> {
     const view = sessions.get(sessionId)
     if (view) view.phase = status.phase
     const tab = store.list().find((item) => item.sessionId === sessionId)
-    if (tab) store.update(tab.id, { phase: status.phase })
+    if (tab) {
+      store.update(tab.id, { phase: status.phase })
+      if (status.tmuxSession === "") store.update(tab.id, { tmux: undefined })
+    }
     else pendingStatus.set(sessionId, status)
     uiDirty()
   })

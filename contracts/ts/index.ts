@@ -53,10 +53,12 @@ export interface SessionStatus {
   at: string
   errorCode?: string
   message?: string
+  tmuxSession: string
 }
 
 export interface SessionOptions {
   tmuxSession?: string
+  tmuxCreate?: boolean
   destination?: string
 }
 
@@ -308,10 +310,12 @@ export interface SessionsOpenParams {
   routePolicyId?: string
   routeId?: string
   tmuxSession?: string
+  tmuxCreate?: boolean
 }
 
 export interface SessionsOpenResult {
   sessionId: SessionId
+  tmuxSession?: string
 }
 
 export interface SessionsWriteParams {
