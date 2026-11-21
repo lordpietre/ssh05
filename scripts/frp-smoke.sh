@@ -85,6 +85,21 @@ type = "udp"
 localIP = "127.0.0.1"
 localPort = 18084
 remotePort = 18085
+
+[[proxies]]
+name = "trss-smoke-xtcp"
+type = "xtcp"
+localIP = "127.0.0.1"
+localPort = 18080
+secretKey = "$SECRET"
+
+[[visitors]]
+name = "trss-smoke-xtcp-visitor"
+type = "xtcp"
+serverName = "trss-smoke-xtcp"
+secretKey = "$SECRET"
+bindAddr = "127.0.0.1"
+bindPort = 18083
 EOF
 
 "$FRPS" verify -c "$DIR/frps.toml" >/dev/null
@@ -148,4 +163,5 @@ PY
 
 wait_http 18081 "frps/frpc TCP tunnel returns the expected payload"
 wait_http 18082 "frps/frpc STCP tunnel returns the expected payload"
+wait_http 18083 "frps/frpc XTCP tunnel returns the expected payload"
 wait_udp

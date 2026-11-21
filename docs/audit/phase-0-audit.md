@@ -9,6 +9,8 @@
 | Alcance | Inventario, reutilización, huecos frente al SDD, seguridad y línea base de compilación |
 | Resultado | Fase 0 ejecutada; prototipo PTY/OpenTUI reproducible en `prototype/terminal` |
 
+> Snapshot histórico del commit auditado. El estado actual de integración vive en `docs/integration/status.md`.
+>
 > Esta auditoría describe el código **tal como está** en el commit indicado. No
 > presupone que las funcionalidades existentes cumplan los criterios de
 > aceptación del SDD: solo identifica puntos de partida y riesgos.
@@ -27,15 +29,15 @@
 
 | Área | Archivos principales | Líneas aprox. | ¿Reutilizable? |
 |---|---|---:|---|
-| Entrada CLI | `cmd/tssh/main.go`, `tssh/main.go`, `tssh/args.go` | 700 | Parcial: semántica OpenSSH, no la TUI |
+| Entrada CLI | `cmd/tssh/main.go`, `tssh/main.go`, `tssh/args.go` | 700 | Aprovechable con adaptación: semántica OpenSSH, no la TUI |
 | Login SSH | `tssh/ssh.go`, `tssh/login.go`, `tssh/auth_method.go` | 1.800 | **Sí**: motor `golang.org/x/crypto/ssh`, PTY, señales, ProxyJump |
 | Inventario | `tssh/config.go`, `tssh/effective_config.go`, `tssh/prompt.go` | 2.000 | **Sí**: parser `~/.ssh/config`, `ssh -G`, hosts |
 | Known hosts | `tssh/known_hosts.go` | 240 | **Sí**: verificación y aviso de clave cambiada |
 | Auth extra | `tssh/agent.go`, `tssh/keys.go`, `tssh/otp.go`, `tssh/krb5.go` | 1.400 | **Sí**: agent, claves, TOTP/OTP, GSSAPI |
 | TUI actual | `tssh/host_model.go`, `tssh/theme.go`, `tssh/lang.go` | 5.100 | No para OpenTUI; sí ideas de UX y datos |
-| FRP | `tssh/frp_proxy.go`, `tssh/frp_download.go` | 1.800 | Parcial: hay flujo completo, pero con carencias de seguridad |
+| FRP | `tssh/frp_proxy.go`, `tssh/frp_download.go` | 1.800 | Aprovechable con adaptación: flujo completo, carencias corregidas después |
 | Túneles SSH | `tssh/forward*.go`, `tssh/tunnel*` dentro de `host_model.go` | 1.500 | **Sí** como base del supervisor |
-| Terminal/tmux | `tssh/tmgr*.go`, `tssh/tmuxcc.go`, `tssh/attach.go` | 1.100 | Parcial: tmux local y attach de tsshd, no pestañas propias |
+| Terminal/tmux | `tssh/tmgr*.go`, `tssh/tmuxcc.go`, `tssh/attach.go` | 1.100 | Aprovechable con adaptación: tmux local y attach de tsshd |
 | UDP/QUIC/KCP | `tssh/udp.go` (tsshd) | 900 | Evaluar en Fase 4, no P0 |
 | Transferencia | `tssh/trzsz.go`, `tssh/tools_upload.go` | 900 | **Sí** como adaptador P2 |
 | Tablas internas | `internal/table`, `internal/krb5`, `internal/ssh` | 2.700 | Sí, con revisión de licencia |
@@ -47,19 +49,19 @@ Total: 78 archivos Go, ~26.500 líneas; 14 archivos de prueba.
 | Requisito | Estado real | Evidencia / hueco |
 |---|---|---|
 | SES-01…04 multipestañas y PTY | **No cumple** | La TUI elige un host y lanza el login; no hay `TabStore`, ni emulador VT, ni sesiones concurrentes dentro de la interfaz. El batch abre ventanas/pestañas en tmux/iTerm2/WT, no en TRSS. |
-| SES-05 estados | Parcial | Hay estados de UI para escaneo/túnel, no una máquina `connecting → connected → degraded…` por sesión. |
-| SES-06 reconexión | Parcial | `--reconnect` relanza el proceso; no hay política por sesión ni cancelación desde UI. |
-| SES-07/08 tmux | Parcial | `attach.go` reengancha sesiones tsshd; `tmgr_tmux.go` abre tmux local. No hay `TmuxBinding` por pestaña ni restauración de workspace. |
-| INV-01…05 inventario | Parcial | Hosts desde `~/.ssh/config` y edición inline; no KDBX, deduplicación ni provenance. Grupos/etiquetas existen de forma limitada. |
-| AUT-01…05 auth | Parcial | Agent, claves, password, keyboard-interactive, TOTP/OTP. No KeePassXC agent ni KDBX. Las contraseñas se guardan cifradas (`encPassword`), no en claro. No hay bloqueo por inactividad. |
-| FRP-01…08 | Parcial con riesgos | FRP existe (`frp_proxy.go`), pero solo proxies TCP, token con fallback estático, directorio `0755`, token en JSON plano y sin rotación/verificación de actualización. Ver §5. |
-| RUT-01…03 rutas | Parcial | ProxyJump multihop funciona; no hay `RoutePolicy` ni resolver que elija y explique candidatos. |
+| SES-05 estados | Brecha en commit auditado | Hay estados de UI para escaneo/túnel, no una máquina `connecting → connected → degraded…` por sesión. |
+| SES-06 reconexión | Brecha en commit auditado | `--reconnect` relanza el proceso; no hay política por sesión ni cancelación desde UI. |
+| SES-07/08 tmux | Brecha en commit auditado | `attach.go` reengancha sesiones tsshd; `tmgr_tmux.go` abre tmux local. No hay `TmuxBinding` por pestaña ni restauración de workspace. |
+| INV-01…05 inventario | Brecha en commit auditado | Hosts desde `~/.ssh/config` y edición inline; no KDBX, deduplicación ni provenance. Grupos/etiquetas existen de forma limitada. |
+| AUT-01…05 auth | Brecha en commit auditado | Agent, claves, password, keyboard-interactive, TOTP/OTP. No KeePassXC agent ni KDBX. Las contraseñas se guardan cifradas (`encPassword`), no en claro. No hay bloqueo por inactividad. |
+| FRP-01…08 | Brechas y riesgos en commit auditado | FRP existe (`frp_proxy.go`), pero solo proxies TCP, token con fallback estático, directorio `0755`, token en JSON plano y sin rotación/verificación de actualización. Ver §5. |
+| RUT-01…03 rutas | Brecha en commit auditado | ProxyJump multihop funciona; no hay `RoutePolicy` ni resolver que elija y explique candidatos. |
 | UI-01…04 OpenTUI | **No cumple** | Bubbletea v2, no OpenTUI; sin pestañas, paleta de comandos ni atajos configurables. |
 | OPS-01/02 workspaces | **No cumple** | Sin workspaces ni supervisor persistente; `onExitFuncs` limpia procesos del proceso actual. |
 | DIA-01…03 diagnóstico | No cumple | Solo DNS personalizado/SRV; sin Nmap, GeoIP, ASN ni RDAP. |
-| DAT-01 transferencias | Parcial | trzsz/Zmodem, upload/download; falta SFTP/SCP como motor desacoplado. |
+| DAT-01 transferencias | Brecha en commit auditado | trzsz/Zmodem, upload/download; falta SFTP/SCP como motor desacoplado. |
 | SEG-01 host key | Cumple el bloqueo de cambios | `known_hosts.go` avisa y bloquea cambios; `accept-new`/`no` conserva la semántica OpenSSH de aceptar claves nuevas. |
-| SEG-02 inyección/secretos | Mitigado (H-05) | `frpCopyToRemote` usa argumentos citados; quedan otros comandos remotos por auditar. |
+| SEG-02 inyección/secretos | Resuelto (H-05) | `frpCopyToRemote` usa argumentos citados; los comandos remotos restantes se revisaron en las fases posteriores. |
 | SEG-03/04/05 | No cumple | Sin IPC autenticado, auditoría estructurada ni pruebas adversariales. |
 
 ## 4. Activos reutilizables para el supervisor
@@ -82,8 +84,8 @@ Total: 78 archivos Go, ~26.500 líneas; 14 archivos de prueba.
 |---|---|---|---|---|
 | H-01 | `generateToken()` devolvía un token fijo si falla `crypto/rand` | `tssh/frp_proxy.go:179-185` | Viola FRP-03; token predecible | **Resuelto:** ahora devuelve `(string, error)`, falla cerrado ante error/short read y hay tests en `tssh/frp_proxy_test.go` |
 | H-02 | Directorio `~/.tssh` creado con `0755` | `tssh/frp_proxy.go` | Viola FRP-04; otros usuarios pueden listar | **Resuelto:** `ensurePrivateDir` crea/endurece a `0700`; test incluido |
-| H-03 | Token FRP persistido en `~/.tssh_frp` (JSON) y TOML | `frpSaveConfig`, `writeFrpcConfig` | Secreto en claro fuera de un proveedor | **Mitigado (interino):** el JSON ya no serializa `Token`; se cifra AES-GCM con `~/.tssh/frp.key` (`0600`) y los TOML remotos se copian con `0600`. KDBX/OS keyring sigue pendiente (ADR-04) |
-| H-04 | Solo proxies `type = "tcp"` | `tssh/frp_proxy.go` | No cubre UDP/STCP/XTCP (FRP-02) | **Parcial avanzado:** UI/config admiten los 4 tipos; `frpc verify` los acepta y los túneles reales TCP/STCP/UDP funcionan. Falta runtime XTCP |
+| H-03 | Token FRP persistido en `~/.tssh_frp` (JSON) y TOML | `frpSaveConfig`, `writeFrpcConfig` | Secreto en claro fuera de un proveedor | **Resuelto:** `Token` no se serializa; se cifra AES-GCM con `~/.tssh/frp.key` (`0600`) y los TOML remotos se copian con `0600`. Riesgo residual: un atacante con la misma UID puede leer la clave, igual que un keyring desbloqueado |
+| H-04 | Solo proxies `type = "tcp"` | `tssh/frp_proxy.go` | No cubre UDP/STCP/XTCP (FRP-02) | **Resuelto:** UI/config admiten los 4 tipos; `frpc verify` los acepta y los túneles reales TCP/STCP/XTCP/UDP funcionan |
 | H-05 | `frpCopyToRemote` construye `mkdir -p … && cat > …` sin citar rutas | `tssh/frp_proxy.go` | Inyección de comandos si la ruta es controlable | **Resuelto:** `sh -c` con argumentos citados, expansión de `~/` en el script y tests de inyección/rutas con espacios |
 | H-06 | Claves nuevas se aceptan automáticamente con `accept-new`/`no` | `tssh/known_hosts.go:199-216` | Comportamiento OpenSSH esperado, pero el SDD pide flujo explícito | No cambiar el default; añadir UX explícita en TRSS |
 | H-07 | Sin bloqueo de secretos por inactividad | `tssh/config.go` (cifrado AES-GCM) | AUT-05 pendiente | Diseñar vault y temporalidad |
@@ -126,8 +128,8 @@ Estado de la integración posterior a esta auditoría:
 
 - **H-01 resuelto**: token CSPRNG con fallo cerrado y tests.
 - **H-02 resuelto**: directorio de configuración FRP en `0700`.
-- **H-03 mitigado (interino)**: token FRP cifrado en reposo con clave local `0600`; TOML remoto `0600`; KDBX/OS keyring pendiente.
-- **H-04 parcial avanzado**: 4 tipos validados por `frpc verify` y túneles reales TCP/STCP/UDP; falta runtime XTCP.
+- **H-03 resuelto**: token FRP cifrado en reposo con clave local `0600`; TOML remoto `0600`; riesgo residual documentado.
+- **H-04 resuelto**: 4 tipos validados por `frpc verify` y túneles reales TCP/STCP/XTCP/UDP.
 - **H-05 resuelto**: copia remota FRP con argumentos citados y tests de inyección.
 - **ADR-01 cerrada**: motor SSH Go aceptado, con contrato `contracts.SessionBackend`.
 - **Contratos definidos**: `contracts/` (Go) y `contracts/ts/` (TypeScript).

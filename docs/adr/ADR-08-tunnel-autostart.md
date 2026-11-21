@@ -1,6 +1,6 @@
 # ADR-08: Autoarranque de túneles
 
-- **Estado:** Propuesto
+- **Estado:** Aceptado
 - **Fecha:** 21/11/2026
 - **Requisitos afectados:** FRP-06/07/08, RUT-01/03, SEG-03
 
@@ -17,7 +17,7 @@ eso no equivale a arrancarlos sin consentimiento.
 2. **Autoarranque por workspace con consentimiento previo**.
 3. **Autoarranque global**.
 
-## Decisión propuesta
+## Decisión
 
 Por defecto **no autoarrancar** túneles. Un workspace puede declarar túneles
 previstos y el usuario autoriza, por workspace y por túnel:

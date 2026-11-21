@@ -1,6 +1,6 @@
 # ADR-04: Gestor de secretos y compatibilidad KDBX
 
-- **Estado:** Propuesto
+- **Estado:** Aceptado
 - **Fecha:** 21/11/2026
 - **Requisitos afectados:** AUT-02…05, INV-03, SEG-02/03
 
@@ -25,7 +25,7 @@ en `~/.ssh/password` (`encPassword`) y no lee KDBX.
    - Ventaja: ya existe.
    - Riesgo: no cumple el flujo KeePass del SDD; no hay bloqueo por inactividad.
 
-## Decisión propuesta
+## Decisión
 
 Adoptar una estrategia por capas:
 

@@ -1,6 +1,6 @@
 # ADR-06: Sincronización del inventario de hosts
 
-- **Estado:** Propuesto
+- **Estado:** Aceptado
 - **Fecha:** 21/11/2026
 - **Requisitos afectados:** INV-01…05, RUT-01
 
@@ -19,7 +19,7 @@ importado figure como descubierto/no verificado hasta comprobar identidad.
 3. **Leer siempre de `ssh_config`** sin base propia.
    - Riesgo: no permite ediciones locales, etiquetas ni conflictos.
 
-## Decisión propuesta
+## Decisión
 
 Base canónica `HostProfile` con:
 

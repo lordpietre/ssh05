@@ -95,11 +95,11 @@ make install                   # copies ./bin/tssh to /usr/bin/tssh
   `./bin/trssd --ssh-config ~/.ssh/config`
 - H-01 is resolved (`generateToken` fails closed; see `tssh/frp_proxy_test.go`).
 - H-02 is resolved (`ensurePrivateDir` forces FRP config/log dirs to `0700`).
-- H-03 is mitigated: FRP tokens are AES-GCM encrypted at rest with a local
+- H-03 is resolved: FRP tokens are AES-GCM encrypted at rest with a local
   `~/.tssh/frp.key` (`0600`); remote TOML files are copied with `0600`.
-- H-04 is partial (advanced): tcp/udp/stcp/xtcp, dedicated STCP/XTCP secret,
-  local/remote version gating, `frpc verify` for all four types and real
-  TCP/STCP/UDP tunnels. XTCP runtime remains open.
+- H-04 is resolved: tcp/udp/stcp/xtcp, dedicated STCP/XTCP secret, local/remote
+  version gating, `frpc verify` for all four types and real TCP/STCP/XTCP/UDP
+  tunnels.
 - H-05 is resolved (remote FRP copy uses quoted `sh -c` arguments and tests).
 - Phase 0 does **not** change runtime behavior of `tssh`; the runtime changes so
   far are the H-01 token fix, H-02 private FRP directories, H-03 encrypted FRP

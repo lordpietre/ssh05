@@ -1,6 +1,6 @@
 # ADR-05: Propiedad de procesos FRP
 
-- **Estado:** Propuesto
+- **Estado:** Aceptado
 - **Fecha:** 21/11/2026
 - **Requisitos afectados:** FRP-01…08, OPS-02, SEG-03
 
@@ -24,7 +24,7 @@ procesos hijos desde la TUI (`frpStartLocal`) y los limpia al salir
    - Ventaja: simple.
    - Riesgo: contradice FRP-08 y OPS-02.
 
-## Decisión propuesta
+## Decisión
 
 El **supervisor es el propietario por defecto** de `frpc`/`frps`:
 

@@ -9,11 +9,11 @@ pero no que la decisión esté cerrada para producción.
 | [ADR-01](ADR-01-ssh-engine.md) | Motor SSH del supervisor | Aceptado | Auditoría + `tssh/ssh.go` + contrato |
 | [ADR-02](ADR-02-vt-emulator.md) | Terminal embebido OpenTUI + PTY Bun | Aceptado (prototipo) | `prototype/terminal` + smoke test |
 | [ADR-03](ADR-03-ipc.md) | IPC local tipado | Aceptado | `internal/ipc` + supervisor + UI |
-| [ADR-04](ADR-04-kdbx.md) | Gestor de secretos KDBX | Propuesto | Auditoría; sin implementación |
-| [ADR-05](ADR-05-frp-ownership.md) | Propiedad de procesos FRP | Propuesto | Auditoría de `frp_proxy.go` |
-| [ADR-06](ADR-06-host-sync.md) | Sincronización de inventario | Propuesto | Auditoría de `config.go` |
-| [ADR-07](ADR-07-udp-transports.md) | Transportes UDP opcionales | Diferido | `tssh/udp.go` (tsshd) |
-| [ADR-08](ADR-08-tunnel-autostart.md) | Autoarranque de túneles | Propuesto | SDD §8/§19 |
+| [ADR-04](ADR-04-kdbx.md) | Gestor de secretos KDBX | Aceptado | Decisión; implementación Fase 2 |
+| [ADR-05](ADR-05-frp-ownership.md) | Propiedad de procesos FRP | Aceptado | Decisión; implementación Fase 3 |
+| [ADR-06](ADR-06-host-sync.md) | Sincronización de inventario | Aceptado | Decisión; implementación Fase 2 |
+| [ADR-07](ADR-07-udp-transports.md) | Transportes UDP opcionales | Aceptado (fuera de P0) | `tssh/udp.go` (tsshd) |
+| [ADR-08](ADR-08-tunnel-autostart.md) | Autoarranque de túneles | Aceptado | Decisión; implementación Fase 3 |
 
 ## Criterio de cierre de la Fase 0
 
@@ -21,10 +21,10 @@ La Fase 0 se considera ejecutada cuando:
 
 1. Existe la auditoría del código y dependencias reales.
 2. El prototipo demuestra `vim`, `htop`, `tmux` y resize.
-3. Las ADR-01…ADR-04 tienen una decisión registrada y validación pendiente
-   explícita.
+3. Las ADR-01…ADR-08 tienen una decisión aceptada; sus validaciones se
+   ejecutan en la fase de implementación correspondiente.
 
-La Fase 1 no debe comenzar hasta resolver los hallazgos H-01 y H-05 de la
-auditoría y cerrar ADR-03 con pruebas del núcleo P0. H-01/H-02/H-05 están
-resueltos; ADR-01, ADR-02 (prototipo) y ADR-03 están cerradas. La UI ya usa IPC
-y el supervisor; quedan las pruebas de estrés y el resto de ADRs.
+La Fase 0 y las decisiones de arquitectura están cerradas: ADR-01…ADR-08 tienen
+una decisión aceptada. H-01/H-02/H-03/H-04/H-05 están resueltos. La UI usa IPC y
+el supervisor; el trabajo restante es de implementación de fases, no de
+decisiones abiertas.

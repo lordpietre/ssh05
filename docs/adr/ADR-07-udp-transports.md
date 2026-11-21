@@ -1,6 +1,6 @@
 # ADR-07: Transportes UDP opcionales
 
-- **Estado:** Diferido
+- **Estado:** Aceptado (fuera de P0)
 - **Fecha:** 21/11/2026
 - **Requisitos afectados:** SES-06/07, RUT-01; no P0
 
@@ -19,7 +19,7 @@ amenaza.
 
 ## Decisión
 
-**Diferir** cualquier promesa de UDP hasta después de la Fase 4. No forma parte
+UDP/QUIC/KCP **no forma parte del P0**; se evaluará como adaptador separado después de la Fase 4. No forma parte
 del P0 ni de la primera UI multipestaña. Si se retoma, se evaluará como
 adaptador de transporte con identidad propia, no como sustituto de tmux.
 
