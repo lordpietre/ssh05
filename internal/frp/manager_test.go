@@ -191,3 +191,65 @@ func TestKillProcessGroupReapsChildren(t *testing.T) {
 	}
 	t.Fatalf("child %d survived the process-group kill", childPID)
 }
+
+func fakeFrps(t *testing.T) string {
+	t.Helper()
+	path := filepath.Join(t.TempDir(), "frps")
+	script := "#!/bin/sh\nif [ \"$1\" = \"verify\" ]; then exit 0; fi\nexec sleep 30\n"
+	if err := os.WriteFile(path, []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	return path
+}
+
+func TestManagerManagesLocalFrpsLifecycle(t *testing.T) {
+	dir := t.TempDir()
+	manager, err := NewManager(Options{
+		ConfigPath: filepath.Join(dir, "frp.json"), KeyPath: filepath.Join(dir, "frp.key"),
+		WorkDir: filepath.Join(dir, "work"), FrpcBin: fakeFrpc(t), FrpsBin: fakeFrps(t),
+		EndpointListen: "127.0.0.1:17000", EndpointName: "local", EndpointToken: "server-token",
+	})
+	if err != nil {
+		t.Fatalf("NewManager: %v", err)
+	}
+	t.Cleanup(manager.Close)
+
+	list := manager.List()
+	if len(list.Endpoints) != 1 {
+		t.Fatalf("endpoints = %+v", list.Endpoints)
+	}
+	endpoint := list.Endpoints[0]
+	if !endpoint.Managed || endpoint.State != contracts.FrpOnline || endpoint.Port != 17000 {
+		t.Fatalf("endpoint = %+v", endpoint)
+	}
+	config, err := os.ReadFile(filepath.Join(dir, "work", endpoint.ID+"-frps.toml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(config), "bindPort = 17000") || !strings.Contains(string(config), "auth.token") {
+		t.Fatalf("config = %s", config)
+	}
+
+	applied, err := manager.Apply(context.Background(), contracts.FrpProxy{
+		Name: "lab", Type: contracts.FrpTCP, ServicePort: 22, RemotePort: 22022,
+	})
+	if err != nil {
+		t.Fatalf("Apply with local frps: %v", err)
+	}
+	if applied.State != contracts.FrpOnline {
+		t.Fatalf("applied = %+v", applied)
+	}
+
+	if err := manager.StopEndpoint(context.Background(), endpoint.ID); err != nil {
+		t.Fatalf("StopEndpoint: %v", err)
+	}
+	list = manager.List()
+	if list.Endpoints[0].State != contracts.FrpStopped {
+		t.Fatalf("endpoint after stop = %+v", list.Endpoints[0])
+	}
+	for _, proxy := range list.Proxies {
+		if proxy.State != contracts.FrpStopped {
+			t.Fatalf("dependent proxy = %+v", proxy)
+		}
+	}
+}

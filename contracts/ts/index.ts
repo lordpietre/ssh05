@@ -212,6 +212,9 @@ export interface FrpEndpoint {
   address: string
   port: number
   managed: boolean
+  state?: FrpState
+  lastErrorCode?: string
+  lastErrorLabel?: string
 }
 
 export interface FrpProxy {
@@ -400,6 +403,10 @@ export interface FrpRotateParams {
   endpointId: string
 }
 
+export interface FrpServerParams {
+  endpointId: string
+}
+
 export interface VaultStatusResult {
   provider: string
   locked: boolean
@@ -445,6 +452,8 @@ export interface MethodContracts {
   "frp.proxies.apply": { params: FrpProxiesApplyParams; result: FrpProxiesApplyResult }
   "frp.proxies.stop": { params: FrpProxiesStopParams; result: void }
   "frp.tokens.rotate": { params: FrpRotateParams; result: void }
+  "frp.servers.start": { params: FrpServerParams; result: FrpEndpoint }
+  "frp.servers.stop": { params: FrpServerParams; result: void }
   "vault.status": { params: Record<string, never>; result: VaultStatusResult }
   "vault.unlockRequest": { params: VaultUnlockParams; result: VaultStatusResult }
   "workspaces.save": { params: WorkspacesSaveParams; result: void }
@@ -475,6 +484,8 @@ export const IPC_METHODS = [
   "frp.proxies.apply",
   "frp.proxies.stop",
   "frp.tokens.rotate",
+  "frp.servers.start",
+  "frp.servers.stop",
   "vault.status",
   "vault.unlockRequest",
   "workspaces.save",

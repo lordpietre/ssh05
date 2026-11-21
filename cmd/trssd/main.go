@@ -45,6 +45,9 @@ func main() {
 	frpServer := flag.String("frp-server", "", "optional frps address for local frpc proxies")
 	frpPort := flag.Int("frp-port", 7000, "frps control port")
 	frpToken := flag.String("frp-token", "", "initial frps token (generated if empty)")
+	frpsListen := flag.String("frps-listen", "", "start a managed local frps at host:port")
+	frpsBin := flag.String("frps", "frps", "frps binary")
+	frpsSHA256 := flag.String("frps-sha256", "", "pinned SHA-256 for frps (verified before start)")
 	frpcBin := flag.String("frpc", "frpc", "frpc binary")
 	frpcSHA256 := flag.String("frpc-sha256", "", "pinned SHA-256 for frpc (verified before start)")
 	frpConfig := flag.String("frp-config", "", "FRP manager config path")
@@ -79,6 +82,9 @@ func main() {
 		ConfigPath:      *frpConfig,
 		FrpcBin:         *frpcBin,
 		FrpcSHA256:      *frpcSHA256,
+		FrpsBin:         *frpsBin,
+		FrpsSHA256:      *frpsSHA256,
+		EndpointListen:  *frpsListen,
 		EndpointAddress: *frpServer,
 		EndpointPort:    *frpPort,
 		EndpointToken:   *frpToken,

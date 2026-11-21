@@ -55,10 +55,11 @@ El **supervisor es el propietario por defecto** de `frpc`/`frps`:
 
 ## Implementación actual
 
-`internal/frp` supervisa procesos `frpc` locales, persiste endpoints/proxies
-con tokens cifrados, permite aplicar/parar/rotar y expone la ruta visitor para
-SSH. Los endpoints `frps` son externos al supervisor; el arranque local de
-`frps` y la actualización verificada quedan en la fase siguiente.
+`internal/frp` supervisa procesos `frpc` y `frps` locales, persiste
+endpoints/proxies con tokens cifrados, permite aplicar/parar/rotar y expone la
+ruta visitor para SSH. Con `--frps-listen` el supervisor arranca y para un
+`frps` local; el hash de ambos binarios se puede fijar con `--frpc-sha256` y
+`--frps-sha256`.
 
 ## Evidencia
 

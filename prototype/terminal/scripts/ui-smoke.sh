@@ -102,7 +102,7 @@ assert_contains "Probar ruta" "route probe command listed"
 send Escape
 sleep 0.3
 send C-f
-assert_contains "FRP · proxies" "FRP panel opens"
+assert_contains "FRP · endpoints" "FRP panel opens"
 send n
 assert_contains "Nuevo proxy FRP" "FRP proxy form opens"
 send Escape

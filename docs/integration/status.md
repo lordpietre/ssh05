@@ -42,6 +42,7 @@
 | Paleta de comandos | **Hecho** | `Ctrl+K` en la UI |
 | Rutas directas/ProxyJump con motivo | **Hecho** | `routes.plan` + `ProxyJump` + estado en UI |
 | FRP supervisor local | **Hecho** | `internal/frp`, endpoints/proxies, procesos |
+| FRP-01 frps local gestionado | **Hecho** | `--frps-listen`, `frp.servers.start/stop` |
 | FRP tokens cifrados, rotación y tipos | **Hecho** | AES-GCM, `frp.tokens.rotate`, 4 tipos |
 | FRP hash de binario y sin huérfanos | **Hecho** | `--frpc-sha256`, grupos de proceso |
 | FRP UI (listar/crear/parar/rotar) | **Hecho** | `Ctrl+F` |
@@ -68,7 +69,6 @@
 | 3 | Config SSH por conexión | Eliminar serialización de `SshLogin` |
 | 3 | Resolver de rutas FRP | RUT-01/03 para FRP |
 | 3 | Atajos configurables | UI-04 |
-| 3 | frps local gestionado | FRP-01 |
 
 ## Invariantes que no se negocian
 

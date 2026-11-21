@@ -36,6 +36,8 @@ const (
 	MethodFrpProxiesApply    Method = "frp.proxies.apply"
 	MethodFrpProxiesStop     Method = "frp.proxies.stop"
 	MethodFrpRotate          Method = "frp.tokens.rotate"
+	MethodFrpServerStart     Method = "frp.servers.start"
+	MethodFrpServerStop      Method = "frp.servers.stop"
 	MethodVaultStatus        Method = "vault.status"
 	MethodVaultUnlock        Method = "vault.unlockRequest"
 	MethodWorkspacesSave     Method = "workspaces.save"
@@ -62,6 +64,8 @@ var validMethods = map[Method]struct{}{
 	MethodFrpProxiesApply:    {},
 	MethodFrpProxiesStop:     {},
 	MethodFrpRotate:          {},
+	MethodFrpServerStart:     {},
+	MethodFrpServerStop:      {},
 	MethodVaultStatus:        {},
 	MethodVaultUnlock:        {},
 	MethodWorkspacesSave:     {},
@@ -249,6 +253,10 @@ type FrpProxiesStopParams struct {
 }
 
 type FrpRotateParams struct {
+	EndpointID string `json:"endpointId"`
+}
+
+type FrpServerParams struct {
 	EndpointID string `json:"endpointId"`
 }
 

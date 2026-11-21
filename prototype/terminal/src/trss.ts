@@ -20,6 +20,7 @@ import { tmpdir } from "node:os"
 import { appendFileSync } from "node:fs"
 import { join } from "node:path"
 import type {
+  FrpEndpoint,
   FrpProxy,
   HostProfile,
   IpcEvent,
@@ -292,7 +293,7 @@ let closeDialogCursor = 0
 let frpVisible = false
 let frpCursor = 0
 let frpProxies: FrpProxy[] = []
-let frpEndpoints: { id: string }[] = []
+let frpEndpoints: FrpEndpoint[] = []
 let frpForm: {
   field: number
   name: string
@@ -1298,7 +1299,14 @@ function renderFRP(): void {
     frpOverlay.content = lines.join("\n")
     return
   }
-  const lines = ["", "  FRP · proxies", ""]
+  const lines = ["", "  FRP · endpoints", ""]
+  if (frpEndpoints.length === 0) lines.push("  Sin endpoints configurados")
+  for (const endpoint of frpEndpoints) {
+    const kind = endpoint.managed ? "local" : "remoto"
+    const state = endpoint.state ?? "stopped"
+    lines.push(`   ${state} ${kind} ${endpoint.address}:${endpoint.port}`)
+  }
+  lines.push("", "  FRP · proxies", "")
   if (frpProxies.length === 0) lines.push("  Sin proxies configurados")
   for (let index = 0; index < frpProxies.length; index++) {
     const proxy = frpProxies[index]
@@ -1311,7 +1319,7 @@ function renderFRP(): void {
         : `${proxy.servicePort} → ${proxy.remotePort}`
     lines.push(`  ${marker} ${proxy.state} ${proxy.name} [${proxy.type}] ${target}`)
   }
-  lines.push("", "  n nuevo · d parar · r rotar token · Esc cerrar")
+  lines.push("", "  n nuevo · d parar · s iniciar/parar frps · r rotar token · Esc cerrar")
   frpOverlay.content = lines.join("\n")
 }
 
@@ -1320,7 +1328,7 @@ async function refreshFRP(): Promise<void> {
   try {
     const result = await client.call("frp.instances.list", {}, { timeoutMs: 5000 })
     frpProxies = result.proxies ?? []
-    frpEndpoints = (result.endpoints ?? []).map((endpoint) => ({ id: endpoint.id }))
+    frpEndpoints = result.endpoints ?? []
     frpCursor = Math.min(frpCursor, Math.max(0, frpProxies.length - 1))
   } catch (error) {
     transientText = `FRP: ${String(error)}`
@@ -1431,6 +1439,24 @@ async function handleFRPKey(key: KeyEvent): Promise<void> {
       await refreshFRP()
     } catch (error) {
       transientText = `FRP stop: ${String(error)}`
+    }
+  } else if (name === "s" && client) {
+    const endpoint = frpEndpoints.find((item) => item.managed)
+    if (!endpoint) {
+      transientText = "FRP: no hay frps local gestionado"
+    } else {
+      try {
+        if (endpoint.state === "online") {
+          await client.call("frp.servers.stop", { endpointId: endpoint.id }, { timeoutMs: 10_000 })
+          transientText = "FRP: frps detenido"
+        } else {
+          await client.call("frp.servers.start", { endpointId: endpoint.id }, { timeoutMs: 15_000 })
+          transientText = "FRP: frps iniciado"
+        }
+        await refreshFRP()
+      } catch (error) {
+        transientText = `FRP frps: ${String(error)}`
+      }
     }
   } else if (name === "r" && frpEndpoints[0] && client) {
     try {

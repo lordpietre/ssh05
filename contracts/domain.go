@@ -134,11 +134,14 @@ const (
 
 // FrpEndpoint is an authorized frps/frpc installation.
 type FrpEndpoint struct {
-	ID      string `json:"id"`
-	Role    string `json:"role"` // "frps" or "frpc"
-	Address string `json:"address"`
-	Port    int    `json:"port"`
-	Managed bool   `json:"managed"`
+	ID             string   `json:"id"`
+	Role           string   `json:"role"` // "frps" or "frpc"
+	Address        string   `json:"address"`
+	Port           int      `json:"port"`
+	Managed        bool     `json:"managed"`
+	State          FrpState `json:"state,omitempty"`
+	LastErrorCode  string   `json:"lastErrorCode,omitempty"`
+	LastErrorLabel string   `json:"lastErrorLabel,omitempty"`
 }
 
 // FrpProxy is a proxy definition plus its observed state.

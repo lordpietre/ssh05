@@ -105,6 +105,10 @@ func (s *Service) Handle(ctx context.Context, conn *ipc.Conn, req contracts.RPCR
 		return s.stopFRP(ctx, req)
 	case contracts.MethodFrpRotate:
 		return s.rotateFRP(ctx, req)
+	case contracts.MethodFrpServerStart:
+		return s.startFRPServer(ctx, req)
+	case contracts.MethodFrpServerStop:
+		return s.stopFRPServer(ctx, req)
 	case contracts.MethodVaultStatus:
 		status := contracts.VaultStatusResult{Provider: "none", Locked: true}
 		if inventory, ok := s.hosts.(HostInventory); ok {
@@ -586,6 +590,43 @@ func (s *Service) rotateFRP(ctx context.Context, req contracts.RPCRequest) (json
 		return nil, internalError(err)
 	}
 	s.log(audit.Event{Action: "frp.rotate", Result: "ok", Detail: params.EndpointID})
+	return json.RawMessage(`{}`), nil
+}
+
+func (s *Service) startFRPServer(ctx context.Context, req contracts.RPCRequest) (json.RawMessage, *contracts.RPCError) {
+	if s.frp == nil {
+		return nil, notImplemented()
+	}
+	params, rpcError := decodeParams[contracts.FrpServerParams](req)
+	if rpcError != nil {
+		return nil, rpcError
+	}
+	if err := s.frp.StartEndpoint(ctx, params.EndpointID); err != nil {
+		s.log(audit.Event{Action: "frp.server.start", Result: "error", ErrorCode: "internal", Detail: params.EndpointID})
+		return nil, internalError(err)
+	}
+	s.log(audit.Event{Action: "frp.server.start", Result: "ok", Detail: params.EndpointID})
+	for _, endpoint := range s.frp.List().Endpoints {
+		if endpoint.ID == params.EndpointID {
+			return marshal(endpoint)
+		}
+	}
+	return nil, internalError(fmt.Errorf("FRP endpoint not found after start"))
+}
+
+func (s *Service) stopFRPServer(ctx context.Context, req contracts.RPCRequest) (json.RawMessage, *contracts.RPCError) {
+	if s.frp == nil {
+		return nil, notImplemented()
+	}
+	params, rpcError := decodeParams[contracts.FrpServerParams](req)
+	if rpcError != nil {
+		return nil, rpcError
+	}
+	if err := s.frp.StopEndpoint(ctx, params.EndpointID); err != nil {
+		s.log(audit.Event{Action: "frp.server.stop", Result: "error", ErrorCode: "internal", Detail: params.EndpointID})
+		return nil, internalError(err)
+	}
+	s.log(audit.Event{Action: "frp.server.stop", Result: "ok", Detail: params.EndpointID})
 	return json.RawMessage(`{}`), nil
 }
 

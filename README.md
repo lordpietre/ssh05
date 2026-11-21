@@ -133,7 +133,15 @@ FRP local (frpc) contra un frps autorizado:
   --frpc-sha256 <sha256-del-binario-frpc>
 ```
 
-En la UI, `Ctrl+F` abre el panel FRP (listar, crear, parar, rotar token).
+Para levantar un `frps` local gestionado por el supervisor:
+
+```sh
+./bin/trssd --ssh-config ~/.ssh/config \
+  --frps-listen 127.0.0.1:7000 --frpc /ruta/frpc --frps /ruta/frps
+```
+
+En la UI, `Ctrl+F` abre el panel FRP (endpoints, proxies, crear, parar,
+iniciar/parar `frps` con `s`, rotar token).
 
 La paleta (`Ctrl+K`) incluye «Probar ruta del host»: informa `reachable`,
 `refused`, `timeout`, `dns_failure` o `unknown` sin interpretar un timeout como

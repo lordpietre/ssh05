@@ -10,6 +10,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -25,14 +26,18 @@ const keySize = 32
 var randRead = rand.Read
 
 type endpoint struct {
-	ID       string `json:"id"`
-	Name     string `json:"name"`
-	Address  string `json:"address"`
-	Port     int    `json:"port"`
-	Role     string `json:"role"`
-	Token    string `json:"-"`
-	TokenEnc string `json:"token_enc,omitempty"`
-	Managed  bool   `json:"managed"`
+	ID             string             `json:"id"`
+	Name           string             `json:"name"`
+	Address        string             `json:"address"`
+	BindAddr       string             `json:"bindAddr,omitempty"`
+	Port           int                `json:"port"`
+	Role           string             `json:"role"`
+	Token          string             `json:"-"`
+	TokenEnc       string             `json:"token_enc,omitempty"`
+	Managed        bool               `json:"managed"`
+	State          contracts.FrpState `json:"state"`
+	LastErrorCode  string             `json:"lastErrorCode,omitempty"`
+	LastErrorLabel string             `json:"lastErrorLabel,omitempty"`
 }
 
 type proxy struct {
@@ -64,8 +69,11 @@ type Options struct {
 	WorkDir         string
 	FrpcBin         string
 	FrpcSHA256      string
+	FrpsBin         string
+	FrpsSHA256      string
 	EndpointName    string
 	EndpointAddress string
+	EndpointListen  string
 	EndpointPort    int
 	EndpointToken   string
 }
@@ -78,6 +86,7 @@ type Manager struct {
 	endpoints []*endpoint
 	proxies   []*proxy
 	procs     map[string]*exec.Cmd
+	servers   map[string]*exec.Cmd
 	next      int
 }
 
@@ -100,11 +109,22 @@ func NewManager(options Options) (*Manager, error) {
 			return nil, err
 		}
 	}
+	if options.FrpsBin == "" {
+		options.FrpsBin = "frps"
+	}
+	if options.FrpsSHA256 != "" {
+		if err := verifyBinaryHash(options.FrpsBin, options.FrpsSHA256); err != nil {
+			return nil, err
+		}
+	}
 	key, err := loadOrCreateKey(options.KeyPath)
 	if err != nil {
 		return nil, err
 	}
-	m := &Manager{opts: options, key: key, procs: make(map[string]*exec.Cmd)}
+	m := &Manager{
+		opts: options, key: key,
+		procs: make(map[string]*exec.Cmd), servers: make(map[string]*exec.Cmd),
+	}
 	if err := m.load(); err != nil {
 		return nil, err
 	}
@@ -114,8 +134,15 @@ func NewManager(options Options) (*Manager, error) {
 	if err := os.Chmod(options.WorkDir, 0o700); err != nil {
 		return nil, err
 	}
-	if options.EndpointAddress != "" {
+	if options.EndpointAddress != "" || options.EndpointListen != "" {
 		if err := m.ensureEndpoint(); err != nil {
+			return nil, err
+		}
+	}
+	if options.EndpointListen != "" {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		if err := m.StartEndpoint(ctx, "endpoint-"+endpointName(options)); err != nil {
 			return nil, err
 		}
 	}
@@ -264,6 +291,9 @@ func (m *Manager) load() error {
 				return err
 			}
 		}
+		if endpoint.State != contracts.FrpStopped && endpoint.State != contracts.FrpError {
+			endpoint.State = contracts.FrpStopped
+		}
 	}
 	for _, proxy := range m.proxies {
 		if proxy.SecretEnc != "" {
@@ -316,28 +346,88 @@ func (m *Manager) saveLocked() error {
 	return os.Rename(tmp, m.opts.ConfigPath)
 }
 
+func endpointName(options Options) string {
+	if options.EndpointName != "" {
+		return options.EndpointName
+	}
+	return "default"
+}
+
+func parseListen(value string) (bindAddr, clientAddr string, port int, err error) {
+	host, portText, err := net.SplitHostPort(strings.TrimSpace(value))
+	if err != nil {
+		if _, convErr := fmt.Sscanf(strings.TrimSpace(value), "%d", &port); convErr == nil {
+			host, portText = "", strings.TrimSpace(value)
+		} else {
+			return "", "", 0, fmt.Errorf("invalid frps listen address %q: %w", value, err)
+		}
+	}
+	if portText == "" {
+		port = 7000
+	} else if _, scanErr := fmt.Sscanf(portText, "%d", &port); scanErr != nil || port <= 0 || port > 65535 {
+		return "", "", 0, fmt.Errorf("invalid frps listen port %q", portText)
+	}
+	host = strings.TrimSpace(host)
+	if host == "" {
+		host = "0.0.0.0"
+	}
+	clientAddr = host
+	if host == "0.0.0.0" || host == "::" || host == "[::]" {
+		clientAddr = "127.0.0.1"
+	}
+	return host, clientAddr, port, nil
+}
+
 func (m *Manager) ensureEndpoint() error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
+	name := endpointName(m.opts)
+	id := "endpoint-" + name
+	listenBind, listenClient, listenPort := "", "", 0
+	if m.opts.EndpointListen != "" {
+		host, client, port, err := parseListen(m.opts.EndpointListen)
+		if err != nil {
+			return err
+		}
+		listenBind, listenClient, listenPort = host, client, port
+	}
 	for _, endpoint := range m.endpoints {
-		if endpoint.Address == m.opts.EndpointAddress && endpoint.Port == m.opts.EndpointPort {
-			if endpoint.Token == "" {
-				endpoint.Token = m.opts.EndpointToken
+		match := endpoint.Address == m.opts.EndpointAddress && endpoint.Port == m.opts.EndpointPort
+		if m.opts.EndpointListen != "" {
+			match = endpoint.ID == id || (endpoint.Managed && endpoint.BindAddr == listenBind && endpoint.Port == listenPort)
+		}
+		if !match {
+			continue
+		}
+		if endpoint.Token == "" {
+			endpoint.Token = m.opts.EndpointToken
+		}
+		if m.opts.EndpointListen != "" {
+			endpoint.BindAddr = listenBind
+			endpoint.Port = listenPort
+			endpoint.Managed = true
+			if m.opts.EndpointAddress == "" {
+				endpoint.Address = listenClient
 			}
-			return m.saveLocked()
+		}
+		return m.saveLocked()
+	}
+	address := m.opts.EndpointAddress
+	port := m.opts.EndpointPort
+	if listenPort > 0 {
+		address = listenClient
+		port = listenPort
+		if m.opts.EndpointAddress != "" {
+			address = m.opts.EndpointAddress
 		}
 	}
-	name := m.opts.EndpointName
-	if name == "" {
-		name = "default"
-	}
-	port := m.opts.EndpointPort
 	if port == 0 {
 		port = 7000
 	}
 	m.endpoints = append(m.endpoints, &endpoint{
-		ID: "endpoint-" + name, Name: name, Address: m.opts.EndpointAddress,
+		ID: id, Name: name, Address: address, BindAddr: listenBind,
 		Port: port, Role: "frps", Token: m.opts.EndpointToken,
+		Managed: listenPort > 0, State: contracts.FrpStopped,
 	})
 	return m.saveLocked()
 }
@@ -352,7 +442,8 @@ func (m *Manager) List() contracts.FrpInstancesListResult {
 	for _, endpoint := range m.endpoints {
 		result.Endpoints = append(result.Endpoints, contracts.FrpEndpoint{
 			ID: endpoint.ID, Role: endpoint.Role, Address: endpoint.Address,
-			Port: endpoint.Port, Managed: endpoint.Managed,
+			Port: endpoint.Port, Managed: endpoint.Managed, State: endpoint.State,
+			LastErrorCode: endpoint.LastErrorCode, LastErrorLabel: endpoint.LastErrorLabel,
 		})
 	}
 	for _, proxy := range m.proxies {
@@ -433,6 +524,15 @@ func (m *Manager) Apply(ctx context.Context, requested contracts.FrpProxy) (cont
 			return requested, err
 		}
 		endpoint.Token = token
+	}
+	if endpoint.Managed && endpoint.State != contracts.FrpOnline {
+		if err := m.startEndpointLocked(ctx, endpoint); err != nil {
+			existing.State = contracts.FrpError
+			existing.LastErrorCode = "frps_start_failed"
+			existing.LastErrorLabel = err.Error()
+			_ = m.saveLocked()
+			return requested, err
+		}
 	}
 	if (proxyType == "stcp" || proxyType == "xtcp") && existing.Secret == "" {
 		secret, err := generateSecret()
@@ -565,6 +665,14 @@ func (m *Manager) RotateEndpoint(ctx context.Context, endpointID string) error {
 		return err
 	}
 	endpoint.Token = token
+	if endpoint.Managed && endpoint.State != contracts.FrpOnline {
+		if err := m.startEndpointLocked(ctx, endpoint); err != nil {
+			endpoint.State = contracts.FrpError
+			endpoint.LastErrorCode = "rotate_failed"
+			endpoint.LastErrorLabel = err.Error()
+			return m.saveLocked()
+		}
+	}
 	for _, proxy := range m.proxies {
 		if proxy.EndpointID != endpoint.ID {
 			continue
@@ -600,6 +708,135 @@ func (m *Manager) Close() {
 	for id := range m.procs {
 		m.stopLocked(id)
 	}
+	for id := range m.servers {
+		m.stopServerLocked(id)
+	}
+}
+
+// StartEndpoint starts a managed local frps.
+func (m *Manager) StartEndpoint(ctx context.Context, id string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	ep := m.findEndpointLocked(id)
+	if ep == nil {
+		return fmt.Errorf("FRP endpoint not found")
+	}
+	return m.startEndpointLocked(ctx, ep)
+}
+
+func (m *Manager) startEndpointLocked(ctx context.Context, ep *endpoint) error {
+	if !ep.Managed {
+		return fmt.Errorf("FRP endpoint %q is not managed locally", ep.Name)
+	}
+	if m.servers[ep.ID] != nil {
+		ep.State = contracts.FrpOnline
+		return nil
+	}
+	if ep.Token == "" {
+		token, err := generateSecret()
+		if err != nil {
+			return err
+		}
+		ep.Token = token
+	}
+	path := filepath.Join(m.opts.WorkDir, ep.ID+"-frps.toml")
+	if err := os.WriteFile(path, []byte(renderServerConfig(ep)), 0o600); err != nil {
+		return err
+	}
+	if err := os.Chmod(path, 0o600); err != nil {
+		return err
+	}
+	verify := exec.CommandContext(ctx, m.opts.FrpsBin, "verify", "-c", path)
+	if output, err := verify.CombinedOutput(); err != nil {
+		return fmt.Errorf("frps verify: %v: %s", err, strings.TrimSpace(string(output)))
+	}
+	logPath := filepath.Join(m.opts.WorkDir, ep.ID+"-frps.log")
+	logFile, err := os.OpenFile(logPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o600)
+	if err != nil {
+		return err
+	}
+	cmd := exec.Command(m.opts.FrpsBin, "-c", path)
+	configureProcess(cmd)
+	cmd.Stdout = logFile
+	cmd.Stderr = logFile
+	ep.State = contracts.FrpStarting
+	if err := cmd.Start(); err != nil {
+		_ = logFile.Close()
+		ep.State = contracts.FrpError
+		ep.LastErrorCode = "start_failed"
+		ep.LastErrorLabel = err.Error()
+		_ = m.saveLocked()
+		return err
+	}
+	m.servers[ep.ID] = cmd
+	go m.waitServer(ep.ID, cmd)
+	ep.State = contracts.FrpOnline
+	ep.LastErrorCode = ""
+	ep.LastErrorLabel = ""
+	return m.saveLocked()
+}
+
+func (m *Manager) waitServer(id string, cmd *exec.Cmd) {
+	err := cmd.Wait()
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if m.servers[id] != cmd {
+		return
+	}
+	delete(m.servers, id)
+	ep := m.findEndpointLocked(id)
+	if ep != nil && ep.State == contracts.FrpOnline {
+		ep.State = contracts.FrpError
+		ep.LastErrorCode = "process_exited"
+		if err != nil {
+			ep.LastErrorLabel = err.Error()
+		} else {
+			ep.LastErrorLabel = "frps exited"
+		}
+	}
+	_ = m.saveLocked()
+}
+
+// StopEndpoint stops a managed frps and the local proxies that depend on it.
+func (m *Manager) StopEndpoint(ctx context.Context, id string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	ep := m.findEndpointLocked(id)
+	if ep == nil {
+		return fmt.Errorf("FRP endpoint not found")
+	}
+	m.stopServerLocked(ep.ID)
+	ep.State = contracts.FrpStopped
+	ep.LastErrorCode = ""
+	ep.LastErrorLabel = ""
+	for _, proxy := range m.proxies {
+		if proxy.EndpointID != ep.ID {
+			continue
+		}
+		m.stopLocked(proxy.ID)
+		proxy.State = contracts.FrpStopped
+		proxy.LastErrorCode = ""
+		proxy.LastErrorLabel = ""
+	}
+	return m.saveLocked()
+}
+
+func (m *Manager) stopServerLocked(id string) {
+	if cmd := m.servers[id]; cmd != nil {
+		killProcess(cmd)
+		delete(m.servers, id)
+	}
+}
+
+func renderServerConfig(endpoint *endpoint) string {
+	bindAddr := endpoint.BindAddr
+	if bindAddr == "" {
+		bindAddr = "0.0.0.0"
+	}
+	var b strings.Builder
+	fmt.Fprintf(&b, "bindAddr = %q\nbindPort = %d\n\nauth.method = \"token\"\nauth.token = %q\n",
+		bindAddr, endpoint.Port, endpoint.Token)
+	return b.String()
 }
 
 func renderConfig(endpoint *endpoint, proxy *proxy) string {

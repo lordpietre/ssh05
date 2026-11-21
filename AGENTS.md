@@ -100,7 +100,7 @@ make install                   # copies ./bin/tssh to /usr/bin/tssh
   `./bin/trssd --ssh-config ~/.ssh/config`
 - Reconexión configurable: `--reconnect-max N --reconnect-delay 500ms`.
 - Auditoría saneada: `--audit-log /ruta/audit.log --audit-max-bytes N`.
-- FRP: `--frp-server`, `--frp-port`, `--frp-token`, `--frpc`, `--frpc-sha256`, `--frp-config`; panel `Ctrl+F`.
+- FRP: `--frp-server`, `--frp-port`, `--frp-token`, `--frpc`, `--frpc-sha256`, `--frps-listen`, `--frps`, `--frps-sha256`, `--frp-config`; panel `Ctrl+F` (`s` inicia/para frps local).
 - KeePass opcional:
   `./bin/trssd --ssh-config ~/.ssh/config --keepass-db ~/db.kdbx --keepass-key-file ~/db.key`
   o `--keepass-password-command 'pass show keepass'` (askpass; el secreto
