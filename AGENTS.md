@@ -59,6 +59,7 @@ make install                   # copies ./bin/tssh to /usr/bin/tssh
 - Supervisor: `internal/supervisor/` (backend, SSH runner, IPC service)
 - Daemon: `cmd/trssd/` (`make trssd`)
 - UI IPC client / TabStore: `prototype/terminal/src/ipc/`, `src/tabs/`
+- UI OpenTUI: `prototype/terminal/src/trss.ts` (`bun run ui`)
 - Integration status: `docs/integration/status.md`
 - Prototype: `prototype/terminal` (Bun 1.4.5 + `@opentui/core` 0.8.2, pinned)
 - Evidence/results: `docs/phase-0/README.md`
@@ -72,8 +73,10 @@ make install                   # copies ./bin/tssh to /usr/bin/tssh
   bun run typecheck:contracts
   bun test
   bun run smoke      # tmux + vim + htop + local sshd + resize
+  bun run ui         # OpenTUI UI against a running ./bin/trssd
   ```
   or `make phase0` from the repo root (requires `bun` on `PATH`).
+- UI smoke (starts sshd/trssd automatically): `make ui-smoke`.
 - Contract checks:
   ```
   CGO_ENABLED=0 go test -count=1 ./contracts ./internal/ipc ./internal/supervisor
@@ -88,7 +91,7 @@ make install                   # copies ./bin/tssh to /usr/bin/tssh
 - Phase 0 does **not** change runtime behavior of `tssh`; the runtime changes so
   far are the H-01 token fix, H-02 private FRP directories and H-05 remote-copy
   quoting. Respect the status in each ADR: ADR-01, ADR-02 (prototype) and
-  ADR-03 (transport) are accepted; the rest remain open.
+  ADR-03 are accepted; the rest remain open.
 
 ## Release
 - GoReleaser multi-platform: linux, darwin, windows, android, freebsd; 386/amd64/arm/arm64/loong64

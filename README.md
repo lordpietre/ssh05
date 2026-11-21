@@ -110,3 +110,17 @@ Supervisor local:
 CGO_ENABLED=0 go build -o ./bin/ ./cmd/trssd
 ./bin/trssd --ssh-config ~/.ssh/config
 ```
+
+UI OpenTUI (en otra terminal):
+
+```sh
+cd prototype/terminal
+bun install
+bun run ui
+```
+
+Smoke completo (sshd local + trssd + 3 pestañas SSH + resize):
+
+```sh
+make ui-smoke
+```

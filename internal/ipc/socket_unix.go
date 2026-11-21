@@ -26,11 +26,21 @@ func listenUnix(path string) (net.Listener, error) {
 
 	dir := filepath.Dir(path)
 	if dir != "." {
-		if err := os.MkdirAll(dir, 0o700); err != nil {
-			return nil, fmt.Errorf("ipc: create socket dir: %w", err)
-		}
-		if err := os.Chmod(dir, 0o700); err != nil {
-			return nil, fmt.Errorf("ipc: secure socket dir: %w", err)
+		info, err := os.Stat(dir)
+		switch {
+		case os.IsNotExist(err):
+			if err := os.MkdirAll(dir, 0o700); err != nil {
+				return nil, fmt.Errorf("ipc: create socket dir: %w", err)
+			}
+			if err := os.Chmod(dir, 0o700); err != nil {
+				return nil, fmt.Errorf("ipc: secure socket dir: %w", err)
+			}
+		case err != nil:
+			return nil, fmt.Errorf("ipc: stat socket dir: %w", err)
+		case info.Mode().Perm()&0o077 != 0:
+			// Never chmod a shared directory such as /tmp. The caller must use a
+			// private directory (0700), like ipc.DefaultSocketPath does.
+			return nil, fmt.Errorf("ipc: socket directory %s is not private (mode %o)", dir, info.Mode().Perm())
 		}
 	}
 

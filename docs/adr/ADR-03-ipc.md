@@ -1,6 +1,6 @@
 # ADR-03: IPC local entre UI y supervisor
 
-- **Estado:** Aceptado (transporte)
+- **Estado:** Aceptado
 - **Fecha:** 21/11/2026
 - **Requisitos afectados:** SES-01…06, OPS-02, SEG-03/04
 
@@ -59,7 +59,8 @@ Reglas:
 | Daemon `trssd` | Hecho (`cmd/trssd`) |
 | Cliente TypeScript/Bun (`IpcClient`) | Hecho (`prototype/terminal/src/ipc`) |
 | Prueba cruzada Bun ↔ Go | Hecho (opt-in `trssd.integration.test.ts`) |
-| Conectar la UI OpenTUI | Pendiente |
+| UI OpenTUI conectada (`IpcClient` + `TabStore`) | Hecho (`src/trss.ts`) |
+| Smoke UI 3 SSH + resize + cierre | Hecho (`make ui-smoke`) |
 
 Tests: `internal/ipc/ipc_test.go` y `internal/ipc/frame_test.go` cubren round
 trip, versión, método desconocido, panics, permisos, segundo servidor,
@@ -81,11 +82,11 @@ CGO_ENABLED=0 go test -count=1 ./internal/ipc
 ## Validación pendiente
 
 - Cliente no autorizado rechazado en un escenario multi-usuario real.
-- Renderer caído: supervisor y túneles sobreviven.
+- Renderer caído: supervisor y túneles sobreviven (UI smoke cubre sesiones vivas,
+  falta matar el renderer durante una sesión).
 - 100 MB de salida con colas acotadas y UI responsiva.
-- Cancelación de `open`, `resize`, `close` y `frp.apply` contra el supervisor.
 - Compatibilidad de protocolo entre versiones.
-- Cliente TypeScript/Bun y named pipes en Windows.
+- Named pipes en Windows.
 
 ## Evidencia
 

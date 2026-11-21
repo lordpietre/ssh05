@@ -25,6 +25,8 @@
 | Inventario `hosts.list` desde `ssh_config` | **Hecho** | `tssh/hosts_api.go`, `internal/supervisor/hosts.go` |
 | Cliente TS/Bun del IPC | **Hecho** | `prototype/terminal/src/ipc/` |
 | `TabStore` renderer-independent | **Hecho** | `prototype/terminal/src/tabs/store.ts` |
+| UI OpenTUI conectada al supervisor | **Hecho** | `prototype/terminal/src/trss.ts` |
+| Smoke UI: 3 SSH + resize + cierre independiente | **Hecho** | `make ui-smoke` |
 | `SessionBackend` y `TabStore` | Definidos | `contracts/session.go`, `contracts/ts/index.ts` |
 | Envelope IPC y métodos del Anexo B | Definidos | `contracts/ipc.go`, `contracts/ts/index.ts` |
 
@@ -32,10 +34,11 @@
 
 | Prioridad | Trabajo | Criterio de cierre |
 |---|---|---|
-| 1 | Integrar `IpcClient` + `TabStore` en la UI OpenTUI | 3 sesiones reales, resize y cierre independiente desde la UI |
+| 1 | FRP H-03/H-04: token fuera de JSON plano y tipos UDP/STCP/XTCP | FRP-03/04/06 y pruebas de permisos |
 | 2 | Persistencia de sesiones/túneles al cerrar UI | FRP-08, OPS-02 |
+| 2 | Estrés UI: 100 MB, 10 pestañas, renderer caído | UIX-01/13, OPS-02 |
 | 3 | Inventario con provenance y conflictos | Importar `ssh_config` sin sobrescribir cambios locales |
-| 3 | FRP: token fuera de JSON plano, rotación y tipos UDP/STCP/XTCP | FRP-03/04/06 y pruebas de permisos |
+| 3 | Config SSH por conexión y señales | Eliminar serialización de `SshLogin`; SES-04 |
 
 ## Invariantes que no se negocian
 

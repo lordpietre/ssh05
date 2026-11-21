@@ -33,7 +33,7 @@ func (h SSHHosts) List(ctx context.Context) ([]contracts.HostProfile, error) {
 			hostname = entry.Alias
 		}
 		profiles = append(profiles, contracts.HostProfile{
-			ID:    "ssh:" + entry.Alias,
+			ID:    entry.Alias,
 			Alias: entry.Alias,
 			Target: contracts.HostTarget{
 				Hostname: hostname,

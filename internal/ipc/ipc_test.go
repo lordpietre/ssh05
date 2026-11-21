@@ -192,6 +192,22 @@ func TestSecondServerIsRejected(t *testing.T) {
 	}
 }
 
+func TestPublicSocketDirectoryIsRejected(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.Chmod(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	server, err := Listen(filepath.Join(dir, "control.sock"), HandlerFunc(func(context.Context, *Conn, contracts.RPCRequest) (json.RawMessage, *contracts.RPCError) {
+		return nil, nil
+	}))
+	if server != nil {
+		_ = server.Close()
+	}
+	if err == nil || errors.Is(err, ErrAlreadyRunning) {
+		t.Fatalf("error = %v, want a private-directory error", err)
+	}
+}
+
 func TestMalformedJSONIsRejected(t *testing.T) {
 	socket := startTestServer(t, HandlerFunc(func(context.Context, *Conn, contracts.RPCRequest) (json.RawMessage, *contracts.RPCError) {
 		return nil, nil

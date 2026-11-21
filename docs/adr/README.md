@@ -8,7 +8,7 @@ pero no que la decisión esté cerrada para producción.
 |---|---|---|---|
 | [ADR-01](ADR-01-ssh-engine.md) | Motor SSH del supervisor | Aceptado | Auditoría + `tssh/ssh.go` + contrato |
 | [ADR-02](ADR-02-vt-emulator.md) | Terminal embebido OpenTUI + PTY Bun | Aceptado (prototipo) | `prototype/terminal` + smoke test |
-| [ADR-03](ADR-03-ipc.md) | IPC local tipado | Aceptado (transporte) | `internal/ipc` + tests |
+| [ADR-03](ADR-03-ipc.md) | IPC local tipado | Aceptado | `internal/ipc` + supervisor + UI |
 | [ADR-04](ADR-04-kdbx.md) | Gestor de secretos KDBX | Propuesto | Auditoría; sin implementación |
 | [ADR-05](ADR-05-frp-ownership.md) | Propiedad de procesos FRP | Propuesto | Auditoría de `frp_proxy.go` |
 | [ADR-06](ADR-06-host-sync.md) | Sincronización de inventario | Propuesto | Auditoría de `config.go` |
@@ -25,6 +25,6 @@ La Fase 0 se considera ejecutada cuando:
    explícita.
 
 La Fase 1 no debe comenzar hasta resolver los hallazgos H-01 y H-05 de la
-auditoría y cerrar ADR-03 con pruebas del núcleo P0. H-01/H-05 están resueltos;
-ADR-01 está cerrada y ADR-03 tiene el transporte aceptado. Falta conectar el
-supervisor y el cliente UI.
+auditoría y cerrar ADR-03 con pruebas del núcleo P0. H-01/H-02/H-05 están
+resueltos; ADR-01, ADR-02 (prototipo) y ADR-03 están cerradas. La UI ya usa IPC
+y el supervisor; quedan las pruebas de estrés y el resto de ADRs.
