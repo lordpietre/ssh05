@@ -172,6 +172,8 @@ Host lab
 Los colores usan RGB cuando la terminal lo soporta y degradan a 256/16
 colores; `NO_COLOR=1` o `TRSS_THEME=mono` desactivan el color.
 
+Línea base de rendimiento: `make bench` (ver `docs/performance.md`).
+
 El supervisor permite acotar `--max-sessions` y `--max-pending-bytes`, y la
 auditoría retiene `--audit-max-files` archivos rotados.
 

@@ -8,6 +8,7 @@ Drop-in OpenSSH client replacement with TUI login prompt, trzsz/zmodem file tran
 go build -o ./bin/ ./cmd/tssh
 go test -v -count=1 ./tssh    # must run from repo root
 make test                      # same as above (prefers `gotest` on unix)
+make bench                     # benchmarks de IPC, backend y FRP
 make install                   # copies ./bin/tssh to /usr/bin/tssh
 ```
 
