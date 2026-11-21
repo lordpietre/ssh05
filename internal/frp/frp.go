@@ -64,18 +64,19 @@ type storeFile struct {
 
 // Options configures the manager.
 type Options struct {
-	ConfigPath      string
-	KeyPath         string
-	WorkDir         string
-	FrpcBin         string
-	FrpcSHA256      string
-	FrpsBin         string
-	FrpsSHA256      string
-	EndpointName    string
-	EndpointAddress string
-	EndpointListen  string
-	EndpointPort    int
-	EndpointToken   string
+	ConfigPath         string
+	KeyPath            string
+	WorkDir            string
+	FrpcBin            string
+	FrpcSHA256         string
+	FrpsBin            string
+	FrpsSHA256         string
+	EndpointName       string
+	EndpointAddress    string
+	EndpointListen     string
+	EndpointPort       int
+	EndpointToken      string
+	EndpointTokenForce bool
 }
 
 // Manager owns local frpc processes and their definitions.
@@ -399,8 +400,10 @@ func (m *Manager) ensureEndpoint() error {
 		if !match {
 			continue
 		}
-		if endpoint.Token == "" {
-			endpoint.Token = m.opts.EndpointToken
+		if endpoint.Token == "" || m.opts.EndpointTokenForce {
+			if m.opts.EndpointToken != "" {
+				endpoint.Token = m.opts.EndpointToken
+			}
 		}
 		if m.opts.EndpointListen != "" {
 			endpoint.BindAddr = listenBind
@@ -680,18 +683,31 @@ func (m *Manager) RotateEndpoint(ctx context.Context, endpointID string) error {
 	if endpoint == nil {
 		return fmt.Errorf("FRP endpoint not found")
 	}
+	if !endpoint.Managed {
+		return fmt.Errorf("FRP endpoint %q is remote: update its token out of band before rotating", endpoint.Name)
+	}
 	token, err := generateSecret()
 	if err != nil {
 		return err
 	}
 	endpoint.Token = token
-	if endpoint.Managed && endpoint.State != contracts.FrpOnline {
-		if err := m.startEndpointLocked(ctx, endpoint); err != nil {
-			endpoint.State = contracts.FrpError
-			endpoint.LastErrorCode = "rotate_failed"
-			endpoint.LastErrorLabel = err.Error()
-			return m.saveLocked()
+	// The managed frps must accept the new token before clients reconnect.
+	m.stopServerLocked(endpoint.ID)
+	endpoint.State = contracts.FrpStopped
+	if err := m.startEndpointLocked(ctx, endpoint); err != nil {
+		endpoint.State = contracts.FrpError
+		endpoint.LastErrorCode = "rotate_failed"
+		endpoint.LastErrorLabel = err.Error()
+		for _, proxy := range m.proxies {
+			if proxy.EndpointID == endpoint.ID {
+				m.stopLocked(proxy.ID)
+				proxy.State = contracts.FrpError
+				proxy.LastErrorCode = "rotate_failed"
+				proxy.LastErrorLabel = "frps no aceptó el token nuevo"
+			}
 		}
+		_ = m.saveLocked()
+		return err
 	}
 	for _, proxy := range m.proxies {
 		if proxy.EndpointID != endpoint.ID {

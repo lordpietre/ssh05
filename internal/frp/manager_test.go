@@ -94,7 +94,45 @@ func TestManagerSTCPVisitorRoute(t *testing.T) {
 	}
 }
 
-func TestManagerRotate(t *testing.T) {
+func TestManagerRotateRestartsManagedFrps(t *testing.T) {
+	dir := t.TempDir()
+	manager, err := NewManager(Options{
+		ConfigPath: filepath.Join(dir, "frp.json"), KeyPath: filepath.Join(dir, "frp.key"),
+		WorkDir: filepath.Join(dir, "work"), FrpcBin: fakeFrpc(t), FrpsBin: fakeFrps(t),
+		EndpointListen: "127.0.0.1:17001", EndpointName: "rotate",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(manager.Close)
+	applied, err := manager.Apply(context.Background(), contracts.FrpProxy{
+		Name: "udp", Type: contracts.FrpUDP, ServicePort: 53, RemotePort: 22024,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	proxyPath := filepath.Join(manager.opts.WorkDir, applied.ID+".toml")
+	serverPath := filepath.Join(manager.opts.WorkDir, applied.EndpointID+"-frps.toml")
+	proxyBefore, _ := os.ReadFile(proxyPath)
+	serverBefore, _ := os.ReadFile(serverPath)
+	if err := manager.RotateEndpoint(context.Background(), applied.EndpointID); err != nil {
+		t.Fatal(err)
+	}
+	proxyAfter, _ := os.ReadFile(proxyPath)
+	serverAfter, _ := os.ReadFile(serverPath)
+	if string(proxyBefore) == string(proxyAfter) {
+		t.Fatal("rotation did not change the proxy token")
+	}
+	if string(serverBefore) == string(serverAfter) {
+		t.Fatal("rotation did not change the frps token")
+	}
+	list := manager.List()
+	if list.Endpoints[0].State != contracts.FrpOnline || list.Proxies[0].State != contracts.FrpOnline {
+		t.Fatalf("after rotation = %+v", list)
+	}
+}
+
+func TestManagerRotateRejectsRemoteEndpoint(t *testing.T) {
 	manager := testManager(t)
 	applied, err := manager.Apply(context.Background(), contracts.FrpProxy{
 		Name: "udp", Type: contracts.FrpUDP, ServicePort: 53, RemotePort: 22024,
@@ -102,14 +140,8 @@ func TestManagerRotate(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	path := filepath.Join(manager.opts.WorkDir, applied.ID+".toml")
-	before, _ := os.ReadFile(path)
-	if err := manager.RotateEndpoint(context.Background(), applied.EndpointID); err != nil {
-		t.Fatal(err)
-	}
-	after, _ := os.ReadFile(path)
-	if string(before) == string(after) {
-		t.Fatal("rotation did not change token")
+	if err := manager.RotateEndpoint(context.Background(), applied.EndpointID); err == nil {
+		t.Fatal("rotating a remote endpoint must fail without exposing the token")
 	}
 }
 

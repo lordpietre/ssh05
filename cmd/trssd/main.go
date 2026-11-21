@@ -45,6 +45,7 @@ func main() {
 	frpServer := flag.String("frp-server", "", "optional frps address for local frpc proxies")
 	frpPort := flag.Int("frp-port", 7000, "frps control port")
 	frpToken := flag.String("frp-token", "", "initial frps token (generated if empty)")
+	frpTokenForce := flag.Bool("frp-token-force", false, "overwrite the stored frps token (recovery)")
 	frpsListen := flag.String("frps-listen", "", "start a managed local frps at host:port")
 	frpsBin := flag.String("frps", "frps", "frps binary")
 	frpsSHA256 := flag.String("frps-sha256", "", "pinned SHA-256 for frps (verified before start)")
@@ -79,15 +80,16 @@ func main() {
 		},
 	})
 	frpManager, err := frpmanager.NewManager(frpmanager.Options{
-		ConfigPath:      *frpConfig,
-		FrpcBin:         *frpcBin,
-		FrpcSHA256:      *frpcSHA256,
-		FrpsBin:         *frpsBin,
-		FrpsSHA256:      *frpsSHA256,
-		EndpointListen:  *frpsListen,
-		EndpointAddress: *frpServer,
-		EndpointPort:    *frpPort,
-		EndpointToken:   *frpToken,
+		ConfigPath:         *frpConfig,
+		FrpcBin:            *frpcBin,
+		FrpcSHA256:         *frpcSHA256,
+		FrpsBin:            *frpsBin,
+		FrpsSHA256:         *frpsSHA256,
+		EndpointListen:     *frpsListen,
+		EndpointAddress:    *frpServer,
+		EndpointPort:       *frpPort,
+		EndpointToken:      *frpToken,
+		EndpointTokenForce: *frpTokenForce,
 	})
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "trssd: frp: %v\n", err)

@@ -15,6 +15,7 @@ import (
 
 	"github.com/trzsz/trzsz-ssh/contracts"
 	"github.com/trzsz/trzsz-ssh/internal/audit"
+	frpmanager "github.com/trzsz/trzsz-ssh/internal/frp"
 	"github.com/trzsz/trzsz-ssh/internal/ipc"
 )
 
@@ -407,3 +408,66 @@ type probeTimeout struct{}
 func (probeTimeout) Error() string   { return "i/o timeout" }
 func (probeTimeout) Timeout() bool   { return true }
 func (probeTimeout) Temporary() bool { return true }
+
+func TestClosingSessionKeepsFRPTunnel(t *testing.T) {
+	dir := t.TempDir()
+	frpc := filepath.Join(dir, "frpc")
+	script := "#!/bin/sh\nif [ \"$1\" = \"verify\" ]; then exit 0; fi\nexec sleep 30\n"
+	if err := os.WriteFile(frpc, []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	manager, err := frpmanager.NewManager(frpmanager.Options{
+		ConfigPath: filepath.Join(dir, "frp.json"), KeyPath: filepath.Join(dir, "frp.key"),
+		WorkDir: filepath.Join(dir, "work"), FrpcBin: frpc,
+		EndpointAddress: "127.0.0.1", EndpointPort: 7000,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(manager.Close)
+	service := NewService(NewBackend(&fakeRunner{}, Options{}), nil, WithFRP(manager))
+	socket := startServiceServer(t, service)
+
+	client, err := ipc.Dial(socket)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer client.Close()
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	applied, err := ipc.CallTyped[contracts.FrpProxiesApplyParams, contracts.FrpProxiesApplyResult](
+		ctx, client, contracts.MethodFrpProxiesApply,
+		contracts.FrpProxiesApplyParams{Proxy: contracts.FrpProxy{
+			Name: "shared", Type: contracts.FrpTCP, ServicePort: 22, RemotePort: 22022,
+		}},
+	)
+	if err != nil {
+		t.Fatalf("frp apply: %v", err)
+	}
+	opened, err := ipc.CallTyped[contracts.SessionsOpenParams, contracts.SessionsOpenResult](
+		ctx, client, contracts.MethodSessionsOpen, contracts.SessionsOpenParams{HostProfileID: "host-1"},
+	)
+	if err != nil {
+		t.Fatalf("sessions.open: %v", err)
+	}
+	if _, err := ipc.CallTyped[contracts.SessionsCloseParams, struct{}](
+		ctx, client, contracts.MethodSessionsClose,
+		contracts.SessionsCloseParams{SessionID: opened.SessionID, Intent: contracts.CloseView},
+	); err != nil {
+		t.Fatalf("sessions.close: %v", err)
+	}
+
+	list, err := ipc.CallTyped[struct{}, contracts.FrpInstancesListResult](
+		ctx, client, contracts.MethodFrpInstancesList, struct{}{},
+	)
+	if err != nil {
+		t.Fatalf("frp list: %v", err)
+	}
+	if len(list.Proxies) != 1 || list.Proxies[0].ID != applied.Proxy.ID {
+		t.Fatalf("proxies = %+v", list.Proxies)
+	}
+	if list.Proxies[0].State != contracts.FrpOnline {
+		t.Fatalf("tunnel stopped after closing the tab: %+v", list.Proxies[0])
+	}
+}
