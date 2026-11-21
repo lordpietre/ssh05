@@ -178,7 +178,8 @@ El supervisor permite acotar `--max-sessions` y `--max-pending-bytes`, y la
 auditoría retiene `--audit-max-files` archivos rotados.
 
 La paleta «Preferencias» ajusta ancho del panel, densidad y posición de las
-pestañas; se guarda en `~/.config/trss/preferences.json` (`TRSS_PREFERENCES`).
+pestañas; `Ctrl+Shift+←/→` reordena la pestaña activa. Las preferencias se guardan en
+`~/.config/trss/preferences.json` (`TRSS_PREFERENCES`).
 
 Desde la lista de hosts, `F2` marca favorito, `F3` cicla el color y `F4` edita
 etiquetas. Los cambios se guardan en `~/.config/trss/hosts.json` sin tocar

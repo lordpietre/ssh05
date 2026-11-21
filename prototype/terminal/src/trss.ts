@@ -1050,6 +1050,17 @@ async function closeActive(intent: "close-view" | "disconnect-ssh" | "detach-rem
   uiDirty()
 }
 
+function moveActiveTab(delta: number): void {
+  const tabs = store.list()
+  const active = store.active()
+  if (!active || tabs.length < 2) return
+  const index = tabs.findIndex((tab) => tab.id === active.id)
+  const target = Math.min(tabs.length - 1, Math.max(0, index + delta))
+  if (target === index) return
+  store.move(active.id, target)
+  uiDirty()
+}
+
 function reconnectActive(): void {
   const active = store.active()
   if (!active) return
@@ -1276,6 +1287,11 @@ renderer.keyInput.on("keypress", (key) => {
   if (matchesAction(key, keybindings, "close")) {
     key.stopPropagation()
     openCloseDialog()
+    return
+  }
+  if (key.ctrl && key.shift && (name === "left" || name === "right")) {
+    key.stopPropagation()
+    moveActiveTab(name === "left" ? -1 : 1)
     return
   }
   if (key.ctrl && name === "tab") {
