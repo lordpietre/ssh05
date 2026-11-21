@@ -415,6 +415,10 @@ export interface VaultStatusResult {
   provider: string
   locked: boolean
   profiles: number
+  agentProvider?: string
+  agentSocket?: string
+  agentIdentities?: number
+  agentMessage?: string
 }
 
 export interface VaultUnlockParams {

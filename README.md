@@ -168,6 +168,10 @@ Host lab
 Los colores usan RGB cuando la terminal lo soporta y degradan a 256/16
 colores; `NO_COLOR=1` o `TRSS_THEME=mono` desactivan el color.
 
+Si `SSH_AUTH_SOCK` apunta a un agente (OpenSSH o KeePassXC), `trssd` lo usa
+para autenticar y solo expone el proveedor y el número de identidades; nunca
+extrae claves privadas del agente.
+
 El vault KDBX se bloquea tras `--vault-idle-timeout` (15m por defecto) y los
 hosts de KeePass dejan de listarse hasta un nuevo `hosts.import` o
 `vault.unlockRequest`.

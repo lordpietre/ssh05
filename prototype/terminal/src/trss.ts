@@ -295,6 +295,8 @@ let paletteVisible = false
 let paletteCursor = 0
 let closeDialogVisible = false
 let closeDialogCursor = 0
+let vaultAgent = "sin agente"
+let vaultState = "sin vault"
 let frpVisible = false
 let frpCursor = 0
 let frpProxies: FrpProxy[] = []
@@ -423,7 +425,9 @@ function renderStatus(): void {
     return
   }
   if (hostFocused) {
-    status.content = ` Hosts · ↑↓ Enter conectar · Ctrl+I KeePass · Ctrl+K paleta · tmux:${tmuxMode ? "on" : "off"} · F10 salir`
+    status.content =
+      ` Hosts · ↑↓ Enter conectar · Ctrl+I KeePass · Ctrl+K paleta · tmux:${tmuxMode ? "on" : "off"}` +
+      ` · vault:${vaultState} · agente:${vaultAgent} · F10 salir`
     return
   }
   const active = store.active()
@@ -1129,6 +1133,20 @@ store.subscribe(() => {
   scheduleWorkspaceSave()
 })
 
+async function loadVaultStatus(): Promise<void> {
+  if (!client) return
+  try {
+    const status = await client.call("vault.status", {}, { timeoutMs: 5000 })
+    vaultState = status.provider === "none" ? "sin vault" : status.locked ? "bloqueado" : `${status.profiles} hosts`
+    vaultAgent =
+      status.agentProvider && status.agentProvider !== "none"
+        ? `${status.agentProvider}(${status.agentIdentities ?? 0})`
+        : "sin agente"
+  } catch (error) {
+    debug(`vault.status: ${String(error)}`)
+  }
+}
+
 async function loadHosts(): Promise<void> {
   if (!client) return
   const result = await client.call("hosts.list", {}, { timeoutMs: 5000 })
@@ -1171,6 +1189,7 @@ async function importHosts(): Promise<void> {
       { timeoutMs: 30_000 },
     )
     await loadHosts()
+    await loadVaultStatus()
     transientText = `KeePass: ${result.imported} hosts, ${result.conflicts?.length ?? 0} conflictos`
   } catch (error) {
     transientText = `Importar KeePass: ${String(error)}`
@@ -1550,6 +1569,7 @@ async function start(): Promise<void> {
 
   try {
     await loadHosts()
+    await loadVaultStatus()
     const listed = await client
       .call("sessions.list", {}, { timeoutMs: 3000 })
       .catch(() => ({ sessions: [] as SessionInfo[] }))

@@ -29,6 +29,7 @@
 | Deduplicación y provenance ssh_config+KDBX | **Hecho** | `internal/supervisor/inventory.go` |
 | Conflictos de inventario sin sobrescritura | **Hecho** | `HostsListResult.conflicts` + tests |
 | Importación desde UI (`Ctrl+I`) | **Hecho** | `hosts.import` |
+| AUT-02 agente SSH sin extraer claves | **Hecho** | `SSH_AUTH_SOCK` + `ssh-add -l` (solo huellas) |
 | AUT-05 bloqueo de vault por inactividad | **Hecho** | `--vault-idle-timeout`, `vault.unlockRequest` |
 | Reconexión con backoff y cancelación | **Hecho** | `internal/supervisor/backend.go` + tests |
 | Auditoría saneada con rotación | **Hecho** | `internal/audit/`, `--audit-log` |

@@ -269,9 +269,13 @@ type FrpServerParams struct {
 // --- vault ---
 
 type VaultStatusResult struct {
-	Provider string `json:"provider"`
-	Locked   bool   `json:"locked"`
-	Profiles int    `json:"profiles"`
+	Provider        string `json:"provider"`
+	Locked          bool   `json:"locked"`
+	Profiles        int    `json:"profiles"`
+	AgentProvider   string `json:"agentProvider,omitempty"`
+	AgentSocket     string `json:"agentSocket,omitempty"`
+	AgentIdentities int    `json:"agentIdentities,omitempty"`
+	AgentMessage    string `json:"agentMessage,omitempty"`
 }
 
 type VaultUnlockParams struct {

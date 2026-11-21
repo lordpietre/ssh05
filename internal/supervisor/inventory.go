@@ -223,8 +223,14 @@ func (i *Inventory) Conflicts() []contracts.HostConflict {
 func (i *Inventory) VaultStatus() contracts.VaultStatusResult {
 	i.enforceIdleLock()
 	i.mu.RLock()
-	defer i.mu.RUnlock()
-	return i.vault
+	status := i.vault
+	i.mu.RUnlock()
+	agent := detectSSHAgent(context.Background())
+	status.AgentProvider = agent.Provider
+	status.AgentSocket = agent.Socket
+	status.AgentIdentities = agent.Identities
+	status.AgentMessage = agent.Message
+	return status
 }
 
 // Import reloads the requested source. Path is optional for ssh_config and
