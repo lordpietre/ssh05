@@ -159,6 +159,57 @@ func TestServiceSessionFlow(t *testing.T) {
 	}
 }
 
+func TestServiceInventoryKeePassImport(t *testing.T) {
+	db, key := keepassFixture(t)
+	inventory := NewInventory(InventoryConfig{
+		SSHConfigPath: writeSSHConfig(t),
+		Keepass:       KeePassConfig{Database: db, KeyFile: key},
+	})
+	service := NewService(NewBackend(&fakeRunner{}, Options{}), inventory)
+	socket := startServiceServer(t, service)
+
+	client, err := ipc.Dial(socket)
+	if err != nil {
+		t.Fatalf("dial: %v", err)
+	}
+	defer client.Close()
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	hosts, err := ipc.CallTyped[contracts.HostsListParams, contracts.HostsListResult](
+		ctx, client, contracts.MethodHostsList, contracts.HostsListParams{},
+	)
+	if err != nil {
+		t.Fatalf("hosts.list: %v", err)
+	}
+	if len(hosts.Hosts) < 3 {
+		t.Fatalf("hosts = %+v", hosts.Hosts)
+	}
+	if len(hosts.Conflicts) != 1 {
+		t.Fatalf("conflicts = %+v", hosts.Conflicts)
+	}
+
+	status, err := ipc.CallTyped[struct{}, contracts.VaultStatusResult](
+		ctx, client, contracts.MethodVaultStatus, struct{}{},
+	)
+	if err != nil {
+		t.Fatalf("vault.status: %v", err)
+	}
+	if status.Provider != "keepassxc" || status.Locked || status.Profiles != 3 {
+		t.Fatalf("vault status = %+v", status)
+	}
+
+	imported, err := ipc.CallTyped[contracts.HostsImportParams, contracts.HostsImportResult](
+		ctx, client, contracts.MethodHostsImport, contracts.HostsImportParams{Source: "keepass"},
+	)
+	if err != nil {
+		t.Fatalf("hosts.import: %v", err)
+	}
+	if imported.Imported < 3 {
+		t.Fatalf("imported = %+v", imported)
+	}
+}
+
 func TestServiceHostsAndRoutes(t *testing.T) {
 	backend := NewBackend(&fakeRunner{}, Options{})
 	service := NewService(backend, nil)

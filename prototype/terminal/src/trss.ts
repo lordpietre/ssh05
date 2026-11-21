@@ -193,6 +193,7 @@ const pendingHosts = new Map<TabId, HostProfile>()
 
 let client: IpcClient | undefined
 let hosts: HostProfile[] = []
+let conflicts = 0
 let hostFocused = true
 let cursor = 0
 let scroll = 0
@@ -245,9 +246,9 @@ function pendingHostFor(host: HostProfile): HostProfile | undefined {
 
 function renderHosts(): void {
   const all = filteredHosts()
-  hostTitle.content = ` Hosts (${all.length}${query ? `/${hosts.length}` : ""})`
+  hostTitle.content = ` Hosts (${all.length}${query ? `/${hosts.length}` : ""})${conflicts > 0 ? ` !${conflicts}` : ""}`
   hostQuery.content = query ? ` /${truncate(query, 24)}` : " ↑↓ seleccionar"
-  hostHint.content = hosts.length === 0 ? " revisa trssd/ssh_config" : " Enter conectar"
+  hostHint.content = hosts.length === 0 ? " Ctrl+I KeePass · revisa trssd" : " Enter conectar · Ctrl+I KeePass"
 
   if (hosts.length === 0) {
     hostList.content =
@@ -296,7 +297,7 @@ function renderStatus(): void {
     return
   }
   if (hostFocused) {
-    status.content = ` Hosts · ↑↓ Enter conectar · / filtrar · Esc volver · tmux:${tmuxMode ? "on" : "off"} · F10 salir`
+    status.content = ` Hosts · ↑↓ Enter conectar · Ctrl+I KeePass · Esc volver · tmux:${tmuxMode ? "on" : "off"} · F10 salir`
     return
   }
   const active = store.active()
@@ -738,6 +739,11 @@ renderer.keyInput.on("keypress", (key) => {
     uiDirty()
     return
   }
+  if (key.ctrl && name === "i") {
+    key.stopPropagation()
+    void importHosts()
+    return
+  }
   if (key.ctrl && name === "w") {
     key.stopPropagation()
     void closeActive()
@@ -785,6 +791,29 @@ store.subscribe(() => {
   scheduleWorkspaceSave()
 })
 
+async function loadHosts(): Promise<void> {
+  if (!client) return
+  const result = await client.call("hosts.list", {}, { timeoutMs: 5000 })
+  hosts = [...result.hosts].sort((a, b) => a.alias.localeCompare(b.alias))
+  conflicts = result.conflicts?.length ?? 0
+}
+
+async function importHosts(): Promise<void> {
+  if (!client) return
+  try {
+    const result = await client.call(
+      "hosts.import",
+      { source: "keepass" },
+      { timeoutMs: 30_000 },
+    )
+    await loadHosts()
+    transientText = `KeePass: ${result.imported} hosts, ${result.conflicts?.length ?? 0} conflictos`
+  } catch (error) {
+    transientText = `Importar KeePass: ${String(error)}`
+  }
+  uiDirty()
+}
+
 async function start(): Promise<void> {
   uiDirty()
   try {
@@ -824,8 +853,7 @@ async function start(): Promise<void> {
   })
 
   try {
-    const result = await client.call("hosts.list", {}, { timeoutMs: 5000 })
-    hosts = [...result.hosts].sort((a, b) => a.alias.localeCompare(b.alias))
+    await loadHosts()
     const listed = await client
       .call("sessions.list", {}, { timeoutMs: 3000 })
       .catch(() => ({ sessions: [] as SessionInfo[] }))

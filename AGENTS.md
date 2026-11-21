@@ -61,6 +61,7 @@ make install                   # copies ./bin/tssh to /usr/bin/tssh
 - UI IPC client / TabStore: `prototype/terminal/src/ipc/`, `src/tabs/`
 - UI OpenTUI: `prototype/terminal/src/trss.ts` (`bun run ui`)
   - `Ctrl+G` activa/desactiva tmux remoto antes de abrir un host.
+  - `Ctrl+I` importa/recarga KeePass si `trssd` tiene KDBX configurado.
   - Barra de pestañas con overflow (`‹N`/`N›`) y activa siempre visible.
   - Tras caer la UI, `sessions.list`/`sessions.attach` recuperan sesiones vivas.
   - Workspace en `~/.config/trss/workspace.json` (`TRSS_WORKSPACE` override).
@@ -93,6 +94,10 @@ make install                   # copies ./bin/tssh to /usr/bin/tssh
 - Supervisor build: `make trssd` -> `bin/trssd`.
 - Supervisor run (Unix socket at `$XDG_RUNTIME_DIR/trss/control.sock`):
   `./bin/trssd --ssh-config ~/.ssh/config`
+- KeePass opcional:
+  `./bin/trssd --ssh-config ~/.ssh/config --keepass-db ~/db.kdbx --keepass-key-file ~/db.key`
+  o `--keepass-password-command 'pass show keepass'` (askpass; el secreto
+  no se persiste).
 - H-01 is resolved (`generateToken` fails closed; see `tssh/frp_proxy_test.go`).
 - H-02 is resolved (`ensurePrivateDir` forces FRP config/log dirs to `0700`).
 - H-03 is resolved: FRP tokens are AES-GCM encrypted at rest with a local

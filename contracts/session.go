@@ -102,6 +102,9 @@ type StatusHandler func(status SessionStatus)
 // SessionOptions carries non-secret session preferences.
 type SessionOptions struct {
 	TmuxSession string `json:"tmuxSession,omitempty"`
+	// Destination is the SSH destination resolved by the inventory. It is
+	// internal to the supervisor and never contains a secret.
+	Destination string `json:"-"`
 }
 
 // SessionBackend is the contract the supervisor implements and the UI consumes.

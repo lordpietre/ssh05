@@ -111,6 +111,19 @@ CGO_ENABLED=0 go build -o ./bin/ ./cmd/trssd
 ./bin/trssd --ssh-config ~/.ssh/config
 ```
 
+KeePass opcional:
+
+```sh
+./bin/trssd --ssh-config ~/.ssh/config \
+  --keepass-db ~/db.kdbx --keepass-key-file ~/db.key
+# o con askpass, sin persistir el secreto:
+./bin/trssd --ssh-config ~/.ssh/config \
+  --keepass-db ~/db.kdbx --keepass-password-command 'pass show keepass'
+```
+
+En la UI, `Ctrl+I` recarga el inventario KeePass. Los hosts KDBX-only se
+resuelven a `usuario@host:puerto`; los de `ssh_config` conservan su alias.
+
 UI OpenTUI (en otra terminal):
 
 ```sh

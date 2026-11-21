@@ -5,7 +5,7 @@
 | Fecha | 21/11/2026 |
 | Commit base | `6e98b8d` |
 | Documento | `TRSS_SDD_v0.2.md` |
-| Fase actual | Fase 0 cerrada + inicio de Fase 1 (contratos) |
+| Fase actual | Fases 0-2 completas; Fase 3/4 en curso |
 
 ## Hecho
 
@@ -25,6 +25,10 @@
 | Backend `SessionBackend` + runner SSH | **Hecho** | `internal/supervisor/` |
 | Servicio IPC de sesiones + daemon | **Hecho** | `internal/supervisor/service.go`, `cmd/trssd` |
 | Inventario `hosts.list` desde `ssh_config` | **Hecho** | `tssh/hosts_api.go`, `internal/supervisor/hosts.go` |
+| Importación KDBX con KeePassXC CLI | **Hecho** | `internal/supervisor/keepass.go` |
+| Deduplicación y provenance ssh_config+KDBX | **Hecho** | `internal/supervisor/inventory.go` |
+| Conflictos de inventario sin sobrescritura | **Hecho** | `HostsListResult.conflicts` + tests |
+| Importación desde UI (`Ctrl+I`) | **Hecho** | `hosts.import` |
 | Cliente TS/Bun del IPC | **Hecho** | `prototype/terminal/src/ipc/` |
 | `TabStore` renderer-independent | **Hecho** | `prototype/terminal/src/tabs/store.ts` |
 | UI OpenTUI conectada al supervisor | **Hecho** | `prototype/terminal/src/trss.ts` |
@@ -44,8 +48,9 @@
 | Prioridad | Trabajo | Criterio de cierre |
 |---|---|---|
 | 2 | Múltiples workspaces con nombre | OPS-01 |
-| 3 | Inventario con provenance y conflictos | Importar `ssh_config` sin sobrescribir cambios locales |
+| 2 | FRP supervisor ownership y rotación | ADR-05, FRP-06/08 |
 | 3 | Config SSH por conexión | Eliminar serialización de `SshLogin` |
+| 3 | Route resolver/policy | RUT-01…03 |
 
 ## Invariantes que no se negocian
 

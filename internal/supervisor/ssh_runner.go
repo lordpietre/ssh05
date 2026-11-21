@@ -32,9 +32,13 @@ func (r *SSHRunner) Start(ctx context.Context, profileID string, cols, rows int,
 	if profileID == "" {
 		return nil, fmt.Errorf("supervisor: empty profileID")
 	}
+	destination := options.Destination
+	if destination == "" {
+		destination = profileID
+	}
 
 	client, err := tssh.SshLogin(&tssh.SshArgs{
-		Destination: profileID,
+		Destination: destination,
 		ConfigFile:  r.Config.ConfigPath,
 	})
 	if err != nil {

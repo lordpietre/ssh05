@@ -3,6 +3,7 @@ package supervisor
 import (
 	"context"
 	"encoding/json"
+	"strings"
 	"sync"
 
 	"github.com/trzsz/trzsz-ssh/contracts"
@@ -12,6 +13,15 @@ import (
 // HostProvider supplies the current non-secret host inventory.
 type HostProvider interface {
 	List(ctx context.Context) ([]contracts.HostProfile, error)
+}
+
+// HostInventory is implemented by Inventory for import/conflicts/vault status.
+type HostInventory interface {
+	HostProvider
+	Resolve(ctx context.Context, id string) (contracts.HostProfile, bool)
+	Conflicts() []contracts.HostConflict
+	VaultStatus() contracts.VaultStatusResult
+	Import(ctx context.Context, source string, path string) (contracts.HostsImportResult, error)
 }
 
 // Service maps the typed IPC methods onto the supervisor backend.
@@ -30,6 +40,10 @@ func (s *Service) Handle(ctx context.Context, conn *ipc.Conn, req contracts.RPCR
 	switch req.Method {
 	case contracts.MethodHostsList:
 		return s.listHosts(ctx, req)
+	case contracts.MethodHostsImport:
+		return s.importHosts(ctx, req)
+	case contracts.MethodHostsResolve:
+		return s.resolveHosts(ctx, req)
 	case contracts.MethodSessionsOpen:
 		return s.openSession(ctx, conn, req)
 	case contracts.MethodSessionsWrite:
@@ -55,7 +69,11 @@ func (s *Service) Handle(ctx context.Context, conn *ipc.Conn, req contracts.RPCR
 	case contracts.MethodFrpInstancesList:
 		return marshal(contracts.FrpInstancesListResult{})
 	case contracts.MethodVaultStatus:
-		return marshal(contracts.VaultStatusResult{Provider: "none", Locked: true})
+		status := contracts.VaultStatusResult{Provider: "none", Locked: true}
+		if inventory, ok := s.hosts.(HostInventory); ok {
+			status = inventory.VaultStatus()
+		}
+		return marshal(status)
 	default:
 		return nil, notImplemented()
 	}
@@ -65,14 +83,78 @@ func (s *Service) listHosts(ctx context.Context, req contracts.RPCRequest) (json
 	if s.hosts == nil {
 		return marshal(contracts.HostsListResult{})
 	}
-	if _, err := decodeParams[contracts.HostsListParams](req); err != nil {
-		return nil, err
+	params, rpcError := decodeParams[contracts.HostsListParams](req)
+	if rpcError != nil {
+		return nil, rpcError
 	}
 	hosts, err := s.hosts.List(ctx)
 	if err != nil {
 		return nil, internalError(err)
 	}
-	return marshal(contracts.HostsListResult{Hosts: hosts})
+	if params.Query != "" {
+		needle := strings.ToLower(params.Query)
+		filtered := hosts[:0]
+		for _, host := range hosts {
+			haystack := strings.ToLower(host.Alias + " " + host.Target.Hostname + " " + host.Target.Username)
+			if strings.Contains(haystack, needle) {
+				filtered = append(filtered, host)
+			}
+		}
+		hosts = filtered
+	}
+	result := contracts.HostsListResult{Hosts: hosts}
+	if inventory, ok := s.hosts.(HostInventory); ok {
+		result.Conflicts = inventory.Conflicts()
+	}
+	return marshal(result)
+}
+
+func (s *Service) importHosts(ctx context.Context, req contracts.RPCRequest) (json.RawMessage, *contracts.RPCError) {
+	inventory, ok := s.hosts.(HostInventory)
+	if !ok {
+		return nil, notImplemented()
+	}
+	params, rpcError := decodeParams[contracts.HostsImportParams](req)
+	if rpcError != nil {
+		return nil, rpcError
+	}
+	result, err := inventory.Import(ctx, params.Source, params.Path)
+	if err != nil {
+		return nil, internalError(err)
+	}
+	return marshal(result)
+}
+
+func (s *Service) resolveHosts(ctx context.Context, req contracts.RPCRequest) (json.RawMessage, *contracts.RPCError) {
+	if s.hosts == nil {
+		return nil, &contracts.RPCError{Code: ipc.CodeInvalidRequest, Message: "host inventory unavailable"}
+	}
+	params, rpcError := decodeParams[contracts.HostsListParams](req)
+	if rpcError != nil {
+		return nil, rpcError
+	}
+	hosts, err := s.hosts.List(ctx)
+	if err != nil {
+		return nil, internalError(err)
+	}
+	needle := strings.ToLower(params.Query)
+	for _, host := range hosts {
+		haystack := strings.ToLower(host.Alias + " " + host.Target.Hostname + " " + host.Target.Username)
+		if needle == "" || strings.Contains(haystack, needle) {
+			routeID := "direct:" + host.ID
+			return marshal(contracts.RoutesPlanResult{
+				Routes: []contracts.ConnectionRoute{{
+					ID:            routeID,
+					Kind:          contracts.RouteDirect,
+					HostProfileID: host.ID,
+					Authorized:    true,
+				}},
+				Selected: routeID,
+				Reason:   "direct SSH",
+			})
+		}
+	}
+	return nil, &contracts.RPCError{Code: ipc.CodeInvalidRequest, Message: "host not found"}
 }
 
 func (s *Service) openSession(ctx context.Context, conn *ipc.Conn, req contracts.RPCRequest) (json.RawMessage, *contracts.RPCError) {
@@ -80,12 +162,25 @@ func (s *Service) openSession(ctx context.Context, conn *ipc.Conn, req contracts
 	if rpcError != nil {
 		return nil, rpcError
 	}
-	id, err := s.backend.Open(ctx, params.HostProfileID, params.RoutePolicyID, contracts.SessionOptions{TmuxSession: params.TmuxSession})
+	destination := s.destinationFor(ctx, params.HostProfileID)
+	id, err := s.backend.Open(ctx, params.HostProfileID, params.RoutePolicyID, contracts.SessionOptions{
+		TmuxSession: params.TmuxSession,
+		Destination: destination,
+	})
 	if err != nil {
 		return nil, internalError(err)
 	}
 	s.attach(conn, id)
 	return marshal(contracts.SessionsOpenResult{SessionID: id})
+}
+
+func (s *Service) destinationFor(ctx context.Context, hostProfileID string) string {
+	if inventory, ok := s.hosts.(HostInventory); ok {
+		if profile, found := inventory.Resolve(ctx, hostProfileID); found {
+			return destinationFor(profile)
+		}
+	}
+	return hostProfileID
 }
 
 func (s *Service) writeSession(ctx context.Context, conn *ipc.Conn, req contracts.RPCRequest) (json.RawMessage, *contracts.RPCError) {
@@ -192,7 +287,9 @@ func (s *Service) connectRoute(ctx context.Context, conn *ipc.Conn, req contract
 	if rpcError != nil {
 		return nil, rpcError
 	}
-	id, err := s.backend.Open(ctx, params.HostProfileID, "", contracts.SessionOptions{})
+	id, err := s.backend.Open(ctx, params.HostProfileID, "", contracts.SessionOptions{
+		Destination: s.destinationFor(ctx, params.HostProfileID),
+	})
 	if err != nil {
 		return nil, internalError(err)
 	}

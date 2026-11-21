@@ -47,6 +47,15 @@ logs, argv ni variables de entorno.
 - Hay que definir caducidad de secretos en memoria y bloqueo por inactividad.
 - La compatibilidad KDBX queda fuera de la Fase 1 si KeePassXC no está presente.
 
+## Implementación actual
+
+- `internal/supervisor/keepass.go` importa KDBX vía `keepassxc-cli`.
+- Soporta key file y `--keepass-password-command` (askpass); el secreto no se
+  escribe en disco ni en argv.
+- Solo se importan metadatos no secretos: URL, usuario, host, puerto, notas.
+- `HostProfile.AuthRef` apunta a `keepassxc`/UUID; no contiene contraseña.
+- El agente SSH de KeePassXC se usa a través de `SSH_AUTH_SOCK` del cliente SSH.
+
 ## Validación pendiente
 
 - Importar host, puerto, usuario y URL `ssh://` sin iniciar conexiones.

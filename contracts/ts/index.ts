@@ -57,6 +57,7 @@ export interface SessionStatus {
 
 export interface SessionOptions {
   tmuxSession?: string
+  destination?: string
 }
 
 export type DataHandler = (data: Uint8Array) => void

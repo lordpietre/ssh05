@@ -19,6 +19,9 @@ import (
 func main() {
 	socket := flag.String("socket", ipc.DefaultSocketPath(), "control socket path")
 	sshConfig := flag.String("ssh-config", "", "ssh_config path (default: ~/.ssh/config)")
+	keepassDB := flag.String("keepass-db", "", "KDBX database to import (read-only)")
+	keepassKey := flag.String("keepass-key-file", "", "KDBX key file")
+	keepassPasswordCommand := flag.String("keepass-password-command", "", "command that prints the KDBX password to stdout")
 	terminal := flag.String("terminal", "xterm-256color", "TERM value for remote PTYs")
 	maxSessions := flag.Int("max-sessions", 16, "maximum concurrent sessions")
 	flag.Parse()
@@ -29,7 +32,15 @@ func main() {
 	)
 	defer backend.CloseAll()
 
-	service := supervisor.NewService(backend, supervisor.SSHHosts{ConfigPath: *sshConfig})
+	inventory := supervisor.NewInventory(supervisor.InventoryConfig{
+		SSHConfigPath: *sshConfig,
+		Keepass: supervisor.KeePassConfig{
+			Database:        *keepassDB,
+			KeyFile:         *keepassKey,
+			PasswordCommand: *keepassPasswordCommand,
+		},
+	})
+	service := supervisor.NewService(backend, inventory)
 	server, err := ipc.Listen(*socket, service)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "trssd: %v\n", err)
