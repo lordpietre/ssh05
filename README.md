@@ -171,6 +171,9 @@ Host lab
 Los colores usan RGB cuando la terminal lo soporta y degradan a 256/16
 colores; `NO_COLOR=1` o `TRSS_THEME=mono` desactivan el color.
 
+El supervisor permite acotar `--max-sessions` y `--max-pending-bytes`, y la
+auditoría retiene `--audit-max-files` archivos rotados.
+
 Desde la lista de hosts, `F2` marca favorito, `F3` cicla el color y `F4` edita
 etiquetas. Los cambios se guardan en `~/.config/trss/hosts.json` sin tocar
 `~/.ssh/config` (`TRSS_HOST_OVERRIDES` permite otra ruta).

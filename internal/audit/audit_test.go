@@ -73,6 +73,25 @@ func TestLoggerRotates(t *testing.T) {
 	}
 }
 
+func TestLoggerRetainsBoundedFiles(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "audit.log")
+	logger, err := NewRotating(path, 128, 3)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i := 0; i < 200; i++ {
+		logger.Log(Event{Time: time.Now(), Action: "test", Result: "ok"})
+	}
+	for _, suffix := range []string{"", ".1", ".2"} {
+		if _, err := os.Stat(path + suffix); err != nil {
+			t.Fatalf("expected %s: %v", path+suffix, err)
+		}
+	}
+	if _, err := os.Stat(path + ".3"); !os.IsNotExist(err) {
+		t.Fatalf("unexpected extra rotation file: %v", err)
+	}
+}
+
 func TestNilLoggerIsNoop(t *testing.T) {
 	var logger *Logger
 	logger.Log(Event{Action: "test", Result: "ok"})

@@ -53,7 +53,7 @@ Los binarios FRP se obtienen con `make download-frp`.
 | OPS-01 | Cumplido | Workspaces, pestañas y tmux en `~/.config/trss/workspace.json` |
 | OPS-02 | Cumplido | Sesiones y túneles separados; grupo de proceso, `Pdeathsig` en Linux y `Close` sin huérfanos |
 | SEG-03 | Cumplido | Socket 0700/0600, credenciales de par, operaciones tipadas IPC |
-| SEG-04 | Cumplido | `internal/audit` rota y sanea acciones sin secretos |
+| SEG-04 | Cumplido | `internal/audit` rota y sanea sin secretos; retención con `--audit-max-files` |
 | SEG-05 | Cumplido | Fuzz de framing, pruebas de inyección, host key estricta y reconexión adversarial |
 
 ## Extra posterior: informe saneado

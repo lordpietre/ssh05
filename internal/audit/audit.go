@@ -3,6 +3,7 @@ package audit
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"sync"
@@ -26,13 +27,23 @@ type Logger struct {
 	mu       sync.Mutex
 	path     string
 	maxBytes int64
+	maxFiles int
 }
 
 // New creates a logger at path. The parent directory is forced to 0700 and the
 // file to 0600. An empty path returns nil (disabled).
 func New(path string, maxBytes int64) (*Logger, error) {
+	return NewRotating(path, maxBytes, 3)
+}
+
+// NewRotating keeps maxFiles total files (current plus .1 .. .N). A value <= 0
+// defaults to 3; a value of 1 keeps only the current file.
+func NewRotating(path string, maxBytes int64, maxFiles int) (*Logger, error) {
 	if path == "" {
 		return nil, nil
+	}
+	if maxFiles <= 0 {
+		maxFiles = 3
 	}
 	dir := filepath.Dir(path)
 	if err := os.MkdirAll(dir, 0o700); err != nil {
@@ -44,7 +55,7 @@ func New(path string, maxBytes int64) (*Logger, error) {
 	if maxBytes <= 0 {
 		maxBytes = 10 << 20
 	}
-	logger := &Logger{path: path, maxBytes: maxBytes}
+	logger := &Logger{path: path, maxBytes: maxBytes, maxFiles: maxFiles}
 	if err := logger.ensureFile(); err != nil {
 		return nil, err
 	}
@@ -64,6 +75,18 @@ func (l *Logger) ensureFile() error {
 
 // Log appends one event. It never returns an error to callers: audit failures
 // must not break a session, but they are also not silently persisted.
+func (l *Logger) rotateLocked() {
+	if l.maxFiles <= 1 {
+		_ = os.Remove(l.path)
+		return
+	}
+	_ = os.Remove(fmt.Sprintf("%s.%d", l.path, l.maxFiles-1))
+	for index := l.maxFiles - 2; index >= 1; index-- {
+		_ = os.Rename(fmt.Sprintf("%s.%d", l.path, index), fmt.Sprintf("%s.%d", l.path, index+1))
+	}
+	_ = os.Rename(l.path, l.path+".1")
+}
+
 func (l *Logger) Log(event Event) {
 	if l == nil {
 		return
@@ -80,7 +103,7 @@ func (l *Logger) Log(event Event) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	if info, err := os.Stat(l.path); err == nil && info.Size()+int64(len(data)) > l.maxBytes {
-		_ = os.Rename(l.path, l.path+".1")
+		l.rotateLocked()
 		if err := l.ensureFile(); err != nil {
 			return
 		}

@@ -38,10 +38,13 @@ func main() {
 	vaultIdle := flag.Duration("vault-idle-timeout", 15*time.Minute, "lock the vault after inactivity (0 disables)")
 	terminal := flag.String("terminal", "xterm-256color", "TERM value for remote PTYs")
 	maxSessions := flag.Int("max-sessions", 16, "maximum concurrent sessions")
+	maxPending := flag.Int("max-pending-bytes", 1<<20, "per-session pending PTY bytes before dropping old output")
 	reconnectMax := flag.Int("reconnect-max", 3, "reconnect attempts before failing")
 	reconnectDelay := flag.Duration("reconnect-delay", 500*time.Millisecond, "initial reconnect backoff")
 	auditPath := flag.String("audit-log", defaultAuditPath(), "sanitized audit log path (empty disables)")
 	auditMaxBytes := flag.Int64("audit-max-bytes", 10<<20, "audit log rotation threshold")
+	auditMaxFiles := flag.Int("audit-max-files", 3, "audit files kept (current + rotations)")
+	hostsOverrides := flag.String("hosts-overrides", "", "host metadata override path (default: ~/.config/trss/hosts.json)")
 	frpServer := flag.String("frp-server", "", "optional frps address for local frpc proxies")
 	frpPort := flag.Int("frp-port", 7000, "frps control port")
 	frpToken := flag.String("frp-token", "", "initial frps token (generated if empty)")
@@ -54,7 +57,7 @@ func main() {
 	frpConfig := flag.String("frp-config", "", "FRP manager config path")
 	flag.Parse()
 
-	logger, err := audit.New(*auditPath, *auditMaxBytes)
+	logger, err := audit.NewRotating(*auditPath, *auditMaxBytes, *auditMaxFiles)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "trssd: audit log: %v\n", err)
 		os.Exit(1)
@@ -64,6 +67,7 @@ func main() {
 		&supervisor.SSHRunner{Config: supervisor.SSHConfig{ConfigPath: *sshConfig, Terminal: *terminal}},
 		supervisor.Options{
 			MaxSessions:   *maxSessions,
+			MaxPending:    *maxPending,
 			ReconnectMax:  *reconnectMax,
 			ReconnectBase: *reconnectDelay,
 		},
@@ -72,6 +76,7 @@ func main() {
 
 	inventory := supervisor.NewInventory(supervisor.InventoryConfig{
 		SSHConfigPath:    *sshConfig,
+		OverridesPath:    *hostsOverrides,
 		VaultIdleTimeout: *vaultIdle,
 		Keepass: supervisor.KeePassConfig{
 			Database:        *keepassDB,
