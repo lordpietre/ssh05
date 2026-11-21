@@ -475,3 +475,58 @@ func TestClosingSessionKeepsFRPTunnel(t *testing.T) {
 		t.Fatalf("tunnel stopped after closing the tab: %+v", list.Proxies[0])
 	}
 }
+
+func TestServiceDiagnosticsReportIsSanitized(t *testing.T) {
+	dir := t.TempDir()
+	frpc := filepath.Join(dir, "frpc")
+	if err := os.WriteFile(frpc, []byte("#!/bin/sh\nif [ \"$1\" = \"verify\" ]; then exit 0; fi\nexec sleep 30\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	manager, err := frpmanager.NewManager(frpmanager.Options{
+		ConfigPath: filepath.Join(dir, "frp.json"), KeyPath: filepath.Join(dir, "frp.key"),
+		WorkDir: filepath.Join(dir, "work"), FrpcBin: frpc,
+		EndpointAddress: "127.0.0.1", EndpointPort: 7000,
+		EndpointToken: "endpoint-super-secret", SkipListenProbe: true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(manager.Close)
+	if _, err := manager.Apply(context.Background(), contracts.FrpProxy{
+		Name: "diag", Type: contracts.FrpTCP, ServicePort: 22, RemotePort: 22040,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	inventory := NewInventory(InventoryConfig{SSHConfigPath: writeSSHConfig(t)})
+	service := NewService(NewBackend(&fakeRunner{}, Options{}), inventory, WithFRP(manager))
+	socket := startServiceServer(t, service)
+	client, err := ipc.Dial(socket)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer client.Close()
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	report, err := ipc.CallTyped[struct{}, contracts.DiagnosticsReport](
+		ctx, client, contracts.MethodDiagnosticsReport, struct{}{},
+	)
+	if err != nil {
+		t.Fatalf("diagnostics.report: %v", err)
+	}
+	if report.ProtocolVersion != contracts.ProtocolVersion || report.GeneratedAt == "" {
+		t.Fatalf("report = %+v", report)
+	}
+	if report.HostsCount == 0 || len(report.FRP.Endpoints) != 1 || len(report.FRP.Proxies) != 1 {
+		t.Fatalf("report counts = %+v", report)
+	}
+	raw, err := json.Marshal(report)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, secret := range []string{"endpoint-super-secret", "secret_enc", "\"token\"", "password"} {
+		if strings.Contains(string(raw), secret) {
+			t.Fatalf("diagnostics leaked %q: %s", secret, raw)
+		}
+	}
+}

@@ -34,6 +34,7 @@ import type {
   Workspace,
 } from "../../../contracts/ts/index.ts"
 import { loadKeybindings, matchesAction } from "./config/keybindings.ts"
+import { exportDiagnostics } from "./diagnostics/export.ts"
 import { IpcClient } from "./ipc/client.ts"
 import { InMemoryTabStore } from "./tabs/store.ts"
 import { phaseIcon, phaseLabel, renderTabBar, renderTabBarStyled } from "./tabs/tabbar.ts"
@@ -318,6 +319,7 @@ const paletteCommands = [
   "Cerrar pestaña activa",
   "Cambiar workspace",
   "Probar ruta del host",
+  "Exportar diagnóstico saneado",
   "FRP",
   "Salir de TRSS",
 ]
@@ -582,9 +584,12 @@ function executePalette(index: number): void {
       void probeCurrentHost()
       break
     case 6:
-      void openFRP()
+      void exportDiagnosticsReport()
       break
     case 7:
+      void openFRP()
+      break
+    case 8:
       void quit()
       break
   }
@@ -1155,6 +1160,18 @@ async function loadHosts(): Promise<void> {
     return a.alias.localeCompare(b.alias)
   })
   conflicts = result.conflicts?.length ?? 0
+}
+
+async function exportDiagnosticsReport(): Promise<void> {
+  if (!client) return
+  try {
+    const report = await client.call("diagnostics.report", {}, { timeoutMs: 8000 })
+    const path = exportDiagnostics(report)
+    transientText = `Diagnóstico: ${path}`
+  } catch (error) {
+    transientText = `Diagnóstico: ${String(error)}`
+  }
+  uiDirty()
 }
 
 async function probeCurrentHost(): Promise<void> {

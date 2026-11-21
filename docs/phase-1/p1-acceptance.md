@@ -56,6 +56,12 @@ Los binarios FRP se obtienen con `make download-frp`.
 | SEG-04 | Cumplido | `internal/audit` rota y sanea acciones sin secretos |
 | SEG-05 | Cumplido | Fuzz de framing, pruebas de inyección, host key estricta y reconexión adversarial |
 
+## Extra posterior: informe saneado
+
+`diagnostics.report` devuelve versión, hosts, conflictos, sesiones, vault y
+estado FRP sin tokens ni datos de PTY. La paleta (`Ctrl+K`) permite exportarlo
+a `~/.local/state/trss/diagnostics/` con permisos `0600`.
+
 ## Extra posterior: concurrencia de conexiones
 
 `TestSshLoginConcurrent` (en `tssh/login_concurrent_test.go`) abre tres sesiones

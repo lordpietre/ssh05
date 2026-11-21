@@ -430,6 +430,16 @@ export interface VaultUnlockParams {
   reason: string
 }
 
+export interface DiagnosticsReport {
+  generatedAt: string
+  protocolVersion: number
+  hostsCount: number
+  conflicts: number
+  sessions: SessionInfo[]
+  vault: VaultStatusResult
+  frp: FrpInstancesListResult
+}
+
 export interface WorkspacesSaveParams {
   workspace: Workspace
 }
@@ -469,6 +479,7 @@ export interface MethodContracts {
   "frp.servers.stop": { params: FrpServerParams; result: void }
   "vault.status": { params: Record<string, never>; result: VaultStatusResult }
   "vault.unlockRequest": { params: VaultUnlockParams; result: VaultStatusResult }
+  "diagnostics.report": { params: Record<string, never>; result: DiagnosticsReport }
   "workspaces.save": { params: WorkspacesSaveParams; result: void }
   "workspaces.restore": { params: WorkspacesRestoreParams; result: WorkspacesRestoreResult }
 }
@@ -502,6 +513,7 @@ export const IPC_METHODS = [
   "frp.servers.stop",
   "vault.status",
   "vault.unlockRequest",
+  "diagnostics.report",
   "workspaces.save",
   "workspaces.restore",
 ] as const satisfies readonly Method[]

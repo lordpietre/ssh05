@@ -41,6 +41,7 @@ const (
 	MethodFrpServerStop      Method = "frp.servers.stop"
 	MethodVaultStatus        Method = "vault.status"
 	MethodVaultUnlock        Method = "vault.unlockRequest"
+	MethodDiagnosticsReport  Method = "diagnostics.report"
 	MethodWorkspacesSave     Method = "workspaces.save"
 	MethodWorkspacesRestore  Method = "workspaces.restore"
 )
@@ -70,6 +71,7 @@ var validMethods = map[Method]struct{}{
 	MethodFrpServerStop:      {},
 	MethodVaultStatus:        {},
 	MethodVaultUnlock:        {},
+	MethodDiagnosticsReport:  {},
 	MethodWorkspacesSave:     {},
 	MethodWorkspacesRestore:  {},
 }
@@ -281,6 +283,20 @@ type VaultStatusResult struct {
 type VaultUnlockParams struct {
 	Provider string `json:"provider"`
 	Reason   string `json:"reason"`
+}
+
+// --- diagnostics ---
+
+// DiagnosticsReport is a sanitized snapshot safe to persist or share. It never
+// contains credentials, tokens, private keys, environment values or PTY data.
+type DiagnosticsReport struct {
+	GeneratedAt     string                 `json:"generatedAt"`
+	ProtocolVersion int                    `json:"protocolVersion"`
+	HostsCount      int                    `json:"hostsCount"`
+	Conflicts       int                    `json:"conflicts"`
+	Sessions        []SessionInfo          `json:"sessions"`
+	Vault           VaultStatusResult      `json:"vault"`
+	FRP             FrpInstancesListResult `json:"frp"`
 }
 
 // --- workspaces ---

@@ -119,9 +119,41 @@ func (s *Service) Handle(ctx context.Context, conn *ipc.Conn, req contracts.RPCR
 		return marshal(status)
 	case contracts.MethodVaultUnlock:
 		return s.unlockVault(ctx, req)
+	case contracts.MethodDiagnosticsReport:
+		return s.diagnosticsReport(ctx)
 	default:
 		return nil, notImplemented()
 	}
+}
+
+func (s *Service) diagnosticsReport(ctx context.Context) (json.RawMessage, *contracts.RPCError) {
+	report := contracts.DiagnosticsReport{
+		GeneratedAt:     time.Now().UTC().Format(time.RFC3339),
+		ProtocolVersion: contracts.ProtocolVersion,
+		Sessions:        s.backend.List(),
+		Vault:           contracts.VaultStatusResult{Provider: "none", Locked: true},
+		FRP: contracts.FrpInstancesListResult{
+			Endpoints: []contracts.FrpEndpoint{},
+			Proxies:   []contracts.FrpProxy{},
+		},
+	}
+	if report.Sessions == nil {
+		report.Sessions = []contracts.SessionInfo{}
+	}
+	if s.hosts != nil {
+		if hosts, err := s.hosts.List(ctx); err == nil {
+			report.HostsCount = len(hosts)
+		}
+	}
+	if inventory, ok := s.hosts.(HostInventory); ok {
+		report.Conflicts = len(inventory.Conflicts())
+		report.Vault = inventory.VaultStatus()
+	}
+	if s.frp != nil {
+		report.FRP = s.frp.List()
+	}
+	s.log(audit.Event{Action: "diagnostics.report", Result: "ok"})
+	return marshal(report)
 }
 
 func (s *Service) unlockVault(ctx context.Context, req contracts.RPCRequest) (json.RawMessage, *contracts.RPCError) {

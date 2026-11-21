@@ -101,6 +101,7 @@ assert_contains "Hosts (3)" "UI loads the real host inventory"
 send C-k
 assert_contains "Comandos" "command palette opens"
 assert_contains "Probar ruta" "route probe command listed"
+assert_contains "Exportar diagnóstico saneado" "diagnostics export command listed"
 send Escape
 sleep 0.3
 send C-f

@@ -153,7 +153,8 @@ Atajos configurables en `~/.config/trss/keybindings.json` (o
 {"palette": "ctrl+space", "frp": "ctrl+shift+f", "quit": "ctrl+q"}
 ```
 
-La paleta (`Ctrl+K`) incluye «Probar ruta del host»: informa `reachable`,
+La paleta (`Ctrl+K`) incluye «Exportar diagnóstico saneado», que escribe un
+JSON sin secretos en `~/.local/state/trss/diagnostics/`, y «Probar ruta del host»: informa `reachable`,
 `refused`, `timeout`, `dns_failure` o `unknown` sin interpretar un timeout como
 puerto cerrado.
 
