@@ -293,6 +293,7 @@ let closeDialogCursor = 0
 let frpVisible = false
 let frpCursor = 0
 let frpProxies: FrpProxy[] = []
+let frpDeleteArmed = ""
 let frpEndpoints: FrpEndpoint[] = []
 let frpForm: {
   field: number
@@ -1317,9 +1318,10 @@ function renderFRP(): void {
           ? `visitor 127.0.0.1:${proxy.bindPort}`
           : `stcp ${proxy.servicePort}`
         : `${proxy.servicePort} → ${proxy.remotePort}`
-    lines.push(`  ${marker} ${proxy.state} ${proxy.name} [${proxy.type}] ${target}`)
+    const error = proxy.lastErrorLabel ? ` · ${proxy.lastErrorLabel}` : ""
+    lines.push(`  ${marker} ${proxy.state} ${proxy.name} [${proxy.type}] ${target}${error}`)
   }
-  lines.push("", "  n nuevo · d parar · s iniciar/parar frps · r rotar token · Esc cerrar")
+  lines.push("", "  n nuevo · d parar · x eliminar · s iniciar/parar frps · r rotar token · Esc cerrar")
   frpOverlay.content = lines.join("\n")
 }
 
@@ -1339,6 +1341,7 @@ async function refreshFRP(): Promise<void> {
 async function openFRP(): Promise<void> {
   frpVisible = true
   frpForm = null
+  frpDeleteArmed = ""
   await refreshFRP()
 }
 
@@ -1421,8 +1424,10 @@ async function handleFRPKey(key: KeyEvent): Promise<void> {
     closeFRP()
   } else if (name === "up") {
     frpCursor = Math.max(0, frpCursor - 1)
+    frpDeleteArmed = ""
   } else if (name === "down") {
     frpCursor = Math.min(Math.max(0, frpProxies.length - 1), frpCursor + 1)
+    frpDeleteArmed = ""
   } else if (name === "n") {
     const host = currentFormHost()
     frpForm = {
@@ -1432,6 +1437,21 @@ async function handleFRPKey(key: KeyEvent): Promise<void> {
       servicePort: host ? String(host.target.port) : "22",
       remotePort: "",
       bindPort: "",
+    }
+  } else if (name === "x" && frpProxies[frpCursor] && client) {
+    const proxy = frpProxies[frpCursor]
+    if (frpDeleteArmed !== proxy.id) {
+      frpDeleteArmed = proxy.id
+      transientText = `FRP: pulsa x otra vez para eliminar ${proxy.name}`
+    } else {
+      try {
+        await client.call("frp.proxies.remove", { proxyId: proxy.id }, { timeoutMs: 8000 })
+        frpDeleteArmed = ""
+        await refreshFRP()
+        transientText = `FRP: ${proxy.name} eliminado`
+      } catch (error) {
+        transientText = `FRP remove: ${String(error)}`
+      }
     }
   } else if (name === "d" && frpProxies[frpCursor] && client) {
     try {

@@ -35,6 +35,7 @@ const (
 	MethodFrpInstancesList   Method = "frp.instances.list"
 	MethodFrpProxiesApply    Method = "frp.proxies.apply"
 	MethodFrpProxiesStop     Method = "frp.proxies.stop"
+	MethodFrpProxiesRemove   Method = "frp.proxies.remove"
 	MethodFrpRotate          Method = "frp.tokens.rotate"
 	MethodFrpServerStart     Method = "frp.servers.start"
 	MethodFrpServerStop      Method = "frp.servers.stop"
@@ -63,6 +64,7 @@ var validMethods = map[Method]struct{}{
 	MethodFrpInstancesList:   {},
 	MethodFrpProxiesApply:    {},
 	MethodFrpProxiesStop:     {},
+	MethodFrpProxiesRemove:   {},
 	MethodFrpRotate:          {},
 	MethodFrpServerStart:     {},
 	MethodFrpServerStop:      {},
@@ -249,6 +251,10 @@ type FrpProxiesApplyResult struct {
 }
 
 type FrpProxiesStopParams struct {
+	ProxyID string `json:"proxyId"`
+}
+
+type FrpProxiesRemoveParams struct {
 	ProxyID string `json:"proxyId"`
 }
 

@@ -253,3 +253,25 @@ func TestManagerManagesLocalFrpsLifecycle(t *testing.T) {
 		}
 	}
 }
+
+func TestManagerRemoveDeletesDefinitionAndFiles(t *testing.T) {
+	manager := testManager(t)
+	applied, err := manager.Apply(context.Background(), contracts.FrpProxy{
+		Name: "remove-me", Type: contracts.FrpTCP, ServicePort: 22, RemotePort: 22025,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := manager.Remove(context.Background(), applied.ID); err != nil {
+		t.Fatalf("Remove: %v", err)
+	}
+	if list := manager.List(); len(list.Proxies) != 0 {
+		t.Fatalf("proxies after remove = %+v", list.Proxies)
+	}
+	if _, err := os.Stat(filepath.Join(manager.opts.WorkDir, applied.ID+".toml")); !os.IsNotExist(err) {
+		t.Fatalf("config still exists: %v", err)
+	}
+	if err := manager.Remove(context.Background(), applied.ID); err == nil {
+		t.Fatal("removing twice must fail")
+	}
+}

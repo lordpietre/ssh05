@@ -645,6 +645,26 @@ func (m *Manager) Stop(ctx context.Context, id string) error {
 	return m.saveLocked()
 }
 
+// Remove stops a proxy and deletes its persisted definition and local files.
+func (m *Manager) Remove(ctx context.Context, id string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	proxy := m.findProxyLocked(id)
+	if proxy == nil {
+		return fmt.Errorf("FRP proxy not found")
+	}
+	m.stopLocked(id)
+	for index, item := range m.proxies {
+		if item.ID == id {
+			m.proxies = append(m.proxies[:index], m.proxies[index+1:]...)
+			break
+		}
+	}
+	_ = os.Remove(filepath.Join(m.opts.WorkDir, id+".toml"))
+	_ = os.Remove(filepath.Join(m.opts.WorkDir, id+".log"))
+	return m.saveLocked()
+}
+
 func (m *Manager) stopLocked(id string) {
 	if cmd := m.procs[id]; cmd != nil {
 		killProcess(cmd)

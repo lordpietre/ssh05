@@ -399,6 +399,10 @@ export interface FrpProxiesStopParams {
   proxyId: string
 }
 
+export interface FrpProxiesRemoveParams {
+  proxyId: string
+}
+
 export interface FrpRotateParams {
   endpointId: string
 }
@@ -451,6 +455,7 @@ export interface MethodContracts {
   "frp.instances.list": { params: Record<string, never>; result: FrpInstancesListResult }
   "frp.proxies.apply": { params: FrpProxiesApplyParams; result: FrpProxiesApplyResult }
   "frp.proxies.stop": { params: FrpProxiesStopParams; result: void }
+  "frp.proxies.remove": { params: FrpProxiesRemoveParams; result: void }
   "frp.tokens.rotate": { params: FrpRotateParams; result: void }
   "frp.servers.start": { params: FrpServerParams; result: FrpEndpoint }
   "frp.servers.stop": { params: FrpServerParams; result: void }
@@ -483,6 +488,7 @@ export const IPC_METHODS = [
   "frp.instances.list",
   "frp.proxies.apply",
   "frp.proxies.stop",
+  "frp.proxies.remove",
   "frp.tokens.rotate",
   "frp.servers.start",
   "frp.servers.stop",

@@ -103,6 +103,8 @@ func (s *Service) Handle(ctx context.Context, conn *ipc.Conn, req contracts.RPCR
 		return s.applyFRP(ctx, req)
 	case contracts.MethodFrpProxiesStop:
 		return s.stopFRP(ctx, req)
+	case contracts.MethodFrpProxiesRemove:
+		return s.removeFRP(ctx, req)
 	case contracts.MethodFrpRotate:
 		return s.rotateFRP(ctx, req)
 	case contracts.MethodFrpServerStart:
@@ -574,6 +576,22 @@ func (s *Service) stopFRP(ctx context.Context, req contracts.RPCRequest) (json.R
 		return nil, internalError(err)
 	}
 	s.log(audit.Event{Action: "frp.stop", Result: "ok", Detail: params.ProxyID})
+	return json.RawMessage(`{}`), nil
+}
+
+func (s *Service) removeFRP(ctx context.Context, req contracts.RPCRequest) (json.RawMessage, *contracts.RPCError) {
+	if s.frp == nil {
+		return nil, notImplemented()
+	}
+	params, rpcError := decodeParams[contracts.FrpProxiesRemoveParams](req)
+	if rpcError != nil {
+		return nil, rpcError
+	}
+	if err := s.frp.Remove(ctx, params.ProxyID); err != nil {
+		s.log(audit.Event{Action: "frp.remove", Result: "error", ErrorCode: "internal", Detail: params.ProxyID})
+		return nil, internalError(err)
+	}
+	s.log(audit.Event{Action: "frp.remove", Result: "ok", Detail: params.ProxyID})
 	return json.RawMessage(`{}`), nil
 }
 

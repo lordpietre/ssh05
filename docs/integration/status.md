@@ -43,9 +43,10 @@
 | Rutas directas/ProxyJump con motivo | **Hecho** | `routes.plan` + `ProxyJump` + estado en UI |
 | FRP supervisor local | **Hecho** | `internal/frp`, endpoints/proxies, procesos |
 | FRP-01 frps local gestionado | **Hecho** | `--frps-listen`, `frp.servers.start/stop` |
+| FRP-02 crear/editar/validar/eliminar | **Hecho** | `frp.proxies.apply/remove` + `verify` |
 | FRP tokens cifrados, rotación y tipos | **Hecho** | AES-GCM, `frp.tokens.rotate`, 4 tipos |
 | FRP hash de binario y sin huérfanos | **Hecho** | `--frpc-sha256`, grupos de proceso |
-| FRP UI (listar/crear/parar/rotar) | **Hecho** | `Ctrl+F` |
+| FRP UI (listar/crear/parar/eliminar/rotar) | **Hecho** | `Ctrl+F` |
 | Ruta FRP por visitor | **Hecho** | `RouteForHost` + `RouteID` |
 | RUT-02/RUT-03 sondeo y ruta visible | **Hecho** | `routes.probe`; timeout ≠ cerrado; paleta |
 | Pruebas adversariales (framing, inyección, reconexión) | **Hecho** | fuzz tests + tests de inyección/reconnect |

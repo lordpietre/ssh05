@@ -47,7 +47,7 @@ func TestMethods(t *testing.T) {
 		MethodSessionsSignal,
 		MethodSessionsList, MethodSessionsAttach,
 		MethodRoutesPlan, MethodRoutesConnect, MethodFrpInstancesList,
-		MethodFrpProxiesApply, MethodFrpProxiesStop, MethodFrpRotate,
+		MethodFrpProxiesApply, MethodFrpProxiesStop, MethodFrpProxiesRemove, MethodFrpRotate,
 		MethodFrpServerStart, MethodFrpServerStop, MethodVaultStatus,
 		MethodVaultUnlock, MethodWorkspacesSave, MethodWorkspacesRestore,
 	}
