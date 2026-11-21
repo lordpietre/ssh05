@@ -57,7 +57,9 @@ Reglas:
 | `CallTyped[P,R]` para métodos del contrato | Hecho |
 | Servicio `sessions.*`, `hosts.list`, `routes.*` | Hecho (`internal/supervisor/service.go`) |
 | Daemon `trssd` | Hecho (`cmd/trssd`) |
-| Conectar la UI Bun/OpenTUI | Pendiente |
+| Cliente TypeScript/Bun (`IpcClient`) | Hecho (`prototype/terminal/src/ipc`) |
+| Prueba cruzada Bun ↔ Go | Hecho (opt-in `trssd.integration.test.ts`) |
+| Conectar la UI OpenTUI | Pendiente |
 
 Tests: `internal/ipc/ipc_test.go` y `internal/ipc/frame_test.go` cubren round
 trip, versión, método desconocido, panics, permisos, segundo servidor,

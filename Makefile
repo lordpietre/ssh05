@@ -28,7 +28,7 @@ else
 	GO_TEST := ${shell basename `which gotest 2>/dev/null` 2>/dev/null || echo go test}
 endif
 
-.PHONY: all clean test install download-frp phase0 contracts-check trssd
+.PHONY: all clean test install download-frp phase0 contracts-check ui-check trssd
 
 # Check if frp source is available (may not exist on clone since /frp/ is gitignored)
 ifneq ("$(wildcard $(FRP_DIR)/go.mod)","")
@@ -88,6 +88,9 @@ trssd:
 
 phase0:
 	cd prototype/terminal && $(BUN) install && $(BUN) run typecheck && $(BUN) run smoke
+
+ui-check:
+	cd prototype/terminal && $(BUN) run typecheck && $(BUN) test
 
 contracts-check:
 	CGO_ENABLED=0 ${GO_TEST} -count=1 ./contracts ./internal/ipc ./internal/supervisor

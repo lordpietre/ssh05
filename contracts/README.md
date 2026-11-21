@@ -38,10 +38,11 @@ capacidades.
 ## Verificación
 
 ```sh
-CGO_ENABLED=0 go test -count=1 ./contracts ./internal/ipc
-cd prototype/terminal && bun run typecheck:contracts
+CGO_ENABLED=0 go test -count=1 ./contracts ./internal/ipc ./internal/supervisor
+cd prototype/terminal && bun run typecheck:contracts && bun test
 # o, desde la raíz:
 make contracts-check
+make ui-check
 ```
 
 ## Estado

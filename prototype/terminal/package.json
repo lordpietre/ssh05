@@ -5,6 +5,7 @@
   "scripts": {
     "start": "bun run src/main.ts",
     "smoke": "bash scripts/smoke.sh",
+    "test": "bun test",
     "typecheck": "tsc --noEmit",
     "typecheck:contracts": "tsc -p ../../contracts/ts/tsconfig.json"
   },

@@ -58,6 +58,7 @@ make install                   # copies ./bin/tssh to /usr/bin/tssh
 - IPC transport: `internal/ipc/` (Unix socket, framing, server/client, tests)
 - Supervisor: `internal/supervisor/` (backend, SSH runner, IPC service)
 - Daemon: `cmd/trssd/` (`make trssd`)
+- UI IPC client / TabStore: `prototype/terminal/src/ipc/`, `src/tabs/`
 - Integration status: `docs/integration/status.md`
 - Prototype: `prototype/terminal` (Bun 1.4.5 + `@opentui/core` 0.8.2, pinned)
 - Evidence/results: `docs/phase-0/README.md`
@@ -69,6 +70,7 @@ make install                   # copies ./bin/tssh to /usr/bin/tssh
   bun install
   bun run typecheck
   bun run typecheck:contracts
+  bun test
   bun run smoke      # tmux + vim + htop + local sshd + resize
   ```
   or `make phase0` from the repo root (requires `bun` on `PATH`).
