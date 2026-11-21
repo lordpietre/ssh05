@@ -35,6 +35,7 @@ func testManager(t *testing.T) *Manager {
 		ConfigPath: filepath.Join(dir, "frp.json"), KeyPath: filepath.Join(dir, "frp.key"),
 		WorkDir: filepath.Join(dir, "work"), FrpcBin: fakeFrpc(t),
 		EndpointAddress: "127.0.0.1", EndpointPort: 7000, EndpointToken: "endpoint-token",
+		SkipListenProbe: true,
 	})
 	if err != nil {
 		t.Fatalf("NewManager: %v", err)
@@ -101,6 +102,7 @@ func TestManagerRotateRestartsManagedFrps(t *testing.T) {
 		ConfigPath: filepath.Join(dir, "frp.json"), KeyPath: filepath.Join(dir, "frp.key"),
 		WorkDir: filepath.Join(dir, "work"), FrpcBin: fakeFrpc(t), FrpsBin: fakeFrps(t),
 		EndpointListen: "127.0.0.1:17001", EndpointName: "rotate",
+		SkipListenProbe: true,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -241,6 +243,7 @@ func TestManagerManagesLocalFrpsLifecycle(t *testing.T) {
 		ConfigPath: filepath.Join(dir, "frp.json"), KeyPath: filepath.Join(dir, "frp.key"),
 		WorkDir: filepath.Join(dir, "work"), FrpcBin: fakeFrpc(t), FrpsBin: fakeFrps(t),
 		EndpointListen: "127.0.0.1:17000", EndpointName: "local", EndpointToken: "server-token",
+		SkipListenProbe: true,
 	})
 	if err != nil {
 		t.Fatalf("NewManager: %v", err)

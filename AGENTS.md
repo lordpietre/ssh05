@@ -30,6 +30,8 @@ make install                   # copies ./bin/tssh to /usr/bin/tssh
 - `enc` prefix on config values means encrypted with `tssh --enc-secret`
 - Android/Termux quirk: `cmd/tssh/main.go` adjusts `os.Args` when `TERMUX_EXEC__PROC_SELF_EXE` is set
 - Keepalive defaults: `ServerAliveInterval=30` (was 0), configurable via `~/.tssh.conf` `defaultServerAliveInterval`. Set `#!! ServerAliveInterval 0` in `~/.ssh/config` to disable.
+- `SshLogin` comparte config: init serializado, conexiones de la misma config en paralelo
+  (`acquireConfigRead`); los defaults de `ssh_config` y UDP tienen mutex propio.
 - `~/.tssh.conf` settings: `promptThemeLayout=tiny|simple|table`, `promptDefaultMode=search`, `promptPageSize=N`, `promptDetailItems=...`, `defaultServerAliveInterval=N`
 - FRP (Fast Reverse Proxy) integration: `frp/` directory is gitignored; `Makefile` builds frps/frpc if source present, otherwise `make download-frp` fetches v0.69.1 binaries
 - Debian packaging: `debian/` directory contains packaging files for .deb/.rpm builds via GoReleaser

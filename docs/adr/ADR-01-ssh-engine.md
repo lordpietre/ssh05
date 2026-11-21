@@ -62,10 +62,12 @@ UDP/tsshd no la implementa, por lo que las señales quedan limitadas al motor
 SSH clásico. El supervisor deberá añadir cierre de árbol de procesos antes de
 cerrar SES-04.
 
-Además, `SshLogin` inicializa configuración global; hasta que exista config por
-conexión, `configMu` serializa init + connect para evitar carreras entre
-sesiones. El runner SSH y el servicio IPC ya están implementados en
-`internal/supervisor`.
+`SshLogin` comparte la configuración global, pero la inicialización usa un
+lock de escritura y las conexiones de la misma configuración usan lectores
+concurrentes (`acquireConfigRead`). Las conexiones con otro `ConfigFile`
+esperan a que terminen las conexiones en vuelo antes de sustituir la config.
+Los defaults globales de `ssh_config` y los logins UDP siguen protegidos por
+mutex propios. El runner SSH y el servicio IPC están en `internal/supervisor`.
 
 ## Criterio de cierre
 

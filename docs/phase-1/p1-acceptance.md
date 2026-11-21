@@ -56,6 +56,13 @@ Los binarios FRP se obtienen con `make download-frp`.
 | SEG-04 | Cumplido | `internal/audit` rota y sanea acciones sin secretos |
 | SEG-05 | Cumplido | Fuzz de framing, pruebas de inyección, host key estricta y reconexión adversarial |
 
+## Extra posterior: concurrencia de conexiones
+
+`TestSshLoginConcurrent` (en `tssh/login_concurrent_test.go`) abre tres sesiones
+a la vez con la misma configuración; se ejecuta dentro de `make ui-smoke` y
+también con `-race` de forma manual. La inicialización sigue serializada, pero
+el establecimiento de conexiones ya no lo está.
+
 ## Pruebas reales de red
 
 `make trssd-frp-smoke` levanta un `frps` gestionado y un `frpc` reales, crea

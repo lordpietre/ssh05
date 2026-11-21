@@ -77,6 +77,8 @@ type Options struct {
 	EndpointPort       int
 	EndpointToken      string
 	EndpointTokenForce bool
+	// SkipListenProbe is for tests that use a stub frps without a socket.
+	SkipListenProbe bool
 }
 
 // Manager owns local frpc processes and their definitions.
@@ -831,10 +833,41 @@ func (m *Manager) startEndpointLocked(ctx context.Context, ep *endpoint) error {
 	m.servers[ep.ID] = cmd
 	m.started["server:"+ep.ID] = time.Now()
 	go m.waitServer(ep.ID, cmd)
+	if !m.opts.SkipListenProbe {
+		if err := waitEndpointReady(ep); err != nil {
+			m.stopServerLocked(ep.ID)
+			ep.State = contracts.FrpError
+			ep.LastErrorCode = "listen_failed"
+			ep.LastErrorLabel = err.Error()
+			_ = m.saveLocked()
+			return err
+		}
+	}
 	ep.State = contracts.FrpOnline
 	ep.LastErrorCode = ""
 	ep.LastErrorLabel = ""
 	return m.saveLocked()
+}
+
+func waitEndpointReady(ep *endpoint) error {
+	host := ep.BindAddr
+	switch host {
+	case "", "0.0.0.0":
+		host = "127.0.0.1"
+	case "::", "[::]":
+		host = "::1"
+	}
+	address := net.JoinHostPort(host, fmt.Sprintf("%d", ep.Port))
+	deadline := time.Now().Add(3 * time.Second)
+	for time.Now().Before(deadline) {
+		conn, err := net.DialTimeout("tcp", address, 200*time.Millisecond)
+		if err == nil {
+			_ = conn.Close()
+			return nil
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+	return fmt.Errorf("frps did not listen on %s", address)
 }
 
 func (m *Manager) waitServer(id string, cmd *exec.Cmd) {

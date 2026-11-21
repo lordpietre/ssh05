@@ -9,6 +9,8 @@ HERE="$(pwd)"
 ROOT="$(cd ../.. && pwd)"
 BUN="${BUN:-$HOME/.bun/bin/bun}"
 [[ -x "$BUN" ]] || BUN="$(command -v bun)"
+GO="${GO:-go}"
+[[ -x "$HOME/.local/go/bin/go" && "$GO" = "go" ]] && GO="$HOME/.local/go/bin/go"
 TMUX="${TMUX:-tmux}"
 TRSSD="${TRSSD:-$ROOT/bin/trssd}"
 SSH_DIR="${TRSS_SSH_FIXTURE_DIR:-${TMPDIR:-/tmp}/trss-sshd-fixture}"
@@ -299,6 +301,17 @@ send C-p
 send Down
 send Enter
 assert_contains "[1 ● trss-ui-2]" "switching to lab reuses its live tab"
+
+echo "== concurrent SSH logins =="
+if command -v "$GO" >/dev/null; then
+  (cd "$ROOT" && TRSS_TEST_SSH_ALIAS=trss-ui-1 TRSS_TEST_SSH_CONFIG="$CONFIG" \
+    CGO_ENABLED=0 "$GO" test -count=1 -run TestSshLoginConcurrent ./tssh) \
+    || fail "concurrent SSH logins"
+  echo "PASS: concurrent SSH logins"
+else
+  echo "SKIP: concurrent SSH logins (go not found)"
+fi
+
 send F10
 for _ in $(seq 1 30); do
   if ! "$TMUX" has-session -t "$SESSION" 2>/dev/null; then

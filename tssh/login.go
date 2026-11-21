@@ -45,6 +45,10 @@ import (
 var kDefaultConnectTimeout = 10 * time.Second
 var kDefaultServerAliveInterval uint32 = 30
 
+// UDP logins share lastJumpUdpClient and related process-wide state, so they
+// stay serialized while plain TCP sessions connect concurrently.
+var udpLoginMu sync.Mutex
+
 type proxyJump struct {
 	client SshClient
 	name   string
@@ -794,6 +798,10 @@ func sshConnect(args *sshArgs) (*sshConnection, error) {
 	param, err := getSshParam(args, false)
 	if err != nil {
 		return nil, err
+	}
+	if param.udpMode != kUdpModeNo {
+		udpLoginMu.Lock()
+		defer udpLoginMu.Unlock()
 	}
 
 	// init log level

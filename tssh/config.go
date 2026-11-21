@@ -396,6 +396,11 @@ func initUserConfig(configFile string) (err error) {
 		userConfig.exConfigPath = filepath.Join(userHomeDir, ".ssh", "password")
 	}
 
+	// Callers either hold configMu for writing or run before any goroutine
+	// exists. This lets acquireConfigRead skip redundant re-initialization.
+	configReady = true
+	configInitArg = configFile
+
 	return nil
 }
 
@@ -424,9 +429,25 @@ func loadConfig(path string, system bool) *ssh_config.Config {
 	return config
 }
 
+// ssh_config keeps package-level defaults; concurrent connections must not
+// race on that map, so every default lookup/update goes through this mutex.
+var sshDefaultsMu sync.Mutex
+
+func configDefault(key string) string {
+	sshDefaultsMu.Lock()
+	defer sshDefaultsMu.Unlock()
+	return ssh_config.Default(key)
+}
+
+func setConfigDefault(key, value string) {
+	sshDefaultsMu.Lock()
+	defer sshDefaultsMu.Unlock()
+	ssh_config.SetDefault(key, value)
+}
+
 func (c *tsshConfig) doLoadConfig() {
 	c.loadConfig.Do(func() {
-		ssh_config.SetDefault("LogLevel", "")
+		setConfigDefault("LogLevel", "")
 
 		if c.configPath == "" {
 			debug("no ssh configuration file path")
@@ -487,7 +508,7 @@ func getConfig(alias, key string) string {
 		}
 	}
 
-	return ssh_config.Default(key)
+	return configDefault(key)
 }
 
 func getConfigSplits(alias, key string) []string {
@@ -524,7 +545,7 @@ func getConfigSplits(alias, key string) []string {
 		}
 	}
 
-	if value := ssh_config.Default(key); value != "" {
+	if value := configDefault(key); value != "" {
 		values, err := shlex.Split(value)
 		if err != nil {
 			warning("split default [%s] value [%s] failed: %v", key, value, err)
@@ -568,7 +589,7 @@ func getAllConfig(alias, key string) []string {
 		return values
 	}
 
-	if value := ssh_config.Default(key); value != "" {
+	if value := configDefault(key); value != "" {
 		values = append(values, value)
 	}
 	return values
@@ -615,7 +636,7 @@ func getAllConfigSplits(alias, key string) []string {
 		return values
 	}
 
-	if value := ssh_config.Default(key); value != "" {
+	if value := configDefault(key); value != "" {
 		vals, err := shlex.Split(value)
 		if err != nil {
 			warning("split default [%s] value [%s] failed: %v", key, value, err)

@@ -221,14 +221,14 @@ func SshLogin(args *SshArgs) (SshClient, error) {
 		options[name] = values
 	}
 
-	// The current config layer is process-wide. Serialize init + connect so a
-	// second SshLogin cannot reset userConfig while the first is reading it.
-	configMu.Lock()
-	defer configMu.Unlock()
-
-	if err := initUserConfig(args.ConfigFile); err != nil {
+	// Initialization is serialized; connections sharing the same config hold a
+	// read lock and can proceed concurrently without resetting userConfig.
+	releaseConfig, err := acquireConfigRead(args.ConfigFile)
+	if err != nil {
 		return nil, err
 	}
+	defer releaseConfig()
+
 	sshConn, err := sshConnect(&sshArgs{
 		NoCommand:   true,
 		Destination: args.Destination,

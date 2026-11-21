@@ -18,18 +18,19 @@ cleanup() {
   [[ -n "$TRSSD_PID" ]] && kill "$TRSSD_PID" 2>/dev/null || true
   [[ -n "$HTTP_PID" ]] && kill "$HTTP_PID" 2>/dev/null || true
   [[ -n "$UDP_PID" ]] && kill "$UDP_PID" 2>/dev/null || true
-  rm -rf "$DIR"
+  [[ -n "${TRSS_KEEP_DIR:-}" ]] || rm -rf "$DIR"
 }
 trap cleanup EXIT
+[[ -n "${TRSS_KEEP_DIR:-}" ]] && echo "keep: $DIR"
 
 fail() {
   echo "FAIL: $*" >&2
   echo "--- trssd ---" >&2
   tail -40 "$DIR/trssd.log" 2>/dev/null >&2 || true
   echo "--- frps ---" >&2
-  cat "$DIR"/work/*-frps.log 2>/dev/null >&2 || true
+  cat "$DIR"/state/trss/frp/*-frps.log 2>/dev/null >&2 || true
   echo "--- frpc ---" >&2
-  cat "$DIR"/work/*.log 2>/dev/null >&2 || true
+  cat "$DIR"/state/trss/frp/*.log 2>/dev/null >&2 || true
   echo "--- http ---" >&2
   cat "$DIR/http.log" 2>/dev/null >&2 || true
   echo "--- udp ---" >&2
@@ -56,6 +57,10 @@ with open(sys.argv[1], "w") as log:
         sock.sendto(data, addr)
 PY
 UDP_PID=$!
+for _ in $(seq 1 50); do
+  curl -fsS --max-time 1 http://127.0.0.1:18080/hello.txt >/dev/null 2>&1 && break
+  sleep 0.1
+done
 
 CGO_ENABLED=0 "$GO" build -o "$DIR/trssd" ./cmd/trssd
 XDG_STATE_HOME="$DIR/state" "$DIR/trssd" --socket "$DIR/control.sock" --ssh-config /dev/null \
