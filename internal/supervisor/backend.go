@@ -19,14 +19,18 @@ var (
 )
 
 const (
-	defaultMaxSessions = 16
-	defaultMaxPending  = 1 << 20 // 1 MiB before the first data handler attaches
+	defaultMaxSessions   = 16
+	defaultMaxPending    = 1 << 20 // 1 MiB before the first data handler attaches
+	defaultReconnectMax  = 3
+	defaultReconnectBase = 500 * time.Millisecond
 )
 
 // Options bounds the supervisor resources.
 type Options struct {
-	MaxSessions int
-	MaxPending  int
+	MaxSessions   int
+	MaxPending    int
+	ReconnectMax  int
+	ReconnectBase time.Duration
 }
 
 // Backend is the in-process implementation of contracts.SessionBackend.
@@ -47,6 +51,12 @@ type session struct {
 	seq         uint64
 	run         RunSession
 	exitCode    int
+	options     contracts.SessionOptions
+	cols        int
+	rows        int
+	done        chan struct{}
+	closeOnce   sync.Once
+	userClosed  bool
 
 	nextHandler    uint64
 	dataHandlers   map[uint64]contracts.DataHandler
@@ -66,6 +76,12 @@ func NewBackend(runner Runner, options Options) *Backend {
 	}
 	if options.MaxPending <= 0 {
 		options.MaxPending = defaultMaxPending
+	}
+	if options.ReconnectMax <= 0 {
+		options.ReconnectMax = defaultReconnectMax
+	}
+	if options.ReconnectBase <= 0 {
+		options.ReconnectBase = defaultReconnectBase
 	}
 	return &Backend{
 		runner:   runner,
@@ -91,6 +107,10 @@ func (b *Backend) Open(ctx context.Context, profileID string, routeID string, op
 		id:             id,
 		profileID:      profileID,
 		tmuxSession:    options.TmuxSession,
+		options:        options,
+		cols:           80,
+		rows:           24,
+		done:           make(chan struct{}),
 		phase:          contracts.PhaseConnecting,
 		dataHandlers:   make(map[uint64]contracts.DataHandler),
 		statusHandlers: make(map[uint64]contracts.StatusHandler),
@@ -101,7 +121,7 @@ func (b *Backend) Open(ctx context.Context, profileID string, routeID string, op
 
 	b.emitStatus(s, contracts.PhaseConnecting, "", "")
 
-	run, err := b.runner.Start(ctx, profileID, 80, 24, options)
+	run, err := b.runner.Start(ctx, profileID, s.cols, s.rows, options)
 	if err != nil {
 		b.emitStatus(s, contracts.PhaseFailed, "start_failed", err.Error())
 		b.mu.Lock()
@@ -129,13 +149,60 @@ func (b *Backend) readSession(s *session, run RunSession) {
 	b.mu.Lock()
 	s.run = nil
 	s.exitCode = code
+	userClosed := s.userClosed
 	b.mu.Unlock()
 
-	if code == 0 {
-		b.emitStatus(s, contracts.PhaseClosed, "", "")
-	} else {
-		b.emitStatus(s, contracts.PhaseFailed, "exit_nonzero", fmt.Sprintf("exit code %d", code))
+	if !userClosed && code != 0 {
+		if b.tryReconnect(s) {
+			return
+		}
 	}
+
+	if userClosed || code == 0 {
+		b.finalize(s, contracts.PhaseClosed, "", "")
+	} else {
+		b.finalize(s, contracts.PhaseFailed, "exit_nonzero", fmt.Sprintf("exit code %d", code))
+	}
+}
+
+func (b *Backend) tryReconnect(s *session) bool {
+	for attempt := 1; attempt <= b.options.ReconnectMax; attempt++ {
+		delay := b.options.ReconnectBase << (attempt - 1)
+		b.emitStatus(s, contracts.PhaseReconnecting, "reconnect",
+			fmt.Sprintf("attempt %d/%d", attempt, b.options.ReconnectMax))
+		select {
+		case <-time.After(delay):
+		case <-s.done:
+			return false
+		}
+		b.mu.RLock()
+		closed := s.userClosed
+		b.mu.RUnlock()
+		if closed {
+			return false
+		}
+		run, err := b.runner.Start(context.Background(), s.profileID, s.cols, s.rows, s.options)
+		if err != nil {
+			continue
+		}
+		b.mu.Lock()
+		if s.userClosed {
+			b.mu.Unlock()
+			_ = run.Close()
+			return false
+		}
+		s.run = run
+		b.mu.Unlock()
+		b.emitStatus(s, contracts.PhaseConnected, "", "")
+		go b.readSession(s, run)
+		return true
+	}
+	return false
+}
+
+func (b *Backend) finalize(s *session, phase contracts.SessionPhase, code, message string) {
+	b.emitStatus(s, phase, code, message)
+	s.closeOnce.Do(func() { close(s.done) })
 	b.mu.Lock()
 	if b.sessions[s.id] == s {
 		delete(b.sessions, s.id)
@@ -155,9 +222,18 @@ func (b *Backend) Resize(ctx context.Context, id contracts.SessionID, cols, rows
 	if cols <= 0 || rows <= 0 {
 		return fmt.Errorf("supervisor: invalid size %dx%d", cols, rows)
 	}
-	run, err := b.runFor(id)
-	if err != nil {
-		return err
+	b.mu.Lock()
+	s := b.sessions[id]
+	if s == nil {
+		b.mu.Unlock()
+		return ErrSessionNotFound
+	}
+	s.cols, s.rows = cols, rows
+	run := s.run
+	b.mu.Unlock()
+	if run == nil {
+		// Remember the size for a reconnect in progress.
+		return nil
 	}
 	return run.Resize(cols, rows)
 }
@@ -181,19 +257,21 @@ func (b *Backend) RequestClose(ctx context.Context, id contracts.SessionID, inte
 		return ErrUnsupportedIntent
 	}
 
-	b.mu.RLock()
+	b.mu.Lock()
 	s := b.sessions[id]
 	if s == nil {
-		b.mu.RUnlock()
+		b.mu.Unlock()
 		return ErrSessionNotFound
 	}
+	s.userClosed = true
 	run := s.run
-	b.mu.RUnlock()
-	if run == nil {
-		return ErrSessionClosed
-	}
+	s.closeOnce.Do(func() { close(s.done) })
+	b.mu.Unlock()
 
 	b.emitStatus(s, contracts.PhaseClosing, "", "")
+	if run == nil {
+		return nil
+	}
 	return run.Close()
 }
 
@@ -204,7 +282,7 @@ func (b *Backend) Attach(ctx context.Context, id contracts.SessionID, cursor *ui
 	if s == nil {
 		return ErrSessionNotFound
 	}
-	if s.run == nil {
+	if s.run == nil && s.userClosed {
 		return ErrSessionClosed
 	}
 	// This backend does not retain a detached process; Attach only makes the
@@ -307,6 +385,8 @@ func (b *Backend) CloseAll() {
 	b.mu.Lock()
 	runs := make([]RunSession, 0, len(b.sessions))
 	for _, s := range b.sessions {
+		s.userClosed = true
+		s.closeOnce.Do(func() { close(s.done) })
 		if s.run != nil {
 			runs = append(runs, s.run)
 		}

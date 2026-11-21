@@ -94,6 +94,7 @@ make install                   # copies ./bin/tssh to /usr/bin/tssh
 - Supervisor build: `make trssd` -> `bin/trssd`.
 - Supervisor run (Unix socket at `$XDG_RUNTIME_DIR/trss/control.sock`):
   `./bin/trssd --ssh-config ~/.ssh/config`
+- Reconexión configurable: `--reconnect-max N --reconnect-delay 500ms`.
 - KeePass opcional:
   `./bin/trssd --ssh-config ~/.ssh/config --keepass-db ~/db.kdbx --keepass-key-file ~/db.key`
   o `--keepass-password-command 'pass show keepass'` (askpass; el secreto

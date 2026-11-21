@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/trzsz/trzsz-ssh/internal/ipc"
 	"github.com/trzsz/trzsz-ssh/internal/supervisor"
@@ -24,11 +25,17 @@ func main() {
 	keepassPasswordCommand := flag.String("keepass-password-command", "", "command that prints the KDBX password to stdout")
 	terminal := flag.String("terminal", "xterm-256color", "TERM value for remote PTYs")
 	maxSessions := flag.Int("max-sessions", 16, "maximum concurrent sessions")
+	reconnectMax := flag.Int("reconnect-max", 3, "reconnect attempts before failing")
+	reconnectDelay := flag.Duration("reconnect-delay", 500*time.Millisecond, "initial reconnect backoff")
 	flag.Parse()
 
 	backend := supervisor.NewBackend(
 		&supervisor.SSHRunner{Config: supervisor.SSHConfig{ConfigPath: *sshConfig, Terminal: *terminal}},
-		supervisor.Options{MaxSessions: *maxSessions},
+		supervisor.Options{
+			MaxSessions:   *maxSessions,
+			ReconnectMax:  *reconnectMax,
+			ReconnectBase: *reconnectDelay,
+		},
 	)
 	defer backend.CloseAll()
 

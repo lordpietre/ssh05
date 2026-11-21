@@ -17,6 +17,7 @@ type fakeRunner struct {
 	runs        []*fakeRun
 	starts      int
 	startErr    error
+	startErrs   []error
 	lastOptions contracts.SessionOptions
 }
 
@@ -25,6 +26,11 @@ func (r *fakeRunner) Start(_ context.Context, _ string, cols, rows int, options 
 	defer r.mu.Unlock()
 	r.starts++
 	r.lastOptions = options
+	if len(r.startErrs) > 0 {
+		err := r.startErrs[0]
+		r.startErrs = r.startErrs[1:]
+		return nil, err
+	}
 	if r.startErr != nil {
 		return nil, r.startErr
 	}
@@ -393,4 +399,105 @@ func TestBackendLargeOutputReachesHandler(t *testing.T) {
 	eventually(t, func() bool {
 		return received.Load() >= total
 	})
+}
+
+func TestBackendReconnectsWithBackoff(t *testing.T) {
+	runner := &fakeRunner{}
+	backend := NewBackend(runner, Options{ReconnectMax: 2, ReconnectBase: time.Millisecond})
+	id, err := backend.Open(context.Background(), "host-1", "", contracts.SessionOptions{})
+	if err != nil {
+		t.Fatalf("Open: %v", err)
+	}
+	statuses := make(chan contracts.SessionStatus, 16)
+	unsubscribe := backend.OnStatus(id, func(status contracts.SessionStatus) { statuses <- status })
+	defer unsubscribe()
+
+	runner.last().finish(1)
+	eventually(t, func() bool {
+		runner.mu.Lock()
+		defer runner.mu.Unlock()
+		return len(runner.runs) == 2
+	})
+
+	sawReconnecting := false
+	sawConnected := false
+	deadline := time.After(2 * time.Second)
+	for !sawReconnecting || !sawConnected {
+		select {
+		case status := <-statuses:
+			if status.Phase == contracts.PhaseReconnecting {
+				sawReconnecting = true
+			}
+			if status.Phase == contracts.PhaseConnected {
+				sawConnected = true
+			}
+		case <-deadline:
+			t.Fatalf("reconnect statuses not observed: reconnecting=%v connected=%v", sawReconnecting, sawConnected)
+		}
+	}
+
+	runner.mu.Lock()
+	second := runner.runs[1]
+	runner.mu.Unlock()
+	second.emit("after-reconnect")
+	second.finish(0)
+	eventually(t, func() bool { return len(backend.List()) == 0 })
+}
+
+func TestBackendReconnectExhaustionFails(t *testing.T) {
+	runner := &fakeRunner{}
+	backend := NewBackend(runner, Options{ReconnectMax: 2, ReconnectBase: time.Millisecond})
+	id, err := backend.Open(context.Background(), "host-1", "", contracts.SessionOptions{})
+	if err != nil {
+		t.Fatalf("Open: %v", err)
+	}
+	runner.mu.Lock()
+	runner.startErrs = []error{errors.New("down"), errors.New("down")}
+	runner.mu.Unlock()
+	statuses := make(chan contracts.SessionStatus, 16)
+	unsubscribe := backend.OnStatus(id, func(status contracts.SessionStatus) { statuses <- status })
+	defer unsubscribe()
+
+	runner.last().finish(1)
+	eventually(t, func() bool { return len(backend.List()) == 0 })
+
+	sawFailed := false
+	for !sawFailed {
+		select {
+		case status := <-statuses:
+			if status.Phase == contracts.PhaseFailed {
+				sawFailed = true
+			}
+		case <-time.After(2 * time.Second):
+			t.Fatal("failed status not observed")
+		}
+	}
+}
+
+func TestBackendReconnectCanBeCancelled(t *testing.T) {
+	runner := &fakeRunner{}
+	backend := NewBackend(runner, Options{ReconnectMax: 3, ReconnectBase: 40 * time.Millisecond})
+	id, err := backend.Open(context.Background(), "host-1", "", contracts.SessionOptions{})
+	if err != nil {
+		t.Fatalf("Open: %v", err)
+	}
+	statuses := make(chan contracts.SessionStatus, 16)
+	unsubscribe := backend.OnStatus(id, func(status contracts.SessionStatus) { statuses <- status })
+	defer unsubscribe()
+
+	runner.last().finish(1)
+	for {
+		select {
+		case status := <-statuses:
+			if status.Phase == contracts.PhaseReconnecting {
+				if err := backend.RequestClose(context.Background(), id, contracts.CloseView); err != nil {
+					t.Fatalf("RequestClose: %v", err)
+				}
+				eventually(t, func() bool { return len(backend.List()) == 0 })
+				return
+			}
+		case <-time.After(2 * time.Second):
+			t.Fatal("reconnecting status not observed")
+		}
+	}
 }

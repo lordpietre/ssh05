@@ -124,6 +124,12 @@ KeePass opcional:
 En la UI, `Ctrl+I` recarga el inventario KeePass. Los hosts KDBX-only se
 resuelven a `usuario@host:puerto`; los de `ssh_config` conservan su alias.
 
+Reconexión automática configurable:
+
+```sh
+./bin/trssd --ssh-config ~/.ssh/config --reconnect-max 3 --reconnect-delay 500ms
+```
+
 UI OpenTUI (en otra terminal):
 
 ```sh

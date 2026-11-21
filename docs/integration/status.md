@@ -29,6 +29,7 @@
 | Deduplicación y provenance ssh_config+KDBX | **Hecho** | `internal/supervisor/inventory.go` |
 | Conflictos de inventario sin sobrescritura | **Hecho** | `HostsListResult.conflicts` + tests |
 | Importación desde UI (`Ctrl+I`) | **Hecho** | `hosts.import` |
+| Reconexión con backoff y cancelación | **Hecho** | `internal/supervisor/backend.go` + tests |
 | Cliente TS/Bun del IPC | **Hecho** | `prototype/terminal/src/ipc/` |
 | `TabStore` renderer-independent | **Hecho** | `prototype/terminal/src/tabs/store.ts` |
 | UI OpenTUI conectada al supervisor | **Hecho** | `prototype/terminal/src/trss.ts` |
