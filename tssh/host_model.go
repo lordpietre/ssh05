@@ -593,6 +593,7 @@ func (m *hostModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.frp.scanCursor = 0
 			m.frp.view = "scan_results"
 			m.frp.token = msg.token
+			m.frp.version = msg.version
 		if m.frp.direction == "r2l" {
 			return m, frpScanRemotePorts(m.frp.alias)
 		}

@@ -326,7 +326,8 @@ func TestFRPCProxyBlockTypes(t *testing.T) {
 		Name:        "proxy",
 		ServicePort: 8080,
 		ExposedPort: 9000,
-		Token:       "secret-key",
+		Token:       "auth-token",
+		Secret:      "dedicated-secret",
 	}
 
 	entry.Type = "tcp"
@@ -348,11 +349,134 @@ func TestFRPCProxyBlockTypes(t *testing.T) {
 		entry.Type = proxyType
 		block = frpcProxyBlock(entry)
 		if !strings.Contains(block, `type = "`+proxyType+`"`) ||
-			!strings.Contains(block, `secretKey = "secret-key"`) {
+			!strings.Contains(block, `secretKey = "dedicated-secret"`) {
 			t.Fatalf("%s block = %s", proxyType, block)
+		}
+		if strings.Contains(block, "auth-token") {
+			t.Fatalf("%s block reused the auth token: %s", proxyType, block)
 		}
 		if strings.Contains(block, "remotePort") {
 			t.Fatalf("%s block must not use remotePort: %s", proxyType, block)
 		}
+	}
+}
+
+func TestEnsureFRPProxySecret(t *testing.T) {
+	entry := &frpProxyEntry{Type: "tcp"}
+	if err := ensureFRPProxySecret(entry); err != nil || entry.Secret != "" {
+		t.Fatalf("tcp secret = %q, err = %v", entry.Secret, err)
+	}
+
+	entry.Type = "stcp"
+	if err := ensureFRPProxySecret(entry); err != nil {
+		t.Fatalf("ensure secret: %v", err)
+	}
+	if len(entry.Secret) != 64 {
+		t.Fatalf("secret length = %d, want 64", len(entry.Secret))
+	}
+	first := entry.Secret
+	if err := ensureFRPProxySecret(entry); err != nil {
+		t.Fatal(err)
+	}
+	if entry.Secret != first {
+		t.Fatal("existing secret must be preserved")
+	}
+}
+
+func TestParseFRPVersion(t *testing.T) {
+	cases := map[string]string{
+		"0.69.1":              "0.69.1",
+		"frpc version 0.31.0": "0.31.0",
+		"v0.52.3\n":           "0.52.3",
+		"frps 1.2.3 extra":    "1.2.3",
+	}
+	for input, want := range cases {
+		version, ok := parseFRPVersion(input)
+		if !ok {
+			t.Errorf("parseFRPVersion(%q) failed", input)
+			continue
+		}
+		if version.String() != want {
+			t.Errorf("parseFRPVersion(%q) = %s, want %s", input, version, want)
+		}
+	}
+	for _, input := range []string{"", "no version", "0.31"} {
+		if _, ok := parseFRPVersion(input); ok {
+			t.Errorf("parseFRPVersion(%q) should fail", input)
+		}
+	}
+}
+
+func TestFRPTypeSupported(t *testing.T) {
+	for _, proxyType := range []string{"tcp", "udp"} {
+		if !frpTypeSupported("0.30.0", proxyType) {
+			t.Errorf("%s should be supported on 0.30.0", proxyType)
+		}
+	}
+	for _, proxyType := range []string{"stcp", "xtcp"} {
+		if frpTypeSupported("0.30.0", proxyType) {
+			t.Errorf("%s should not be supported on 0.30.0", proxyType)
+		}
+		if !frpTypeSupported("0.31.0", proxyType) {
+			t.Errorf("%s should be supported on 0.31.0", proxyType)
+		}
+	}
+	if !frpTypeSupported("", "xtcp") || !frpTypeSupported("unknown", "xtcp") {
+		t.Fatal("unknown versions must not block the user")
+	}
+}
+
+func TestNextSupportedFRPType(t *testing.T) {
+	if got := nextSupportedFRPType("tcp", "0.30.0"); got != "udp" {
+		t.Fatalf("0.30.0 tcp -> %s, want udp", got)
+	}
+	if got := nextSupportedFRPType("udp", "0.30.0"); got != "tcp" {
+		t.Fatalf("0.30.0 udp -> %s, want tcp", got)
+	}
+	if got := nextSupportedFRPType("udp", "0.69.1"); got != "stcp" {
+		t.Fatalf("0.69.1 udp -> %s, want stcp", got)
+	}
+	if got := nextSupportedFRPType("xtcp", "0.69.1"); got != "tcp" {
+		t.Fatalf("0.69.1 xtcp -> %s, want tcp", got)
+	}
+}
+
+func TestFRPProxySecretPersistsEncrypted(t *testing.T) {
+	originalKeyPath := frpKeyPath
+	keyPath := filepath.Join(t.TempDir(), "frp.key")
+	frpKeyPath = func() string { return keyPath }
+	t.Cleanup(func() { frpKeyPath = originalKeyPath })
+
+	path := filepath.Join(t.TempDir(), "frp.json")
+	entry := &frpProxyEntry{
+		Alias:       "a",
+		Name:        "stcp-proxy",
+		Type:        "stcp",
+		ServicePort: 22,
+		Token:       "auth-token",
+		Secret:      "dedicated-secret",
+	}
+	if err := frpSaveConfig([]*frpProxyEntry{entry}, path); err != nil {
+		t.Fatalf("frpSaveConfig: %v", err)
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, secret := range []string{"auth-token", "dedicated-secret"} {
+		if strings.Contains(string(data), secret) {
+			t.Fatalf("secret %q persisted in plaintext: %s", secret, data)
+		}
+	}
+	if !strings.Contains(string(data), "secret_enc") {
+		t.Fatalf("secret_enc missing: %s", data)
+	}
+
+	loaded, err := frpLoadConfig(path, "a")
+	if err != nil {
+		t.Fatalf("frpLoadConfig: %v", err)
+	}
+	if len(loaded) != 1 || loaded[0].Secret != "dedicated-secret" || loaded[0].Token != "auth-token" {
+		t.Fatalf("loaded = %+v", loaded)
 	}
 }

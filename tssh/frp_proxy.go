@@ -15,6 +15,7 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -39,16 +40,19 @@ type frpProxyEntry struct {
 	Token       string    `json:"-"`              // runtime token, never serialized
 	TokenEnc    string    `json:"token_enc,omitempty"`
 	LegacyToken string    `json:"token,omitempty"` // migration from old plaintext files
-	ServicePort int       `json:"service_port"`    // port of the service being proxied
-	ExposedPort int       `json:"exposed_port"`    // port that frps exposes
+	Secret      string    `json:"-"`               // STCP/XTCP secret, never serialized
+	SecretEnc   string    `json:"secret_enc,omitempty"`
+	ServicePort int       `json:"service_port"` // port of the service being proxied
+	ExposedPort int       `json:"exposed_port"` // port that frps exposes
 	Active      bool      `json:"-"`
 	LocalCmd    *exec.Cmd `json:"-"` // local FRP process
 }
 
 type frpSetupProgressMsg struct {
-	step  string
-	token string
-	err   error
+	step    string
+	token   string
+	version string
+	err     error
 }
 
 type frpScanResultMsg struct {
@@ -75,6 +79,7 @@ type frpProxyState struct {
 	alias            string
 	direction        string // "r2l" or "l2r" (set during setup)
 	proxyType        string // tcp, udp, stcp, xtcp
+	version          string // detected frpc/frps version, empty if unknown
 	entries          []*frpProxyEntry
 	cursor           int
 	delMode          bool
@@ -333,6 +338,18 @@ func hydrateFRPEntry(entry *frpProxyEntry) error {
 		entry.Token = entry.LegacyToken
 	}
 	entry.LegacyToken = ""
+
+	if entry.SecretEnc != "" {
+		secret, err := openFRPToken(entry.SecretEnc)
+		if err != nil {
+			return fmt.Errorf("decrypt FRP secret for %q: %w", entry.Name, err)
+		}
+		entry.Secret = secret
+	}
+	if entry.Secret == "" && isFRPSecretType(entry.Type) {
+		// Entries created before dedicated secrets reused the auth token.
+		entry.Secret = entry.Token
+	}
 	return nil
 }
 
@@ -344,14 +361,22 @@ func sealFRPEntries(entries []*frpProxyEntry) error {
 		}
 		if token == "" {
 			entry.LegacyToken = ""
-			continue
+		} else {
+			sealed, err := sealFRPToken(token)
+			if err != nil {
+				return err
+			}
+			entry.TokenEnc = sealed
+			entry.LegacyToken = ""
 		}
-		sealed, err := sealFRPToken(token)
-		if err != nil {
-			return err
+
+		if entry.Secret != "" {
+			sealed, err := sealFRPToken(entry.Secret)
+			if err != nil {
+				return err
+			}
+			entry.SecretEnc = sealed
 		}
-		entry.TokenEnc = sealed
-		entry.LegacyToken = ""
 	}
 	return nil
 }
@@ -766,6 +791,23 @@ func nextFRPProxyType(value string) string {
 	}
 }
 
+func isFRPSecretType(value string) bool {
+	proxyType := normalizeFRPProxyType(value)
+	return proxyType == "stcp" || proxyType == "xtcp"
+}
+
+func ensureFRPProxySecret(entry *frpProxyEntry) error {
+	if !isFRPSecretType(entry.Type) || entry.Secret != "" {
+		return nil
+	}
+	secret, err := generateToken()
+	if err != nil {
+		return err
+	}
+	entry.Secret = secret
+	return nil
+}
+
 func frpcProxyBlock(entry *frpProxyEntry) string {
 	proxyType := normalizeFRPProxyType(entry.Type)
 	block := fmt.Sprintf(`
@@ -779,9 +821,97 @@ localPort = %d
 	case "tcp", "udp":
 		block += fmt.Sprintf("remotePort = %d\n", entry.ExposedPort)
 	case "stcp", "xtcp":
-		block += fmt.Sprintf("secretKey = %q\n", entry.Token)
+		secret := entry.Secret
+		if secret == "" {
+			secret = entry.Token
+		}
+		block += fmt.Sprintf("secretKey = %q\n", secret)
 	}
 	return block
+}
+
+// --- FRP version capability checks ---
+
+type frpVersion struct {
+	Major int
+	Minor int
+	Patch int
+}
+
+func (v frpVersion) String() string {
+	return fmt.Sprintf("%d.%d.%d", v.Major, v.Minor, v.Patch)
+}
+
+func (v frpVersion) atLeast(major, minor, patch int) bool {
+	if v.Major != major {
+		return v.Major > major
+	}
+	if v.Minor != minor {
+		return v.Minor > minor
+	}
+	return v.Patch >= patch
+}
+
+var frpVersionPattern = regexp.MustCompile(`(\d+)\.(\d+)\.(\d+)`)
+
+func parseFRPVersion(output string) (frpVersion, bool) {
+	match := frpVersionPattern.FindStringSubmatch(output)
+	if len(match) != 4 {
+		return frpVersion{}, false
+	}
+	major, err1 := strconv.Atoi(match[1])
+	minor, err2 := strconv.Atoi(match[2])
+	patch, err3 := strconv.Atoi(match[3])
+	if err1 != nil || err2 != nil || err3 != nil {
+		return frpVersion{}, false
+	}
+	return frpVersion{Major: major, Minor: minor, Patch: patch}, true
+}
+
+func frpTypeSupported(version string, proxyType string) bool {
+	// Unknown version: do not block the user, but let FRP reject incompatible
+	// configurations. Known versions gate STCP/XTCP conservatively at 0.31.0.
+	if version == "" {
+		return true
+	}
+	parsed, ok := parseFRPVersion(version)
+	if !ok {
+		return true
+	}
+	switch normalizeFRPProxyType(proxyType) {
+	case "tcp", "udp":
+		return true
+	case "stcp", "xtcp":
+		return parsed.atLeast(0, 31, 0)
+	default:
+		return false
+	}
+}
+
+func nextSupportedFRPType(current string, version string) string {
+	candidate := current
+	for i := 0; i < 4; i++ {
+		candidate = nextFRPProxyType(candidate)
+		if frpTypeSupported(version, candidate) {
+			return candidate
+		}
+	}
+	return "tcp"
+}
+
+func detectFRPVersion(name string) string {
+	binary := frpFindBin(name)
+	if binary == "" {
+		return ""
+	}
+	output, err := exec.Command(binary, "-v").CombinedOutput()
+	if err != nil {
+		return ""
+	}
+	if version, ok := parseFRPVersion(string(output)); ok {
+		return version.String()
+	}
+	return ""
 }
 
 // --- Setup command (runs all steps) ---
@@ -792,6 +922,7 @@ func frpSetupCmd(alias string, direction string) tea.Cmd {
 		if err := frpDownloadIfNeeded(); err != nil {
 			return frpSetupProgressMsg{step: fmt.Sprintf("Setup failed: %v", err), err: err}
 		}
+		frpVer := detectFRPVersion("frpc")
 
 		token, err := generateToken()
 		if err != nil {
@@ -923,7 +1054,7 @@ webServer.port = %d
 			}
 		}
 
-		return frpSetupProgressMsg{step: "ready", token: token, err: nil}
+		return frpSetupProgressMsg{step: "ready", token: token, version: frpVer, err: nil}
 	}
 }
 
@@ -1364,11 +1495,15 @@ func (m *hostModel) handleFrpManualSetup(msg tea.KeyPressMsg) (tea.Model, tea.Cm
 			ServicePort: servicePort,
 			ExposedPort: exposedPort,
 		}
+		if err := ensureFRPProxySecret(entry); err != nil {
+			m.frp.setupErr = fmt.Sprintf("Secret generation failed: %v", err)
+			return m, nil
+		}
 		m.frp.view = "setup"
 		m.frp.setupStep = "Starting proxy..."
 		return m, frpAddProxyCmd(m.frp.alias, entry)
 	case "ctrl+t":
-		m.frp.proxyType = nextFRPProxyType(m.frp.proxyType)
+		m.frp.proxyType = nextSupportedFRPType(m.frp.proxyType, m.frp.version)
 	case "esc":
 		m.frp.view = "menu"
 	case "backspace":
@@ -1468,11 +1603,15 @@ func (m *hostModel) handleFrpConfirm(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			ServicePort: servicePort,
 			ExposedPort: exposedPort,
 		}
+		if err := ensureFRPProxySecret(entry); err != nil {
+			m.frp.setupErr = fmt.Sprintf("Secret generation failed: %v", err)
+			return m, nil
+		}
 		m.frp.view = "setup"
 		m.frp.setupStep = "Starting proxy..."
 		return m, frpAddProxyCmd(m.frp.alias, entry)
 	case "left", "right":
-		m.frp.proxyType = nextFRPProxyType(m.frp.proxyType)
+		m.frp.proxyType = nextSupportedFRPType(m.frp.proxyType, m.frp.version)
 	case "esc":
 		m.frp.view = "scan_results"
 	case "backspace":
