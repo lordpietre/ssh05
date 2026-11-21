@@ -216,8 +216,42 @@ send F10
 for _ in $(seq 1 30); do
   if ! "$TMUX" has-session -t "$SESSION" 2>/dev/null; then
     echo "PASS: 10 tabs close cleanly"
+    break
+  fi
+  sleep 0.2
+done
+if "$TMUX" has-session -t "$SESSION" 2>/dev/null; then
+  fail "10 tabs did not close"
+fi
+
+# Abrupt UI crash: trssd keeps the sessions; a restarted UI must attach them.
+rm -f "$SOCKET_DIR/workspace-crash.json"
+"$TMUX" new-session -d -s "$SESSION" -x 120 -y 36 \
+  "cd $(printf '%q' "$HERE") && TERM=xterm-256color TRSS_SOCKET=$(printf '%q' "$SOCKET") TRSS_WORKSPACE=$(printf '%q' "$SOCKET_DIR/workspace-crash.json") TRSS_UI_DEBUG=$(printf '%q' "$LOG") $(printf '%q' "$BUN") run src/trss.ts"
+assert_contains "Hosts (3)" "crash UI loaded"
+send C-t Enter
+assert_contains "[1 " "crash tab 1 opened"
+send C-t Down Enter
+assert_contains "[2 " "crash tab 2 opened"
+send 'echo LIVE_BEFORE_CRASH' Enter
+assert_contains "LIVE_BEFORE_CRASH" "live session works before the UI crash"
+sleep 0.5
+
+"$TMUX" kill-session -t "$SESSION" 2>/dev/null || true
+sleep 0.5
+
+"$TMUX" new-session -d -s "$SESSION" -x 120 -y 36 \
+  "cd $(printf '%q' "$HERE") && TERM=xterm-256color TRSS_SOCKET=$(printf '%q' "$SOCKET") TRSS_WORKSPACE=$(printf '%q' "$SOCKET_DIR/workspace-crash.json") TRSS_UI_DEBUG=$(printf '%q' "$LOG") $(printf '%q' "$BUN") run src/trss.ts"
+assert_contains "Ctrl+Tab cambiar" "restarted UI attaches live supervisor sessions"
+assert_not_contains "Pendiente" "live sessions are not shown as pending"
+send 'echo LIVE_REATTACH_OK' Enter
+assert_contains "LIVE_REATTACH_OK" "attached live session is interactive"
+send F10
+for _ in $(seq 1 30); do
+  if ! "$TMUX" has-session -t "$SESSION" 2>/dev/null; then
+    echo "PASS: crash recovery closes cleanly"
     exit 0
   fi
   sleep 0.2
 done
-fail "10 tabs did not close"
+fail "crash recovery did not close"

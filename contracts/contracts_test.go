@@ -45,6 +45,7 @@ func TestMethods(t *testing.T) {
 		MethodSessionsOpen, MethodSessionsWrite, MethodSessionsResize,
 		MethodSessionsClose, MethodSessionsDetachTmux, MethodSessionsAttachTmux,
 		MethodSessionsSignal,
+		MethodSessionsList, MethodSessionsAttach,
 		MethodRoutesPlan, MethodRoutesConnect, MethodFrpInstancesList,
 		MethodFrpProxiesApply, MethodFrpProxiesStop, MethodVaultStatus,
 		MethodVaultUnlock, MethodWorkspacesSave, MethodWorkspacesRestore,

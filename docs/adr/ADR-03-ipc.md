@@ -56,6 +56,7 @@ Reglas:
 | Cancelación por contexto y cierre de llamadas pendientes | Hecho |
 | `CallTyped[P,R]` para métodos del contrato | Hecho |
 | Servicio `sessions.*`, `hosts.list`, `routes.*` | Hecho (`internal/supervisor/service.go`) |
+| `sessions.list` / `sessions.attach` | Hecho (recuperación tras caer la UI) |
 | Daemon `trssd` | Hecho (`cmd/trssd`) |
 | Cliente TypeScript/Bun (`IpcClient`) | Hecho (`prototype/terminal/src/ipc`) |
 | Prueba cruzada Bun ↔ Go | Hecho (opt-in `trssd.integration.test.ts`) |

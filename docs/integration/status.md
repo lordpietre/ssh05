@@ -35,6 +35,7 @@
 | Backend 100 MB con buffers acotados | **Hecho** | tests de `internal/supervisor` |
 | Barra de pestañas con overflow y activa visible | **Hecho** | `src/tabs/tabbar.ts` + tests |
 | Smoke real de 10 pestañas + contadores | **Hecho** | `make ui-smoke` |
+| Recuperación tras caída de UI (`sessions.list`/`attach`) | **Hecho** | reengancha sesiones vivas sin duplicar |
 | `SessionBackend` y `TabStore` | Definidos | `contracts/session.go`, `contracts/ts/index.ts` |
 | Envelope IPC y métodos del Anexo B | Definidos | `contracts/ipc.go`, `contracts/ts/index.ts` |
 
@@ -43,7 +44,6 @@
 | Prioridad | Trabajo | Criterio de cierre |
 |---|---|---|
 | 1 | FRP H-04 restante: prueba real frpc/frps | Verificar binarios, tipos y túnel real |
-| 2 | Estrés UI: caída del renderer (10 pestañas y 100 MB ya cubiertos) | OPS-02, UIX-13 |
 | 2 | Múltiples workspaces con nombre | OPS-01 |
 | 3 | Migrar secretos FRP a KDBX/OS keyring (ADR-04) | H-03 completo |
 | 3 | Inventario con provenance y conflictos | Importar `ssh_config` sin sobrescribir cambios locales |

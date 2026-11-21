@@ -327,6 +327,21 @@ export interface SessionsSignalParams {
   signal: string
 }
 
+export interface SessionInfo {
+  sessionId: SessionId
+  profileId: string
+  phase: SessionPhase
+  tmuxSession?: string
+}
+
+export interface SessionsListResult {
+  sessions: SessionInfo[]
+}
+
+export interface SessionsAttachParams {
+  sessionId: SessionId
+}
+
 export interface RoutesPlanParams {
   hostProfileId: string
   routePolicyId?: string
@@ -396,6 +411,8 @@ export interface MethodContracts {
   "sessions.detachTmux": { params: SessionsTmuxParams; result: void }
   "sessions.attachTmux": { params: SessionsTmuxParams; result: void }
   "sessions.signal": { params: SessionsSignalParams; result: void }
+  "sessions.list": { params: Record<string, never>; result: SessionsListResult }
+  "sessions.attach": { params: SessionsAttachParams; result: void }
   "routes.plan": { params: RoutesPlanParams; result: RoutesPlanResult }
   "routes.connect": { params: RoutesConnectParams; result: SessionsOpenResult }
   "frp.instances.list": { params: Record<string, never>; result: FrpInstancesListResult }
@@ -422,6 +439,8 @@ export const IPC_METHODS = [
   "sessions.detachTmux",
   "sessions.attachTmux",
   "sessions.signal",
+  "sessions.list",
+  "sessions.attach",
   "routes.plan",
   "routes.connect",
   "frp.instances.list",

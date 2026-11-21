@@ -79,6 +79,22 @@ func TestServiceSessionFlow(t *testing.T) {
 		t.Fatal("connected event not received")
 	}
 
+	listed, err := ipc.CallTyped[struct{}, contracts.SessionsListResult](
+		ctx, client, contracts.MethodSessionsList, struct{}{},
+	)
+	if err != nil {
+		t.Fatalf("sessions.list: %v", err)
+	}
+	if len(listed.Sessions) != 1 || listed.Sessions[0].ID != opened.SessionID {
+		t.Fatalf("sessions.list = %+v", listed.Sessions)
+	}
+	if _, err := ipc.CallTyped[contracts.SessionsAttachParams, struct{}](
+		ctx, client, contracts.MethodSessionsAttach,
+		contracts.SessionsAttachParams{SessionID: opened.SessionID},
+	); err != nil {
+		t.Fatalf("sessions.attach: %v", err)
+	}
+
 	run := runner.last()
 	run.emit("hello")
 	select {

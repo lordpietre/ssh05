@@ -30,6 +30,8 @@ capacidades.
    tmux.
 8. `Workspace` solo contiene vistas y referencias no secretas; restaurar un
    workspace no crea conexiones vivas por sí solo.
+9. `sessions.list` devuelve solo sesiones vivas; `sessions.attach` permite a una
+   UI nueva reengancharse sin abrir una sesión SSH duplicada.
 
 ## Transporte previsto
 

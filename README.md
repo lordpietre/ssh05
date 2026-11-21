@@ -124,7 +124,9 @@ destruye la sesión tmux; al reabrir el mismo host se reengancha.
 
 El workspace se guarda en `~/.config/trss/workspace.json` (sin secretos) y se
 restaura como pestañas **pendientes**: Enter reconecta, no se simula una sesión
-viva. Usa `TRSS_WORKSPACE` para aislar el archivo en pruebas.
+viva. Si `trssd` conserva sesiones vivas (por ejemplo, tras caer la UI), la UI
+las lista con `sessions.list` y se reengancha con `sessions.attach` sin crear
+duplicados. Usa `TRSS_WORKSPACE` para aislar el archivo en pruebas.
 
 Smoke completo (sshd local + trssd + 3 pestañas SSH + resize + tmux + restore +
 10 pestañas con overflow):

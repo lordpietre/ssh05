@@ -23,6 +23,8 @@ import type {
   HostProfile,
   IpcEvent,
   SessionId,
+  SessionInfo,
+  SessionPhase,
   SessionStatus,
   TabId,
   TabRecord,
@@ -355,17 +357,31 @@ function scheduleWorkspaceSave(): void {
   }, 150)
 }
 
-function restoreWorkspace(): void {
+async function restoreWorkspace(liveSessions: SessionInfo[]): Promise<void> {
   const workspace = loadWorkspace()
-  if (!workspace || workspace.tabs.length === 0) return
+  const records = workspace ? [...workspace.tabs].sort((a, b) => a.order - b.order) : []
+  const used = new Set<SessionId>()
   restoringWorkspace = true
   try {
-    const records = [...workspace.tabs].sort((a, b) => a.order - b.order)
     for (const record of records) {
       const host = hosts.find(
         (item) => item.id === record.hostProfileId || item.alias === record.hostProfileId,
       )
       if (!host) continue
+
+      const live = liveSessions.find(
+        (info) => !used.has(info.sessionId) && info.profileId === host.id,
+      )
+      if (live) {
+        try {
+          used.add(live.sessionId)
+          await attachExisting(live, host, record.id)
+          continue
+        } catch (error) {
+          debug(`attach ${live.sessionId}: ${String(error)}`)
+        }
+      }
+
       const id = record.id || `restored-${record.hostProfileId}`
       if (store.list().some((tab) => tab.id === id)) continue
       store.add({
@@ -378,7 +394,21 @@ function restoreWorkspace(): void {
       })
       pendingHosts.set(id, host)
     }
-    const preferred = workspace.preferences?.activeTabId
+
+    // Live sessions that were not in the workspace are still owned by the
+    // supervisor; expose them instead of leaving unreachable orphans.
+    for (const live of liveSessions) {
+      if (used.has(live.sessionId)) continue
+      const host = hosts.find((item) => item.id === live.profileId || item.alias === live.profileId)
+      if (!host) continue
+      try {
+        await attachExisting(live, host)
+      } catch (error) {
+        debug(`attach orphan ${live.sessionId}: ${String(error)}`)
+      }
+    }
+
+    const preferred = workspace?.preferences?.activeTabId
     const activeId =
       preferred && store.list().some((tab) => tab.id === preferred)
         ? preferred
@@ -387,6 +417,7 @@ function restoreWorkspace(): void {
   } finally {
     restoringWorkspace = false
   }
+  scheduleWorkspaceSave()
   uiDirty()
 }
 
@@ -467,6 +498,46 @@ function flushPending(sessionId: SessionId, view: SessionView): void {
   }
 }
 
+function createTerminalView(sessionId: SessionId, host: HostProfile, tmuxSession?: string): SessionView {
+  const cols = Math.max(20, Math.floor(terminalArea.width) || renderer.width - HOST_PANEL_WIDTH)
+  const rows = Math.max(5, renderer.height - 2)
+  const terminal = new EmbeddedTerminalRenderable(renderer, {
+    id: `terminal-${sessionId}`,
+    position: "absolute",
+    top: 0,
+    left: 0,
+    width: "100%",
+    height: "100%",
+    visible: false,
+    cols,
+    rows,
+    maxScrollback: 20_000,
+    selectable: true,
+    onData: (data, source) => {
+      if ((source === "input" || source === "response") && client) {
+        client.sendBinary(sessionId, data)
+      }
+    },
+    onTerminalResize: (newCols, newRows) => {
+      if (newCols > 0 && newRows > 0) scheduleResize(sessionId, newCols, newRows)
+    },
+  })
+  terminalArea.add(terminal)
+  const view: SessionView = { sessionId, host, terminal }
+  sessions.set(sessionId, view)
+  return view
+}
+
+function tabForSession(sessionId: SessionId, host: HostProfile, phase: SessionPhase, tmuxSession?: string): TabState {
+  return {
+    id: sessionId,
+    sessionId,
+    title: host.alias,
+    phase,
+    tmux: tmuxSession ? { hostProfileId: host.id, sessionName: tmuxSession, verified: true } : undefined,
+  }
+}
+
 async function connectHost(
   host: HostProfile,
   options: { tmuxSession?: string; replaceTabId?: TabId } = {},
@@ -490,50 +561,35 @@ async function connectHost(
       pendingHosts.delete(options.replaceTabId)
       store.remove(options.replaceTabId)
     }
-    const cols = Math.max(20, Math.floor(terminalArea.width) || renderer.width - HOST_PANEL_WIDTH)
-    const rows = Math.max(5, renderer.height - 2)
-    const terminal = new EmbeddedTerminalRenderable(renderer, {
-      id: `terminal-${opened.sessionId}`,
-      position: "absolute",
-      top: 0,
-      left: 0,
-      width: "100%",
-      height: "100%",
-      visible: false,
-      cols,
-      rows,
-      maxScrollback: 20_000,
-      selectable: true,
-      onData: (data, source) => {
-        if ((source === "input" || source === "response") && client) {
-          client.sendBinary(opened.sessionId, data)
-        }
-      },
-      onTerminalResize: (newCols, newRows) => {
-        if (newCols > 0 && newRows > 0) scheduleResize(opened.sessionId, newCols, newRows)
-      },
-    })
-    terminalArea.add(terminal)
-    const view: SessionView = { sessionId: opened.sessionId, host, terminal }
-    sessions.set(opened.sessionId, view)
-
-    const tab: TabState = {
-      id: opened.sessionId,
-      sessionId: opened.sessionId,
-      title: host.alias,
-      phase: "connected",
-      tmux: tmuxSession
-        ? { hostProfileId: host.id, sessionName: tmuxSession, verified: true }
-        : undefined,
-    }
+    const view = createTerminalView(opened.sessionId, host, tmuxSession)
+    const tab = tabForSession(opened.sessionId, host, "connected", tmuxSession)
     store.add(tab)
     activate(tab.id)
     flushPending(opened.sessionId, view)
-    scheduleResize(opened.sessionId, terminal.width || cols, terminal.height || rows)
+    scheduleResize(opened.sessionId, view.terminal.width || 80, view.terminal.height || 24)
   } catch (error) {
     transientText = `No se pudo abrir ${host.alias}: ${String(error)}`
     uiDirty()
   }
+}
+
+async function attachExisting(
+  info: SessionInfo,
+  host: HostProfile,
+  replaceTabId?: TabId,
+): Promise<void> {
+  if (!client || sessions.has(info.sessionId)) return
+  await client.call("sessions.attach", { sessionId: info.sessionId }, { timeoutMs: 5000 })
+  if (replaceTabId) {
+    pendingHosts.delete(replaceTabId)
+    store.remove(replaceTabId)
+  }
+  const view = createTerminalView(info.sessionId, host, info.tmuxSession)
+  const tab = tabForSession(info.sessionId, host, info.phase, info.tmuxSession)
+  store.add(tab)
+  activate(tab.id)
+  flushPending(info.sessionId, view)
+  scheduleResize(info.sessionId, view.terminal.width || 80, view.terminal.height || 24)
 }
 
 function scheduleResize(sessionId: SessionId, cols: number, rows: number): void {
@@ -770,7 +826,10 @@ async function start(): Promise<void> {
   try {
     const result = await client.call("hosts.list", {}, { timeoutMs: 5000 })
     hosts = [...result.hosts].sort((a, b) => a.alias.localeCompare(b.alias))
-    restoreWorkspace()
+    const listed = await client
+      .call("sessions.list", {}, { timeoutMs: 3000 })
+      .catch(() => ({ sessions: [] as SessionInfo[] }))
+    await restoreWorkspace(listed.sessions)
     uiDirty()
   } catch (error) {
     errorText = `hosts.list: ${String(error)}`

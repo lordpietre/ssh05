@@ -27,6 +27,8 @@ const (
 	MethodSessionsDetachTmux Method = "sessions.detachTmux"
 	MethodSessionsAttachTmux Method = "sessions.attachTmux"
 	MethodSessionsSignal     Method = "sessions.signal"
+	MethodSessionsList       Method = "sessions.list"
+	MethodSessionsAttach     Method = "sessions.attach"
 	MethodRoutesPlan         Method = "routes.plan"
 	MethodRoutesConnect      Method = "routes.connect"
 	MethodFrpInstancesList   Method = "frp.instances.list"
@@ -49,6 +51,8 @@ var validMethods = map[Method]struct{}{
 	MethodSessionsDetachTmux: {},
 	MethodSessionsAttachTmux: {},
 	MethodSessionsSignal:     {},
+	MethodSessionsList:       {},
+	MethodSessionsAttach:     {},
 	MethodRoutesPlan:         {},
 	MethodRoutesConnect:      {},
 	MethodFrpInstancesList:   {},
@@ -178,6 +182,14 @@ type SessionsTmuxParams struct {
 type SessionsSignalParams struct {
 	SessionID SessionID `json:"sessionId"`
 	Signal    string    `json:"signal"`
+}
+
+type SessionsListResult struct {
+	Sessions []SessionInfo `json:"sessions"`
+}
+
+type SessionsAttachParams struct {
+	SessionID SessionID `json:"sessionId"`
 }
 
 // --- routes ---

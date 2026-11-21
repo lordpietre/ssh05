@@ -265,6 +265,23 @@ func TestBackendBoundsSessions(t *testing.T) {
 	}
 }
 
+func TestBackendClosedSessionReleasesSlot(t *testing.T) {
+	runner := &fakeRunner{}
+	backend := NewBackend(runner, Options{MaxSessions: 1})
+	id, err := backend.Open(context.Background(), "host-1", "", contracts.SessionOptions{})
+	if err != nil {
+		t.Fatalf("Open: %v", err)
+	}
+	if err := backend.RequestClose(context.Background(), id, contracts.CloseView); err != nil {
+		t.Fatalf("RequestClose: %v", err)
+	}
+	runner.last().finish(0)
+	eventually(t, func() bool { return len(backend.List()) == 0 })
+	if _, err := backend.Open(context.Background(), "host-2", "", contracts.SessionOptions{}); err != nil {
+		t.Fatalf("Open after close: %v", err)
+	}
+}
+
 func TestBackendStartFailureDoesNotLeakSlot(t *testing.T) {
 	runner := &fakeRunner{startErr: errors.New("ssh unavailable")}
 	backend := NewBackend(runner, Options{MaxSessions: 1})
@@ -320,6 +337,10 @@ func TestBackendPassesTmuxOptions(t *testing.T) {
 	defer runner.mu.Unlock()
 	if runner.lastOptions.TmuxSession != "trss-demo" {
 		t.Fatalf("tmux option = %q", runner.lastOptions.TmuxSession)
+	}
+	infos := backend.List()
+	if len(infos) != 1 || infos[0].ID != id || infos[0].ProfileID != "host-1" || infos[0].TmuxSession != "trss-demo" {
+		t.Fatalf("List = %+v", infos)
 	}
 }
 

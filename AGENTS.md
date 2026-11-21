@@ -62,6 +62,7 @@ make install                   # copies ./bin/tssh to /usr/bin/tssh
 - UI OpenTUI: `prototype/terminal/src/trss.ts` (`bun run ui`)
   - `Ctrl+G` activa/desactiva tmux remoto antes de abrir un host.
   - Barra de pestañas con overflow (`‹N`/`N›`) y activa siempre visible.
+  - Tras caer la UI, `sessions.list`/`sessions.attach` recuperan sesiones vivas.
   - Workspace en `~/.config/trss/workspace.json` (`TRSS_WORKSPACE` override).
   - Al reiniciar, las pestañas quedan pendientes; Enter reconecta y reengancha
     tmux si corresponde.

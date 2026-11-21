@@ -84,6 +84,15 @@ type SessionStatus struct {
 	Message   string       `json:"message,omitempty"`
 }
 
+// SessionInfo is the non-secret summary used to reattach a live session after
+// the UI process restarts.
+type SessionInfo struct {
+	ID          SessionID    `json:"sessionId"`
+	ProfileID   string       `json:"profileId"`
+	Phase       SessionPhase `json:"phase"`
+	TmuxSession string       `json:"tmuxSession,omitempty"`
+}
+
 // DataHandler receives raw PTY bytes. It must never be logged by default.
 type DataHandler func(data []byte)
 

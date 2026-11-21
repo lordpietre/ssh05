@@ -40,12 +40,13 @@ type Backend struct {
 }
 
 type session struct {
-	id        contracts.SessionID
-	profileID string
-	phase     contracts.SessionPhase
-	seq       uint64
-	run       RunSession
-	exitCode  int
+	id          contracts.SessionID
+	profileID   string
+	tmuxSession string
+	phase       contracts.SessionPhase
+	seq         uint64
+	run         RunSession
+	exitCode    int
 
 	nextHandler    uint64
 	dataHandlers   map[uint64]contracts.DataHandler
@@ -89,6 +90,7 @@ func (b *Backend) Open(ctx context.Context, profileID string, routeID string, op
 	s := &session{
 		id:             id,
 		profileID:      profileID,
+		tmuxSession:    options.TmuxSession,
 		phase:          contracts.PhaseConnecting,
 		dataHandlers:   make(map[uint64]contracts.DataHandler),
 		statusHandlers: make(map[uint64]contracts.StatusHandler),
@@ -131,9 +133,14 @@ func (b *Backend) readSession(s *session, run RunSession) {
 
 	if code == 0 {
 		b.emitStatus(s, contracts.PhaseClosed, "", "")
-		return
+	} else {
+		b.emitStatus(s, contracts.PhaseFailed, "exit_nonzero", fmt.Sprintf("exit code %d", code))
 	}
-	b.emitStatus(s, contracts.PhaseFailed, "exit_nonzero", fmt.Sprintf("exit code %d", code))
+	b.mu.Lock()
+	if b.sessions[s.id] == s {
+		delete(b.sessions, s.id)
+	}
+	b.mu.Unlock()
 }
 
 func (b *Backend) Write(ctx context.Context, id contracts.SessionID, data []byte) error {
@@ -197,9 +204,32 @@ func (b *Backend) Attach(ctx context.Context, id contracts.SessionID, cursor *ui
 	if s == nil {
 		return ErrSessionNotFound
 	}
+	if s.run == nil {
+		return ErrSessionClosed
+	}
 	// This backend does not retain a detached process; Attach only makes the
 	// existing live session visible to a new view.
 	return nil
+}
+
+// List returns live sessions so a restarted UI can attach instead of creating
+// duplicates or leaving unreachable orphans.
+func (b *Backend) List() []contracts.SessionInfo {
+	b.mu.RLock()
+	defer b.mu.RUnlock()
+	infos := make([]contracts.SessionInfo, 0, len(b.sessions))
+	for _, s := range b.sessions {
+		if s.run == nil {
+			continue
+		}
+		infos = append(infos, contracts.SessionInfo{
+			ID:          s.id,
+			ProfileID:   s.profileID,
+			Phase:       s.phase,
+			TmuxSession: s.tmuxSession,
+		})
+	}
+	return infos
 }
 
 func (b *Backend) OnData(id contracts.SessionID, cb contracts.DataHandler) func() {
