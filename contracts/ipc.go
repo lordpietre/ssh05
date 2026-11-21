@@ -146,6 +146,7 @@ type HostsImportResult struct {
 type SessionsOpenParams struct {
 	HostProfileID string `json:"hostProfileId"`
 	RoutePolicyID string `json:"routePolicyId,omitempty"`
+	TmuxSession   string `json:"tmuxSession,omitempty"`
 }
 
 type SessionsOpenResult struct {

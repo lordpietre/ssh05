@@ -75,7 +75,7 @@ func NewBackend(runner Runner, options Options) *Backend {
 
 // Open creates a session and starts its transport with a provisional 80x24
 // PTY. The UI must call Resize after receiving the real viewport size.
-func (b *Backend) Open(ctx context.Context, profileID string, routeID string) (contracts.SessionID, error) {
+func (b *Backend) Open(ctx context.Context, profileID string, routeID string, options contracts.SessionOptions) (contracts.SessionID, error) {
 	if profileID == "" {
 		return "", errors.New("supervisor: profileID is required")
 	}
@@ -99,7 +99,7 @@ func (b *Backend) Open(ctx context.Context, profileID string, routeID string) (c
 
 	b.emitStatus(s, contracts.PhaseConnecting, "", "")
 
-	run, err := b.runner.Start(ctx, profileID, 80, 24)
+	run, err := b.runner.Start(ctx, profileID, 80, 24, options)
 	if err != nil {
 		b.emitStatus(s, contracts.PhaseFailed, "start_failed", err.Error())
 		b.mu.Lock()

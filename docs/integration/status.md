@@ -29,6 +29,7 @@
 | `TabStore` renderer-independent | **Hecho** | `prototype/terminal/src/tabs/store.ts` |
 | UI OpenTUI conectada al supervisor | **Hecho** | `prototype/terminal/src/trss.ts` |
 | Smoke UI: 3 SSH + resize + cierre independiente | **Hecho** | `make ui-smoke` |
+| tmux opcional + reattach al reabrir | **Hecho** | `Ctrl+G`, `SessionsOpenParams.tmuxSession` |
 | `SessionBackend` y `TabStore` | Definidos | `contracts/session.go`, `contracts/ts/index.ts` |
 | Envelope IPC y métodos del Anexo B | Definidos | `contracts/ipc.go`, `contracts/ts/index.ts` |
 
@@ -37,7 +38,7 @@
 | Prioridad | Trabajo | Criterio de cierre |
 |---|---|---|
 | 1 | FRP H-04 restante: prueba real frpc/frps | Verificar binarios, tipos y túnel real |
-| 2 | Persistencia de sesiones/túneles al cerrar UI | FRP-08, OPS-02 |
+| 2 | Persistencia de workspaces y disposición de pestañas | Restaurar vistas sin prometer sesiones vivas |
 | 2 | Estrés UI: 100 MB, 10 pestañas, renderer caído | UIX-01/13, OPS-02 |
 | 3 | Migrar secretos FRP a KDBX/OS keyring (ADR-04) | H-03 completo |
 | 3 | Inventario con provenance y conflictos | Importar `ssh_config` sin sobrescribir cambios locales |

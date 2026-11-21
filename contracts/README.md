@@ -25,6 +25,9 @@ capacidades.
 5. `close-view` no implica terminar el proceso si el backend declara
    `supportsDetach`; la UI debe consultar `capabilities()` antes de prometerlo.
 6. El orden por sesión es obligatorio; `SessionStatus.seq` es monótono.
+7. `SessionOptions.tmuxSession` es opcional y no secreto. Si se usa, la sesión
+   remota puede sobrevivir al cierre de la vista; no se promete lo mismo sin
+   tmux.
 
 ## Transporte previsto
 

@@ -138,6 +138,30 @@ sleep 0.3
 send 'echo UI_AFTER_CLOSE_OK' Enter
 assert_contains "UI_AFTER_CLOSE_OK" "remaining session is still interactive"
 
+if command -v tmux >/dev/null; then
+  send C-t
+  sleep 0.2
+  send C-g
+  sleep 0.2
+  send Enter
+  assert_contains "Ctrl+Tab cambiar" "tmux tab is active"
+  assert_contains "tmux:on" "tmux mode is enabled in the UI"
+  send '[ -n "$TMUX" ] && echo TMUX_ACTIVE' Enter
+  assert_contains "TMUX_ACTIVE" "session runs inside remote tmux"
+
+  send C-w
+  sleep 0.8
+  send C-t
+  sleep 0.2
+  send Enter
+  assert_contains "Ctrl+Tab cambiar" "reopened tmux tab is active"
+  assert_contains "tmux:on" "tmux mode remains enabled after closing the tab"
+  send 'echo TMUX_REATTACH_OK' Enter
+  assert_contains "TMUX_REATTACH_OK" "reopening the host reattaches the tmux session"
+else
+  echo "SKIP: tmux not available for the reattach check"
+fi
+
 send F10
 for _ in $(seq 1 30); do
   if ! "$TMUX" has-session -t "$SESSION" 2>/dev/null; then

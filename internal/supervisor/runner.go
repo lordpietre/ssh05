@@ -1,11 +1,14 @@
 package supervisor
 
-import "context"
+import (
+	"context"
+	"github.com/trzsz/trzsz-ssh/contracts"
+)
 
 // Runner starts one concrete transport/session. The supervisor does not care
 // whether it is backed by the in-repo Go SSH client or an external adapter.
 type Runner interface {
-	Start(ctx context.Context, profileID string, cols, rows int) (RunSession, error)
+	Start(ctx context.Context, profileID string, cols, rows int, options contracts.SessionOptions) (RunSession, error)
 }
 
 // RunSession is the transport-level view of one open session.

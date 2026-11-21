@@ -55,6 +55,10 @@ export interface SessionStatus {
   message?: string
 }
 
+export interface SessionOptions {
+  tmuxSession?: string
+}
+
 export type DataHandler = (data: Uint8Array) => void
 export type StatusHandler = (status: SessionStatus) => void
 
@@ -64,7 +68,7 @@ export type StatusHandler = (status: SessionStatus) => void
  * UI process without limits.
  */
 export interface SessionBackend {
-  open(profileId: string, routeId?: string): Promise<SessionId>
+  open(profileId: string, routeId?: string, options?: SessionOptions): Promise<SessionId>
   write(id: SessionId, bytes: Uint8Array): Promise<void>
   resize(id: SessionId, cols: number, rows: number): Promise<void>
   requestClose(id: SessionId, intent: CloseIntent): Promise<void>
@@ -289,6 +293,7 @@ export interface HostsImportResult {
 export interface SessionsOpenParams {
   hostProfileId: string
   routePolicyId?: string
+  tmuxSession?: string
 }
 
 export interface SessionsOpenResult {

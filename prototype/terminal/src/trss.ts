@@ -177,6 +177,7 @@ let hostFocused = true
 let cursor = 0
 let scroll = 0
 let query = ""
+let tmuxMode = false
 let quitting = false
 let errorText = ""
 let transientText = ""
@@ -242,6 +243,11 @@ function truncate(value: string, max: number): string {
 function hostTarget(host: HostProfile): string {
   const user = host.target.username ? `${host.target.username}@` : ""
   return `${user}${host.target.hostname}:${host.target.port}`
+}
+
+function tmuxSessionName(alias: string): string {
+  const safe = alias.replace(/[^A-Za-z0-9_-]+/g, "-").replace(/^-+|-+$/g, "")
+  return `trss-${safe || "host"}`
 }
 
 function filteredHosts(): HostProfile[] {
@@ -319,18 +325,18 @@ function renderStatus(): void {
     return
   }
   if (hostFocused) {
-    status.content = " Hosts · ↑↓ Enter conectar · / filtrar · Esc volver · F10 salir"
+    status.content = ` Hosts · ↑↓ Enter conectar · / filtrar · Esc volver · tmux:${tmuxMode ? "on" : "off"} · F10 salir`
     return
   }
   const active = store.active()
   const view = active ? sessions.get(active.sessionId) : undefined
   if (!active || !view) {
-    status.content = " Sin sesiones · Ctrl+T hosts · F10 salir"
+    status.content = ` Sin sesiones · Ctrl+T hosts · tmux:${tmuxMode ? "on" : "off"} · F10 salir`
     return
   }
   status.content =
     ` SSH ${phaseIcon(active.phase)} ${phaseLabel(active.phase)} · ${active.title} · ${hostTarget(view.host)}` +
-    " · Ctrl+Tab cambiar · Ctrl+W cerrar"
+    ` · tmux:${active.tmux ? "on" : "off"} · Ctrl+Tab cambiar · Ctrl+W cerrar`
 }
 
 function uiDirty(): void {
@@ -403,8 +409,13 @@ async function connectHost(host: HostProfile): Promise<void> {
   }
   transientText = ""
   errorText = ""
+  const tmuxSession = tmuxMode ? tmuxSessionName(host.alias) : undefined
   try {
-    const opened = await client.call("sessions.open", { hostProfileId: host.id }, { timeoutMs: 20_000 })
+    const opened = await client.call(
+      "sessions.open",
+      { hostProfileId: host.id, tmuxSession },
+      { timeoutMs: 20_000 },
+    )
     const cols = Math.max(20, Math.floor(terminalArea.width) || renderer.width - HOST_PANEL_WIDTH)
     const rows = Math.max(5, renderer.height - 2)
     const terminal = new EmbeddedTerminalRenderable(renderer, {
@@ -437,6 +448,9 @@ async function connectHost(host: HostProfile): Promise<void> {
       sessionId: opened.sessionId,
       title: host.alias,
       phase: "connected",
+      tmux: tmuxSession
+        ? { hostProfileId: host.id, sessionName: tmuxSession, verified: true }
+        : undefined,
     }
     store.add(tab)
     activate(tab.id)
@@ -562,6 +576,12 @@ renderer.keyInput.on("keypress", (key) => {
   if (key.ctrl && name === "t") {
     key.stopPropagation()
     focusHosts()
+    return
+  }
+  if (key.ctrl && name === "g") {
+    key.stopPropagation()
+    tmuxMode = !tmuxMode
+    uiDirty()
     return
   }
   if (key.ctrl && name === "w") {

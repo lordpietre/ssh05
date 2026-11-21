@@ -90,10 +90,15 @@ type DataHandler func(data []byte)
 // StatusHandler receives ordered phase changes for one session.
 type StatusHandler func(status SessionStatus)
 
+// SessionOptions carries non-secret session preferences.
+type SessionOptions struct {
+	TmuxSession string `json:"tmuxSession,omitempty"`
+}
+
 // SessionBackend is the contract the supervisor implements and the UI consumes.
 // Implementations must keep ordering per session and bound their queues.
 type SessionBackend interface {
-	Open(ctx context.Context, profileID string, routeID string) (SessionID, error)
+	Open(ctx context.Context, profileID string, routeID string, options SessionOptions) (SessionID, error)
 	Write(ctx context.Context, id SessionID, data []byte) error
 	Resize(ctx context.Context, id SessionID, cols, rows int) error
 	RequestClose(ctx context.Context, id SessionID, intent CloseIntent) error

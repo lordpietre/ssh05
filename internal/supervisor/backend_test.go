@@ -12,16 +12,18 @@ import (
 )
 
 type fakeRunner struct {
-	mu       sync.Mutex
-	runs     []*fakeRun
-	starts   int
-	startErr error
+	mu          sync.Mutex
+	runs        []*fakeRun
+	starts      int
+	startErr    error
+	lastOptions contracts.SessionOptions
 }
 
-func (r *fakeRunner) Start(_ context.Context, _ string, cols, rows int) (RunSession, error) {
+func (r *fakeRunner) Start(_ context.Context, _ string, cols, rows int, options contracts.SessionOptions) (RunSession, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.starts++
+	r.lastOptions = options
 	if r.startErr != nil {
 		return nil, r.startErr
 	}
@@ -133,7 +135,7 @@ func TestBackendOpenDataWriteResizeClose(t *testing.T) {
 	backend := NewBackend(runner, Options{})
 	ctx := context.Background()
 
-	id, err := backend.Open(ctx, "host-1", "")
+	id, err := backend.Open(ctx, "host-1", "", contracts.SessionOptions{})
 	if err != nil {
 		t.Fatalf("Open: %v", err)
 	}
@@ -211,7 +213,7 @@ func TestBackendBuffersDataBeforeAttach(t *testing.T) {
 	backend := NewBackend(runner, Options{})
 	ctx := context.Background()
 
-	id, err := backend.Open(ctx, "host-1", "")
+	id, err := backend.Open(ctx, "host-1", "", contracts.SessionOptions{})
 	if err != nil {
 		t.Fatalf("Open: %v", err)
 	}
@@ -242,7 +244,7 @@ func TestBackendBuffersDataBeforeAttach(t *testing.T) {
 
 func TestBackendRejectsUnsupportedDetach(t *testing.T) {
 	backend := NewBackend(&fakeRunner{}, Options{})
-	id, err := backend.Open(context.Background(), "host-1", "")
+	id, err := backend.Open(context.Background(), "host-1", "", contracts.SessionOptions{})
 	if err != nil {
 		t.Fatalf("Open: %v", err)
 	}
@@ -254,10 +256,10 @@ func TestBackendRejectsUnsupportedDetach(t *testing.T) {
 
 func TestBackendBoundsSessions(t *testing.T) {
 	backend := NewBackend(&fakeRunner{}, Options{MaxSessions: 1})
-	if _, err := backend.Open(context.Background(), "host-1", ""); err != nil {
+	if _, err := backend.Open(context.Background(), "host-1", "", contracts.SessionOptions{}); err != nil {
 		t.Fatalf("first Open: %v", err)
 	}
-	if _, err := backend.Open(context.Background(), "host-2", ""); !errors.Is(err, ErrTooManySessions) {
+	if _, err := backend.Open(context.Background(), "host-2", "", contracts.SessionOptions{}); !errors.Is(err, ErrTooManySessions) {
 		t.Fatalf("second Open error = %v, want ErrTooManySessions", err)
 	}
 }
@@ -265,13 +267,13 @@ func TestBackendBoundsSessions(t *testing.T) {
 func TestBackendStartFailureDoesNotLeakSlot(t *testing.T) {
 	runner := &fakeRunner{startErr: errors.New("ssh unavailable")}
 	backend := NewBackend(runner, Options{MaxSessions: 1})
-	if _, err := backend.Open(context.Background(), "host-1", ""); err == nil {
+	if _, err := backend.Open(context.Background(), "host-1", "", contracts.SessionOptions{}); err == nil {
 		t.Fatal("Open must fail")
 	}
 	runner.mu.Lock()
 	runner.startErr = nil
 	runner.mu.Unlock()
-	if _, err := backend.Open(context.Background(), "host-1", ""); err != nil {
+	if _, err := backend.Open(context.Background(), "host-1", "", contracts.SessionOptions{}); err != nil {
 		t.Fatalf("Open after failure: %v", err)
 	}
 }
@@ -300,5 +302,22 @@ func TestBackendCapabilities(t *testing.T) {
 	}
 	if !caps.BinaryStreaming {
 		t.Fatal("BinaryStreaming must be true")
+	}
+}
+
+func TestBackendPassesTmuxOptions(t *testing.T) {
+	runner := &fakeRunner{}
+	backend := NewBackend(runner, Options{})
+	id, err := backend.Open(context.Background(), "host-1", "", contracts.SessionOptions{TmuxSession: "trss-demo"})
+	if err != nil {
+		t.Fatalf("Open: %v", err)
+	}
+	if id == "" {
+		t.Fatal("empty session id")
+	}
+	runner.mu.Lock()
+	defer runner.mu.Unlock()
+	if runner.lastOptions.TmuxSession != "trss-demo" {
+		t.Fatalf("tmux option = %q", runner.lastOptions.TmuxSession)
 	}
 }

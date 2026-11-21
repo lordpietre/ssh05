@@ -6,6 +6,8 @@ import (
 	"io"
 	"sync"
 
+	"github.com/trzsz/shellescape"
+	"github.com/trzsz/trzsz-ssh/contracts"
 	"github.com/trzsz/trzsz-ssh/tssh"
 	"golang.org/x/crypto/ssh"
 )
@@ -16,13 +18,17 @@ type SSHConfig struct {
 	Terminal   string
 }
 
+func tmuxStartCommand(sessionName string) string {
+	return "tmux new-session -A -s " + shellescape.Quote(sessionName)
+}
+
 // SSHRunner starts sessions with the in-repo Go SSH client.
 type SSHRunner struct {
 	Config SSHConfig
 }
 
 // Start opens an SSH client, requests a PTY and starts a remote shell.
-func (r *SSHRunner) Start(ctx context.Context, profileID string, cols, rows int) (RunSession, error) {
+func (r *SSHRunner) Start(ctx context.Context, profileID string, cols, rows int, options contracts.SessionOptions) (RunSession, error) {
 	if profileID == "" {
 		return nil, fmt.Errorf("supervisor: empty profileID")
 	}
@@ -68,7 +74,13 @@ func (r *SSHRunner) Start(ctx context.Context, profileID string, cols, rows int)
 		_ = client.Close()
 		return nil, fmt.Errorf("supervisor: stdout pipe: %w", err)
 	}
-	if err := session.Shell(); err != nil {
+	if options.TmuxSession != "" {
+		if err := session.Start(tmuxStartCommand(options.TmuxSession)); err != nil {
+			_ = session.Close()
+			_ = client.Close()
+			return nil, fmt.Errorf("supervisor: start tmux: %w", err)
+		}
+	} else if err := session.Shell(); err != nil {
 		_ = session.Close()
 		_ = client.Close()
 		return nil, fmt.Errorf("supervisor: start shell: %w", err)

@@ -2,6 +2,7 @@ package supervisor
 
 import (
 	"context"
+	"github.com/trzsz/trzsz-ssh/contracts"
 	"os"
 	"strings"
 	"testing"
@@ -24,7 +25,7 @@ func TestSSHRunnerIntegration(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 
-	run, err := runner.Start(ctx, alias, 100, 30)
+	run, err := runner.Start(ctx, alias, 100, 30, contracts.SessionOptions{})
 	if err != nil {
 		t.Fatalf("Start: %v", err)
 	}

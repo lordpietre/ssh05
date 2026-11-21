@@ -76,7 +76,7 @@ func (s *Service) openSession(ctx context.Context, conn *ipc.Conn, req contracts
 	if rpcError != nil {
 		return nil, rpcError
 	}
-	id, err := s.backend.Open(ctx, params.HostProfileID, params.RoutePolicyID)
+	id, err := s.backend.Open(ctx, params.HostProfileID, params.RoutePolicyID, contracts.SessionOptions{TmuxSession: params.TmuxSession})
 	if err != nil {
 		return nil, internalError(err)
 	}
@@ -176,7 +176,7 @@ func (s *Service) connectRoute(ctx context.Context, conn *ipc.Conn, req contract
 	if rpcError != nil {
 		return nil, rpcError
 	}
-	id, err := s.backend.Open(ctx, params.HostProfileID, "")
+	id, err := s.backend.Open(ctx, params.HostProfileID, "", contracts.SessionOptions{})
 	if err != nil {
 		return nil, internalError(err)
 	}
