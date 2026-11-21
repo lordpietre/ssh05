@@ -92,6 +92,7 @@ type TabRecord struct {
 	ID            TabID        `json:"id"`
 	Title         string       `json:"title"`
 	HostProfileID string       `json:"hostProfileId"`
+	SessionID     SessionID    `json:"sessionId,omitempty"`
 	Tmux          *TmuxBinding `json:"tmux,omitempty"`
 	Color         string       `json:"color,omitempty"`
 	Order         int          `json:"order"`

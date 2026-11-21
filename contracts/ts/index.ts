@@ -125,6 +125,7 @@ export interface TabRecord {
   id: TabId
   title: string
   hostProfileId: string
+  sessionId?: SessionId
   tmux?: TmuxBinding
   color?: string
   order: number

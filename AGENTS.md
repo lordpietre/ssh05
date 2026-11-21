@@ -61,6 +61,8 @@ make install                   # copies ./bin/tssh to /usr/bin/tssh
 - UI IPC client / TabStore: `prototype/terminal/src/ipc/`, `src/tabs/`
 - UI OpenTUI: `prototype/terminal/src/trss.ts` (`bun run ui`)
   - `Ctrl+G` activa/desactiva tmux remoto antes de abrir un host.
+  - `Ctrl+P` abre el selector de workspaces; `n` crea uno nuevo.
+  - `--workspace <nombre>` o `TRSS_WORKSPACE_NAME`; `TRSS_WORKSPACE_DIR`.
   - `Ctrl+I` importa/recarga KeePass si `trssd` tiene KDBX configurado.
   - Barra de pestañas con overflow (`‹N`/`N›`) y activa siempre visible.
   - Tras caer la UI, `sessions.list`/`sessions.attach` recuperan sesiones vivas.

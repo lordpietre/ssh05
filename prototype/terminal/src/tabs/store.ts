@@ -70,6 +70,13 @@ export class InMemoryTabStore implements TabStore {
     return () => this.listeners.delete(listener)
   }
 
+  clear(): void {
+    const ids = this.tabs.map((tab) => tab.id)
+    this.tabs = []
+    this.activeId = undefined
+    for (const id of ids) this.emit({ type: "removed", tabId: id })
+  }
+
   private indexOf(id: TabId): number {
     return this.tabs.findIndex((tab) => tab.id === id)
   }

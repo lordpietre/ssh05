@@ -3,7 +3,7 @@ import { chmodSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync }
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import type { Workspace } from "../../../../contracts/ts/index.ts"
-import { loadWorkspace, saveWorkspace } from "./store.ts"
+import { listWorkspaceNames, loadWorkspaceFile, saveWorkspaceFile } from "./store.ts"
 
 function workspace(): Workspace {
   return {
@@ -32,8 +32,8 @@ describe("workspace store", () => {
   test("round-trips non-secret tab state", () => {
     const { dir, path } = tempPath()
     try {
-      saveWorkspace(workspace(), path)
-      expect(loadWorkspace(path)).toEqual(workspace())
+      saveWorkspaceFile(workspace(), path)
+      expect(loadWorkspaceFile(path)).toEqual(workspace())
     } finally {
       rmSync(dir, { recursive: true, force: true })
     }
@@ -42,7 +42,7 @@ describe("workspace store", () => {
   test("never writes credentials or terminal bytes", () => {
     const { dir, path } = tempPath()
     try {
-      saveWorkspace(workspace(), path)
+      saveWorkspaceFile(workspace(), path)
       const text = readFileSync(path, "utf8")
       for (const forbidden of ["password", "token", "secret", "ptyBytes"]) {
         expect(text.toLowerCase()).not.toContain(forbidden)
@@ -56,11 +56,11 @@ describe("workspace store", () => {
     if (process.platform === "win32") return
     const { dir, path } = tempPath()
     try {
-      saveWorkspace(workspace(), path)
+      saveWorkspaceFile(workspace(), path)
       expect(statSync(join(dir, "nested")).mode & 0o777).toBe(0o700)
       expect(statSync(path).mode & 0o777).toBe(0o600)
       chmodSync(path, 0o644)
-      saveWorkspace(workspace(), path)
+      saveWorkspaceFile(workspace(), path)
       expect(statSync(path).mode & 0o777).toBe(0o600)
     } finally {
       rmSync(dir, { recursive: true, force: true })
@@ -70,9 +70,23 @@ describe("workspace store", () => {
   test("ignores malformed files", () => {
     const { dir, path } = tempPath()
     try {
-      saveWorkspace(workspace(), path)
+      saveWorkspaceFile(workspace(), path)
       writeFileSync(path, "{not-json")
-      expect(loadWorkspace(path)).toBeUndefined()
+      expect(loadWorkspaceFile(path)).toBeUndefined()
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+})
+
+describe("workspace names", () => {
+  test("lists files and always includes default", () => {
+    const dir = mkdtempSync(join(tmpdir(), "trss-workspace-list-"))
+    try {
+      expect(listWorkspaceNames(dir)).toEqual(["default"])
+      saveWorkspaceFile(workspace(), join(dir, "lab.json"))
+      saveWorkspaceFile(workspace(), join(dir, "default.json"))
+      expect(listWorkspaceNames(dir)).toEqual(["default", "lab"])
     } finally {
       rmSync(dir, { recursive: true, force: true })
     }

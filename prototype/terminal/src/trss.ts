@@ -34,7 +34,7 @@ import type {
 import { IpcClient } from "./ipc/client.ts"
 import { InMemoryTabStore } from "./tabs/store.ts"
 import { phaseIcon, phaseLabel, renderTabBar } from "./tabs/tabbar.ts"
-import { loadWorkspace, saveWorkspace } from "./workspaces/store.ts"
+import { listWorkspaceNames, loadWorkspace, safeWorkspaceName, saveWorkspace } from "./workspaces/store.ts"
 
 const HOST_PANEL_WIDTH = 30
 const MAX_SESSIONS = 16
@@ -60,6 +60,15 @@ function defaultSocketPath(): string {
 }
 
 const socketPath = defaultSocketPath()
+
+const cliArgs = process.argv.slice(2)
+let currentWorkspace = process.env.TRSS_WORKSPACE_NAME || "default"
+for (let index = 0; index < cliArgs.length; index++) {
+  if (cliArgs[index] === "--workspace" && cliArgs[index + 1]) {
+    currentWorkspace = safeWorkspaceName(cliArgs[++index])
+  }
+}
+currentWorkspace = safeWorkspaceName(currentWorkspace)
 
 const renderer = await createCliRenderer({
   exitOnCtrlC: false,
@@ -163,6 +172,22 @@ root.add(status)
 renderer.root.add(root)
 renderer.start()
 
+const workspaceOverlay = new TextRenderable(renderer, {
+  id: "workspace-overlay",
+  position: "absolute",
+  top: 0,
+  left: 0,
+  width: "100%",
+  height: "100%",
+  visible: false,
+  zIndex: 100,
+  content: "",
+  fg: RGBA.fromInts(215, 222, 235),
+  bg: RGBA.fromInts(18, 21, 28),
+})
+
+renderer.root.add(workspaceOverlay)
+
 const pendingPlaceholder = new TextRenderable(renderer, {
   id: "pending-view",
   position: "absolute",
@@ -180,6 +205,7 @@ terminalArea.add(pendingPlaceholder)
 type SessionView = {
   sessionId: SessionId
   host: HostProfile
+  phase: SessionPhase
   terminal: EmbeddedTerminalRenderable
   resizeTimer?: ReturnType<typeof setTimeout>
   pendingResize?: { cols: number; rows: number }
@@ -204,6 +230,11 @@ let errorText = ""
 let transientText = ""
 let restoringWorkspace = false
 let saveTimer: ReturnType<typeof setTimeout> | undefined
+let workspacePickerVisible = false
+let workspacePickerCursor = 0
+let workspaceNames: string[] = []
+let workspaceNewMode = false
+let workspaceInput = ""
 
 function truncate(value: string, max: number): string {
   if (value.length <= max) return value
@@ -321,6 +352,7 @@ function uiDirty(): void {
   renderHosts()
   renderTabs()
   renderStatus()
+  renderWorkspacePicker()
   renderer.requestRender()
 }
 
@@ -332,14 +364,15 @@ function snapshotWorkspace(): Workspace {
       id: tab.id,
       title: tab.title,
       hostProfileId: view?.host.id ?? pending?.id ?? tab.title,
+      sessionId: view ? tab.sessionId : undefined,
       tmux: tab.tmux,
       color: tab.color,
       order: index,
     }
   })
   return {
-    id: "default",
-    name: "default",
+    id: currentWorkspace,
+    name: currentWorkspace,
     tabs,
     preferences: { activeTabId: store.active()?.id ?? "" },
   }
@@ -351,15 +384,17 @@ function scheduleWorkspaceSave(): void {
   saveTimer = setTimeout(() => {
     saveTimer = undefined
     try {
-      saveWorkspace(snapshotWorkspace())
+      saveWorkspace(snapshotWorkspace(), currentWorkspace)
     } catch (error) {
       debug(`workspace save: ${String(error)}`)
     }
   }, 150)
 }
 
-async function restoreWorkspace(liveSessions: SessionInfo[]): Promise<void> {
-  const workspace = loadWorkspace()
+async function restoreWorkspace(
+  liveSessions: SessionInfo[],
+  workspace = loadWorkspace(currentWorkspace),
+): Promise<void> {
   const records = workspace ? [...workspace.tabs].sort((a, b) => a.order - b.order) : []
   const used = new Set<SessionId>()
   restoringWorkspace = true
@@ -370,8 +405,26 @@ async function restoreWorkspace(liveSessions: SessionInfo[]): Promise<void> {
       )
       if (!host) continue
 
+      const existing = record.sessionId ? sessions.get(record.sessionId) : undefined
+      if (existing) {
+        const id = record.id || existing.sessionId
+        if (!store.list().some((tab) => tab.id === id)) {
+          const tab = tabForSession(
+            existing.sessionId,
+            host,
+            existing.phase,
+            record.tmux?.sessionName,
+          )
+          store.add({ ...tab, id })
+        }
+        used.add(existing.sessionId)
+        continue
+      }
+
       const live = liveSessions.find(
-        (info) => !used.has(info.sessionId) && info.profileId === host.id,
+        (info) =>
+          !used.has(info.sessionId) &&
+          (info.sessionId === record.sessionId || info.profileId === host.id),
       )
       if (live) {
         try {
@@ -396,25 +449,13 @@ async function restoreWorkspace(liveSessions: SessionInfo[]): Promise<void> {
       pendingHosts.set(id, host)
     }
 
-    // Live sessions that were not in the workspace are still owned by the
-    // supervisor; expose them instead of leaving unreachable orphans.
-    for (const live of liveSessions) {
-      if (used.has(live.sessionId)) continue
-      const host = hosts.find((item) => item.id === live.profileId || item.alias === live.profileId)
-      if (!host) continue
-      try {
-        await attachExisting(live, host)
-      } catch (error) {
-        debug(`attach orphan ${live.sessionId}: ${String(error)}`)
-      }
-    }
-
     const preferred = workspace?.preferences?.activeTabId
     const activeId =
       preferred && store.list().some((tab) => tab.id === preferred)
         ? preferred
         : store.list()[0]?.id
     if (activeId) activate(activeId)
+    else focusHosts()
   } finally {
     restoringWorkspace = false
   }
@@ -499,7 +540,12 @@ function flushPending(sessionId: SessionId, view: SessionView): void {
   }
 }
 
-function createTerminalView(sessionId: SessionId, host: HostProfile, tmuxSession?: string): SessionView {
+function createTerminalView(
+  sessionId: SessionId,
+  host: HostProfile,
+  tmuxSession?: string,
+  phase: SessionPhase = "connected",
+): SessionView {
   const cols = Math.max(20, Math.floor(terminalArea.width) || renderer.width - HOST_PANEL_WIDTH)
   const rows = Math.max(5, renderer.height - 2)
   const terminal = new EmbeddedTerminalRenderable(renderer, {
@@ -524,7 +570,7 @@ function createTerminalView(sessionId: SessionId, host: HostProfile, tmuxSession
     },
   })
   terminalArea.add(terminal)
-  const view: SessionView = { sessionId, host, terminal }
+  const view: SessionView = { sessionId, host, phase, terminal }
   sessions.set(sessionId, view)
   return view
 }
@@ -562,7 +608,7 @@ async function connectHost(
       pendingHosts.delete(options.replaceTabId)
       store.remove(options.replaceTabId)
     }
-    const view = createTerminalView(opened.sessionId, host, tmuxSession)
+    const view = createTerminalView(opened.sessionId, host, tmuxSession, "connected")
     const tab = tabForSession(opened.sessionId, host, "connected", tmuxSession)
     store.add(tab)
     activate(tab.id)
@@ -585,7 +631,7 @@ async function attachExisting(
     pendingHosts.delete(replaceTabId)
     store.remove(replaceTabId)
   }
-  const view = createTerminalView(info.sessionId, host, info.tmuxSession)
+  const view = createTerminalView(info.sessionId, host, info.tmuxSession, info.phase)
   const tab = tabForSession(info.sessionId, host, info.phase, info.tmuxSession)
   store.add(tab)
   activate(tab.id)
@@ -667,7 +713,7 @@ async function quit(): Promise<void> {
     saveTimer = undefined
   }
   try {
-    saveWorkspace(snapshotWorkspace())
+    saveWorkspace(snapshotWorkspace(), currentWorkspace)
   } catch (error) {
     debug(`workspace save on quit: ${String(error)}`)
   }
@@ -723,6 +769,16 @@ function handleHostKey(key: KeyEvent): void {
 
 renderer.keyInput.on("keypress", (key) => {
   const name = key.name.toLowerCase()
+  if (workspacePickerVisible) {
+    key.stopPropagation()
+    handleWorkspaceKey(key)
+    return
+  }
+  if (key.ctrl && name === "p") {
+    key.stopPropagation()
+    openWorkspacePicker()
+    return
+  }
   if (name === "f10") {
     key.stopPropagation()
     void quit()
@@ -814,6 +870,111 @@ async function importHosts(): Promise<void> {
   uiDirty()
 }
 
+
+function renderWorkspacePicker(): void {
+  if (!workspacePickerVisible) {
+    workspaceOverlay.visible = false
+    return
+  }
+  workspaceOverlay.visible = true
+  const lines = [
+    "",
+    "  Workspaces",
+    "",
+  ]
+  if (workspaceNewMode) {
+    lines.push(`  Nuevo: ${workspaceInput}▌`, "", "  Enter crear/abrir · Esc volver")
+  } else {
+    for (let index = 0; index < workspaceNames.length; index++) {
+      const marker = index === workspacePickerCursor ? ">" : " "
+      const current = workspaceNames[index] === currentWorkspace ? "  (actual)" : ""
+      lines.push(`  ${marker} ${workspaceNames[index]}${current}`)
+    }
+    const marker = workspacePickerCursor === workspaceNames.length ? ">" : " "
+    lines.push(`  ${marker} + Nuevo workspace…`, "", "  Enter abrir · n nuevo · Esc cerrar")
+  }
+  workspaceOverlay.content = lines.join("\n")
+}
+
+function openWorkspacePicker(): void {
+  workspaceNames = listWorkspaceNames()
+  if (!workspaceNames.includes(currentWorkspace)) {
+    workspaceNames.push(currentWorkspace)
+    workspaceNames.sort((a, b) => a.localeCompare(b))
+  }
+  workspacePickerCursor = Math.max(0, workspaceNames.indexOf(currentWorkspace))
+  workspaceNewMode = false
+  workspaceInput = ""
+  workspacePickerVisible = true
+  uiDirty()
+}
+
+function closeWorkspacePicker(): void {
+  workspacePickerVisible = false
+  workspaceNewMode = false
+  workspaceInput = ""
+  uiDirty()
+}
+
+async function switchWorkspace(name: string): Promise<void> {
+  if (!client) return
+  const target = safeWorkspaceName(name)
+  if (saveTimer) {
+    clearTimeout(saveTimer)
+    saveTimer = undefined
+  }
+  saveWorkspace(snapshotWorkspace(), currentWorkspace)
+  restoringWorkspace = true
+  store.clear()
+  pendingHosts.clear()
+  currentWorkspace = target
+  const listed = await client
+    .call("sessions.list", {}, { timeoutMs: 3000 })
+    .catch(() => ({ sessions: [] as SessionInfo[] }))
+  await restoreWorkspace(listed.sessions, loadWorkspace(target))
+  restoringWorkspace = false
+  closeWorkspacePicker()
+  uiDirty()
+}
+
+function handleWorkspaceKey(key: KeyEvent): void {
+  const name = key.name.toLowerCase()
+  if (workspaceNewMode) {
+    if (name === "escape") {
+      workspaceNewMode = false
+      workspaceInput = ""
+    } else if (name === "backspace") {
+      workspaceInput = workspaceInput.slice(0, -1)
+    } else if (name === "return" || name === "enter") {
+      if (workspaceInput.trim()) void switchWorkspace(workspaceInput)
+    } else if (!key.ctrl && !key.meta && key.sequence) {
+      const chars = Array.from(key.sequence)
+      if (chars.length === 1 && chars[0] >= " ") workspaceInput += chars[0]
+    }
+    uiDirty()
+    return
+  }
+
+  if (name === "up") workspacePickerCursor = Math.max(0, workspacePickerCursor - 1)
+  else if (name === "down") {
+    workspacePickerCursor = Math.min(workspaceNames.length, workspacePickerCursor + 1)
+  } else if (name === "escape") {
+    closeWorkspacePicker()
+    return
+  } else if (name === "n") {
+    workspaceNewMode = true
+    workspaceInput = ""
+  } else if (name === "return" || name === "enter") {
+    if (workspacePickerCursor >= workspaceNames.length) {
+      workspaceNewMode = true
+      workspaceInput = ""
+    } else {
+      void switchWorkspace(workspaceNames[workspacePickerCursor])
+    }
+  }
+  uiDirty()
+}
+
 async function start(): Promise<void> {
   uiDirty()
   try {
@@ -846,6 +1007,8 @@ async function start(): Promise<void> {
     if (!status || typeof status.phase !== "string") return
     const sessionId = status.sessionId ?? (event.sessionId as SessionId | undefined)
     if (!sessionId) return
+    const view = sessions.get(sessionId)
+    if (view) view.phase = status.phase
     const tab = store.list().find((item) => item.sessionId === sessionId)
     if (tab) store.update(tab.id, { phase: status.phase })
     else pendingStatus.set(sessionId, status)
@@ -857,7 +1020,7 @@ async function start(): Promise<void> {
     const listed = await client
       .call("sessions.list", {}, { timeoutMs: 3000 })
       .catch(() => ({ sessions: [] as SessionInfo[] }))
-    await restoreWorkspace(listed.sessions)
+    await restoreWorkspace(listed.sessions, loadWorkspace(currentWorkspace))
     uiDirty()
   } catch (error) {
     errorText = `hosts.list: ${String(error)}`

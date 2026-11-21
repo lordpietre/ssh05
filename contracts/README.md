@@ -29,7 +29,8 @@ capacidades.
    remota puede sobrevivir al cierre de la vista; no se promete lo mismo sin
    tmux.
 8. `Workspace` solo contiene vistas y referencias no secretas; restaurar un
-   workspace no crea conexiones vivas por sí solo.
+   workspace no crea conexiones vivas por sí solo. `TabRecord.sessionId` permite
+   reutilizar una sesión viva al cambiar de workspace.
 9. `sessions.list` devuelve solo sesiones vivas; `sessions.attach` permite a una
    UI nueva reengancharse sin abrir una sesión SSH duplicada.
 

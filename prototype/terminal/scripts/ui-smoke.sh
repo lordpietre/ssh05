@@ -250,8 +250,44 @@ send F10
 for _ in $(seq 1 30); do
   if ! "$TMUX" has-session -t "$SESSION" 2>/dev/null; then
     echo "PASS: crash recovery closes cleanly"
+    break
+  fi
+  sleep 0.2
+done
+if "$TMUX" has-session -t "$SESSION" 2>/dev/null; then
+  fail "crash recovery did not close"
+fi
+
+# Multiple named workspaces with live-session reuse.
+rm -rf "$SOCKET_DIR/workspaces"
+"$TMUX" new-session -d -s "$SESSION" -x 120 -y 36 \
+  "cd $(printf '%q' "$HERE") && TERM=xterm-256color TRSS_SOCKET=$(printf '%q' "$SOCKET") TRSS_WORKSPACE_DIR=$(printf '%q' "$SOCKET_DIR/workspaces") TRSS_UI_DEBUG=$(printf '%q' "$LOG") $(printf '%q' "$BUN") run src/trss.ts"
+assert_contains "Hosts (3)" "workspace UI loaded"
+send Enter
+assert_contains "[1 ● trss-ui-1]" "default workspace tab opened"
+send C-p
+assert_contains "Workspaces" "workspace picker opens"
+send n
+send lab
+send Enter
+assert_contains "Hosts (3)" "new workspace starts with an empty view"
+send Down
+send Enter
+assert_contains "[1 ● trss-ui-2]" "second workspace opens its own tab"
+send C-p
+send Up
+send Enter
+assert_contains "[1 ● trss-ui-1]" "switching back reuses the default workspace tab"
+send C-p
+send Down
+send Enter
+assert_contains "[1 ● trss-ui-2]" "switching to lab reuses its live tab"
+send F10
+for _ in $(seq 1 30); do
+  if ! "$TMUX" has-session -t "$SESSION" 2>/dev/null; then
+    echo "PASS: named workspaces switch cleanly"
     exit 0
   fi
   sleep 0.2
 done
-fail "crash recovery did not close"
+fail "named workspaces did not close"

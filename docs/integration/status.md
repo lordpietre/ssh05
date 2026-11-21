@@ -37,6 +37,7 @@
 | Smoke UI: 3 SSH + resize + cierre independiente | **Hecho** | `make ui-smoke` |
 | tmux opcional + reattach al reabrir | **Hecho** | `Ctrl+G`, `SessionsOpenParams.tmuxSession` |
 | Workspace persistente (pestañas + tmux) | **Hecho** | `src/workspaces/`, `~/.config/trss/workspace.json` |
+| Múltiples workspaces con nombre y selector | **Hecho** | `Ctrl+P`, `--workspace`, `TRSS_WORKSPACE_DIR` |
 | Restauración como vistas pendientes | **Hecho** | Enter reconecta; nunca simula sesión viva |
 | Backend 100 MB con buffers acotados | **Hecho** | tests de `internal/supervisor` |
 | Barra de pestañas con overflow y activa visible | **Hecho** | `src/tabs/tabbar.ts` + tests |
@@ -49,10 +50,10 @@
 
 | Prioridad | Trabajo | Criterio de cierre |
 |---|---|---|
-| 2 | Múltiples workspaces con nombre | OPS-01 |
 | 2 | FRP supervisor ownership y rotación | ADR-05, FRP-06/08 |
 | 3 | Config SSH por conexión | Eliminar serialización de `SshLogin` |
 | 3 | Route resolver/policy | RUT-01…03 |
+| 3 | Paleta de comandos y colores | UI-02/UI-04 |
 
 ## Invariantes que no se negocian
 

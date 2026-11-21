@@ -2,25 +2,51 @@ import {
   chmodSync,
   existsSync,
   mkdirSync,
+  readdirSync,
   readFileSync,
   renameSync,
   writeFileSync,
 } from "node:fs"
 import { homedir } from "node:os"
-import { dirname, join } from "node:path"
+import { basename, dirname, join } from "node:path"
 import type { Workspace } from "../../../../contracts/ts/index.ts"
 
 /**
  * Workspace files contain only non-secret view state: titles, host profile
- * ids, order and optional tmux names. Never PTY bytes or credentials.
+ * ids, session ids, order and optional tmux names. Never PTY bytes or secrets.
  */
-export function workspacePath(): string {
-  if (process.env.TRSS_WORKSPACE) return process.env.TRSS_WORKSPACE
+export function workspaceDir(): string {
+  if (process.env.TRSS_WORKSPACE_DIR) return process.env.TRSS_WORKSPACE_DIR
   const configHome = process.env.XDG_CONFIG_HOME || join(homedir(), ".config")
-  return join(configHome, "trss", "workspace.json")
+  return join(configHome, "trss", "workspaces")
 }
 
-export function loadWorkspace(path = workspacePath()): Workspace | undefined {
+export function safeWorkspaceName(name: string): string {
+  const safe = name.trim().replace(/[^A-Za-z0-9_-]+/g, "-").replace(/^-+|-+$/g, "")
+  return safe || "default"
+}
+
+export function workspacePath(name = "default"): string {
+  if (process.env.TRSS_WORKSPACE) return process.env.TRSS_WORKSPACE
+  return join(workspaceDir(), `${safeWorkspaceName(name)}.json`)
+}
+
+export function listWorkspaceNames(dir = workspaceDir()): string[] {
+  if (process.env.TRSS_WORKSPACE) return ["default"]
+  const names = new Set<string>(["default"])
+  try {
+    for (const file of readdirSync(dir)) {
+      if (!file.endsWith(".json")) continue
+      const name = basename(file, ".json")
+      if (name) names.add(name)
+    }
+  } catch {
+    // Missing directory means only the default workspace exists.
+  }
+  return [...names].sort((a, b) => a.localeCompare(b))
+}
+
+export function loadWorkspaceFile(path: string): Workspace | undefined {
   if (!existsSync(path)) return undefined
   try {
     const parsed = JSON.parse(readFileSync(path, "utf8")) as Workspace
@@ -28,7 +54,9 @@ export function loadWorkspace(path = workspacePath()): Workspace | undefined {
     return {
       id: typeof parsed.id === "string" ? parsed.id : "default",
       name: typeof parsed.name === "string" ? parsed.name : "default",
-      tabs: parsed.tabs.filter((tab) => tab && typeof tab.id === "string" && typeof tab.hostProfileId === "string"),
+      tabs: parsed.tabs.filter(
+        (tab) => tab && typeof tab.id === "string" && typeof tab.hostProfileId === "string",
+      ),
       preferences: parsed.preferences ?? {},
     }
   } catch {
@@ -36,7 +64,11 @@ export function loadWorkspace(path = workspacePath()): Workspace | undefined {
   }
 }
 
-export function saveWorkspace(workspace: Workspace, path = workspacePath()): void {
+export function loadWorkspace(name = "default"): Workspace | undefined {
+  return loadWorkspaceFile(workspacePath(name))
+}
+
+export function saveWorkspaceFile(workspace: Workspace, path: string): void {
   const dir = dirname(path)
   mkdirSync(dir, { recursive: true, mode: 0o700 })
   try {
@@ -52,4 +84,8 @@ export function saveWorkspace(workspace: Workspace, path = workspacePath()): voi
   } catch {
     // Best effort.
   }
+}
+
+export function saveWorkspace(workspace: Workspace, name = "default"): void {
+  saveWorkspaceFile(workspace, workspacePath(name))
 }
