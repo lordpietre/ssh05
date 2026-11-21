@@ -83,7 +83,7 @@ Total: 78 archivos Go, ~26.500 líneas; 14 archivos de prueba.
 | H-01 | `generateToken()` devolvía un token fijo si falla `crypto/rand` | `tssh/frp_proxy.go:179-185` | Viola FRP-03; token predecible | **Resuelto:** ahora devuelve `(string, error)`, falla cerrado ante error/short read y hay tests en `tssh/frp_proxy_test.go` |
 | H-02 | Directorio `~/.tssh` creado con `0755` | `tssh/frp_proxy.go` | Viola FRP-04; otros usuarios pueden listar | **Resuelto:** `ensurePrivateDir` crea/endurece a `0700`; test incluido |
 | H-03 | Token FRP persistido en `~/.tssh_frp` (JSON) y TOML | `frpSaveConfig`, `writeFrpcConfig` | Secreto en claro fuera de un proveedor | **Mitigado (interino):** el JSON ya no serializa `Token`; se cifra AES-GCM con `~/.tssh/frp.key` (`0600`) y los TOML remotos se copian con `0600`. KDBX/OS keyring sigue pendiente (ADR-04) |
-| H-04 | Solo proxies `type = "tcp"` | `tssh/frp_proxy.go` | No cubre UDP/STCP/XTCP (FRP-02) | **Parcial avanzado:** UI/config admiten tcp/udp/stcp/xtcp, secreto STCP/XTCP dedicado y gating por versión local (≥0.31.0). Falta verificar la versión remota y una prueba real frpc/frps |
+| H-04 | Solo proxies `type = "tcp"` | `tssh/frp_proxy.go` | No cubre UDP/STCP/XTCP (FRP-02) | **Parcial avanzado:** UI/config admiten tcp/udp/stcp/xtcp, secreto STCP/XTCP dedicado y gating por versión local/remota (≥0.31.0). Falta una prueba real con frpc/frps |
 | H-05 | `frpCopyToRemote` construye `mkdir -p … && cat > …` sin citar rutas | `tssh/frp_proxy.go` | Inyección de comandos si la ruta es controlable | **Resuelto:** `sh -c` con argumentos citados, expansión de `~/` en el script y tests de inyección/rutas con espacios |
 | H-06 | Claves nuevas se aceptan automáticamente con `accept-new`/`no` | `tssh/known_hosts.go:199-216` | Comportamiento OpenSSH esperado, pero el SDD pide flujo explícito | No cambiar el default; añadir UX explícita en TRSS |
 | H-07 | Sin bloqueo de secretos por inactividad | `tssh/config.go` (cifrado AES-GCM) | AUT-05 pendiente | Diseñar vault y temporalidad |
@@ -127,7 +127,7 @@ Estado de la integración posterior a esta auditoría:
 - **H-01 resuelto**: token CSPRNG con fallo cerrado y tests.
 - **H-02 resuelto**: directorio de configuración FRP en `0700`.
 - **H-03 mitigado (interino)**: token FRP cifrado en reposo con clave local `0600`; TOML remoto `0600`; KDBX/OS keyring pendiente.
-- **H-04 parcial avanzado**: tcp/udp/stcp/xtcp, secreto dedicado y gating por versión local; falta versión remota y prueba real frpc/frps.
+- **H-04 parcial avanzado**: tcp/udp/stcp/xtcp, secreto dedicado y gating por versión local/remota; falta prueba real frpc/frps.
 - **H-05 resuelto**: copia remota FRP con argumentos citados y tests de inyección.
 - **ADR-01 cerrada**: motor SSH Go aceptado, con contrato `contracts.SessionBackend`.
 - **Contratos definidos**: `contracts/` (Go) y `contracts/ts/` (TypeScript).

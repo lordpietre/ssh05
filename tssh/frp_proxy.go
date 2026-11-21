@@ -914,6 +914,17 @@ func detectFRPVersion(name string) string {
 	return ""
 }
 
+func detectRemoteFRPVersion(alias string) string {
+	output, err := frpExecRemote(alias, "~/.tssh/bin/frpc -v 2>/dev/null || frpc -v 2>/dev/null")
+	if err != nil {
+		return ""
+	}
+	if version, ok := parseFRPVersion(output); ok {
+		return version.String()
+	}
+	return ""
+}
+
 // --- Setup command (runs all steps) ---
 
 func frpSetupCmd(alias string, direction string) tea.Cmd {
@@ -1061,6 +1072,10 @@ webServer.port = %d
 func frpAddProxyCmd(alias string, entry *frpProxyEntry) tea.Cmd {
 	return func() tea.Msg {
 		if entry.Direction == "r2l" {
+			// Verify the remote frpc supports the requested proxy type.
+			if version := detectRemoteFRPVersion(alias); version != "" && !frpTypeSupported(version, entry.Type) {
+				return frpStartResultMsg{entry: entry, err: fmt.Errorf("remote frpc %s does not support proxy type %s", version, normalizeFRPProxyType(entry.Type))}
+			}
 			// add proxy to remote frpc config and reload
 			remoteDir := "~/.tssh"
 			// read existing config
@@ -1099,6 +1114,9 @@ func frpAddProxyCmd(alias string, entry *frpProxyEntry) tea.Cmd {
 			return frpStartResultMsg{entry: entry, err: nil}
 		} else {
 			// add proxy to local frpc config and restart frpc
+			if version := detectFRPVersion("frpc"); version != "" && !frpTypeSupported(version, entry.Type) {
+				return frpStartResultMsg{entry: entry, err: fmt.Errorf("local frpc %s does not support proxy type %s", version, normalizeFRPProxyType(entry.Type))}
+			}
 			home, _ := os.UserHomeDir()
 			frpcConfigPath := filepath.Join(home, ".tssh", fmt.Sprintf("frpc_%s.toml", alias))
 
