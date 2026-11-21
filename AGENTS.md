@@ -81,7 +81,8 @@ make install                   # copies ./bin/tssh to /usr/bin/tssh
   bun run ui         # OpenTUI UI against a running ./bin/trssd
   ```
   or `make phase0` from the repo root (requires `bun` on `PATH`).
-- UI smoke (starts sshd/trssd automatically): `make ui-smoke`.
+- UI smoke (starts sshd/trssd automatically): `make ui-smoke` (3 sesiones,
+  tmux/reattach, restore de workspace y 10 pestañas con overflow).
 - Contract checks:
   ```
   CGO_ENABLED=0 go test -count=1 ./contracts ./internal/ipc ./internal/supervisor

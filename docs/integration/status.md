@@ -34,6 +34,7 @@
 | Restauración como vistas pendientes | **Hecho** | Enter reconecta; nunca simula sesión viva |
 | Backend 100 MB con buffers acotados | **Hecho** | tests de `internal/supervisor` |
 | Barra de pestañas con overflow y activa visible | **Hecho** | `src/tabs/tabbar.ts` + tests |
+| Smoke real de 10 pestañas + contadores | **Hecho** | `make ui-smoke` |
 | `SessionBackend` y `TabStore` | Definidos | `contracts/session.go`, `contracts/ts/index.ts` |
 | Envelope IPC y métodos del Anexo B | Definidos | `contracts/ipc.go`, `contracts/ts/index.ts` |
 

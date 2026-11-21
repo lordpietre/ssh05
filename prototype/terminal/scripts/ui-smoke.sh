@@ -185,8 +185,39 @@ send F10
 for _ in $(seq 1 30); do
   if ! "$TMUX" has-session -t "$SESSION" 2>/dev/null; then
     echo "PASS: restored workspace closes cleanly"
+    break
+  fi
+  sleep 0.2
+done
+if "$TMUX" has-session -t "$SESSION" 2>/dev/null; then
+  fail "restored workspace did not close"
+fi
+
+# Real 10-tab overflow check with a clean workspace.
+rm -f "$SOCKET_DIR/workspace10.json"
+"$TMUX" new-session -d -s "$SESSION" -x 120 -y 36 \
+  "cd $(printf '%q' "$HERE") && TERM=xterm-256color TRSS_SOCKET=$(printf '%q' "$SOCKET") TRSS_WORKSPACE=$(printf '%q' "$SOCKET_DIR/workspace10.json") TRSS_UI_DEBUG=$(printf '%q' "$LOG") $(printf '%q' "$BUN") run src/trss.ts"
+assert_contains "Hosts (3)" "10-tab UI loaded"
+sleep 0.5
+for index in $(seq 1 10); do
+  send C-t
+  sleep 0.1
+  if [[ "$index" -gt 1 ]]; then
+    send Down
+  fi
+  send Enter
+  assert_contains "[$index " "tab $index opened"
+done
+assert_contains "‹" "tab bar shows a left overflow counter when the last tab is active"
+send C-5
+assert_contains "[5 " "middle tab can be activated"
+assert_contains "›" "tab bar shows a right overflow counter"
+send F10
+for _ in $(seq 1 30); do
+  if ! "$TMUX" has-session -t "$SESSION" 2>/dev/null; then
+    echo "PASS: 10 tabs close cleanly"
     exit 0
   fi
   sleep 0.2
 done
-fail "restored workspace did not close"
+fail "10 tabs did not close"
