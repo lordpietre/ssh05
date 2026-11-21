@@ -612,6 +612,7 @@ func (m *hostModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.frp.proxyName = "proxy"
 			m.frp.servicePort = ""
 			m.frp.exposedPort = ""
+			m.frp.proxyType = "tcp"
 			return m, nil
 		}
 		m.frp.scanPorts = msg.ports

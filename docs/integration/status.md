@@ -17,6 +17,8 @@
 | ADR-02 terminal embebido | Aceptada (prototipo) | `docs/adr/ADR-02-vt-emulator.md` |
 | H-01 token FRP con fallback estático | **Resuelto** | `tssh/frp_proxy.go`, `tssh/frp_proxy_test.go` |
 | H-02 permisos del directorio FRP | **Resuelto** | `ensurePrivateDir`, test |
+| H-03 token FRP en reposo | **Mitigado (interino)** | AES-GCM + `~/.tssh/frp.key` 0600; TOML remoto 0600 |
+| H-04 tipos de proxy FRP | **Parcial** | tcp/udp/stcp/xtcp en UI/config; falta detección de versión |
 | H-05 inyección en copia remota FRP | **Resuelto** | `tssh/frp_proxy.go`, `tssh/frp_proxy_test.go` |
 | Contratos UI ↔ supervisor | **Definidos** | `contracts/`, `contracts/ts/` |
 | IPC local autenticado (transporte) | **Hecho** | `internal/ipc/`, tests |
@@ -34,9 +36,10 @@
 
 | Prioridad | Trabajo | Criterio de cierre |
 |---|---|---|
-| 1 | FRP H-03/H-04: token fuera de JSON plano y tipos UDP/STCP/XTCP | FRP-03/04/06 y pruebas de permisos |
+| 1 | FRP H-04 restante: detección de versión y secreto STCP dedicado | FRP-02/06 y pruebas de versión |
 | 2 | Persistencia de sesiones/túneles al cerrar UI | FRP-08, OPS-02 |
 | 2 | Estrés UI: 100 MB, 10 pestañas, renderer caído | UIX-01/13, OPS-02 |
+| 3 | Migrar secretos FRP a KDBX/OS keyring (ADR-04) | H-03 completo |
 | 3 | Inventario con provenance y conflictos | Importar `ssh_config` sin sobrescribir cambios locales |
 | 3 | Config SSH por conexión y señales | Eliminar serialización de `SshLogin`; SES-04 |
 

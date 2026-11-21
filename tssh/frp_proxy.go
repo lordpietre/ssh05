@@ -2,6 +2,8 @@ package tssh
 
 import (
 	"bytes"
+	"crypto/aes"
+	"crypto/cipher"
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
@@ -28,15 +30,18 @@ import (
 // --- Data types ---
 
 type frpProxyEntry struct {
-	Alias       string `json:"alias"`
-	Name        string `json:"name"`
-	Direction   string `json:"direction"`    // "r2l" or "l2r"
-	FrpsAddr    string `json:"frps_addr"`    // address where frps is reachable
-	FrpsPort    int    `json:"frps_port"`    // control port of frps (default 7000)
-	Token       string `json:"token"`        // auth token
-	ServicePort int    `json:"service_port"` // port of the service being proxied
-	ExposedPort int    `json:"exposed_port"` // port that frps exposes
-	Active      bool   `json:"-"`
+	Alias       string    `json:"alias"`
+	Name        string    `json:"name"`
+	Direction   string    `json:"direction"`      // "r2l" or "l2r"
+	Type        string    `json:"type,omitempty"` // tcp, udp, stcp, xtcp
+	FrpsAddr    string    `json:"frps_addr"`      // address where frps is reachable
+	FrpsPort    int       `json:"frps_port"`      // control port of frps (default 7000)
+	Token       string    `json:"-"`              // runtime token, never serialized
+	TokenEnc    string    `json:"token_enc,omitempty"`
+	LegacyToken string    `json:"token,omitempty"` // migration from old plaintext files
+	ServicePort int       `json:"service_port"`    // port of the service being proxied
+	ExposedPort int       `json:"exposed_port"`    // port that frps exposes
+	Active      bool      `json:"-"`
 	LocalCmd    *exec.Cmd `json:"-"` // local FRP process
 }
 
@@ -65,27 +70,28 @@ type frpStopResultMsg struct {
 // --- UI state ---
 
 type frpProxyState struct {
-	active        bool
-	view          string // "menu", "direction", "setup", "scan_results", "confirm", "manual_setup", "list"
-	alias         string
-	direction     string // "r2l" or "l2r" (set during setup)
-	entries       []*frpProxyEntry
-	cursor        int
-	delMode       bool
-	configPath    string
-	scanPorts          []portInfo
-	dockerContainers   []dockerContainer
-	scanCursor         int
-	scanErr            string
-	frpsAddr      string // detected public IP or configured address
-	frpsPort      int
-	setupStep     string // current step description shown during setup
-	setupErr      string
-	token         string // FRP auth token from setup
-	proxyName     string // proxy name being configured
-	servicePort   string // service port being configured (user input, editable in manual_setup)
-	exposedPort   string // exposed port being configured (user input)
-	visibleItems  int
+	active           bool
+	view             string // "menu", "direction", "setup", "scan_results", "confirm", "manual_setup", "list"
+	alias            string
+	direction        string // "r2l" or "l2r" (set during setup)
+	proxyType        string // tcp, udp, stcp, xtcp
+	entries          []*frpProxyEntry
+	cursor           int
+	delMode          bool
+	configPath       string
+	scanPorts        []portInfo
+	dockerContainers []dockerContainer
+	scanCursor       int
+	scanErr          string
+	frpsAddr         string // detected public IP or configured address
+	frpsPort         int
+	setupStep        string // current step description shown during setup
+	setupErr         string
+	token            string // FRP auth token from setup
+	proxyName        string // proxy name being configured
+	servicePort      string // service port being configured (user input, editable in manual_setup)
+	exposedPort      string // exposed port being configured (user input)
+	visibleItems     int
 }
 
 func frpDefaultPath() string {
@@ -104,6 +110,11 @@ func frpLoadConfig(path, alias string) ([]*frpProxyEntry, error) {
 	var all []*frpProxyEntry
 	if err := json.Unmarshal(data, &all); err != nil {
 		return nil, err
+	}
+	for _, entry := range all {
+		if err := hydrateFRPEntry(entry); err != nil {
+			return nil, err
+		}
 	}
 	var filtered []*frpProxyEntry
 	for _, e := range all {
@@ -141,6 +152,9 @@ func frpSaveConfig(entries []*frpProxyEntry, path string) error {
 		}
 	}
 	keep = append(keep, activeEntries()...)
+	if err := sealFRPEntries(keep); err != nil {
+		return err
+	}
 	data, err := json.MarshalIndent(keep, "", "  ")
 	if err != nil {
 		return err
@@ -191,6 +205,155 @@ func generateToken() (string, error) {
 		return "", fmt.Errorf("secure FRP token generation failed: short read %d/%d", n, len(b))
 	}
 	return hex.EncodeToString(b), nil
+}
+
+// --- FRP token at rest ---
+
+const frpKeySize = 32
+
+var (
+	frpKeyMu   sync.Mutex
+	frpKeyPath = func() string {
+		home, _ := os.UserHomeDir()
+		return filepath.Join(home, ".tssh", "frp.key")
+	}
+)
+
+func loadFRPKey() ([]byte, error) {
+	frpKeyMu.Lock()
+	defer frpKeyMu.Unlock()
+	return loadOrCreateFRPKey(frpKeyPath())
+}
+
+func loadOrCreateFRPKey(path string) ([]byte, error) {
+	if data, err := os.ReadFile(path); err == nil {
+		if len(data) != frpKeySize {
+			return nil, fmt.Errorf("invalid FRP key length %d", len(data))
+		}
+		return data, nil
+	} else if !os.IsNotExist(err) {
+		return nil, err
+	}
+
+	if err := ensurePrivateDir(filepath.Dir(path)); err != nil {
+		return nil, err
+	}
+	key := make([]byte, frpKeySize)
+	if _, err := cryptoRandRead(key); err != nil {
+		return nil, fmt.Errorf("FRP key generation failed: %w", err)
+	}
+	file, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0600)
+	if err != nil {
+		if os.IsExist(err) {
+			return loadOrCreateFRPKey(path)
+		}
+		return nil, err
+	}
+	if _, err := file.Write(key); err != nil {
+		_ = file.Close()
+		_ = os.Remove(path)
+		return nil, err
+	}
+	if err := file.Close(); err != nil {
+		_ = os.Remove(path)
+		return nil, err
+	}
+	_ = os.Chmod(path, 0600)
+	return key, nil
+}
+
+func sealFRPTokenWithKey(key []byte, token string) (string, error) {
+	block, err := aes.NewCipher(key)
+	if err != nil {
+		return "", err
+	}
+	gcm, err := cipher.NewGCM(block)
+	if err != nil {
+		return "", err
+	}
+	nonce := make([]byte, gcm.NonceSize())
+	if _, err := cryptoRandRead(nonce); err != nil {
+		return "", fmt.Errorf("FRP token nonce failed: %w", err)
+	}
+	sealed := gcm.Seal(nonce, nonce, []byte(token), nil)
+	return "v1:" + hex.EncodeToString(sealed), nil
+}
+
+func openFRPTokenWithKey(key []byte, sealed string) (string, error) {
+	if !strings.HasPrefix(sealed, "v1:") {
+		return "", fmt.Errorf("unsupported FRP token format")
+	}
+	data, err := hex.DecodeString(strings.TrimPrefix(sealed, "v1:"))
+	if err != nil {
+		return "", err
+	}
+	block, err := aes.NewCipher(key)
+	if err != nil {
+		return "", err
+	}
+	gcm, err := cipher.NewGCM(block)
+	if err != nil {
+		return "", err
+	}
+	nonceSize := gcm.NonceSize()
+	if len(data) < nonceSize {
+		return "", fmt.Errorf("FRP token ciphertext too short")
+	}
+	plain, err := gcm.Open(nil, data[:nonceSize], data[nonceSize:], nil)
+	if err != nil {
+		return "", err
+	}
+	return string(plain), nil
+}
+
+func sealFRPToken(token string) (string, error) {
+	key, err := loadFRPKey()
+	if err != nil {
+		return "", err
+	}
+	return sealFRPTokenWithKey(key, token)
+}
+
+func openFRPToken(sealed string) (string, error) {
+	key, err := loadFRPKey()
+	if err != nil {
+		return "", err
+	}
+	return openFRPTokenWithKey(key, sealed)
+}
+
+func hydrateFRPEntry(entry *frpProxyEntry) error {
+	if entry.TokenEnc != "" {
+		token, err := openFRPToken(entry.TokenEnc)
+		if err != nil {
+			return fmt.Errorf("decrypt FRP token for %q: %w", entry.Name, err)
+		}
+		entry.Token = token
+	} else if entry.LegacyToken != "" {
+		entry.Token = entry.LegacyToken
+	}
+	entry.LegacyToken = ""
+	return nil
+}
+
+func sealFRPEntries(entries []*frpProxyEntry) error {
+	for _, entry := range entries {
+		token := entry.Token
+		if token == "" && entry.LegacyToken != "" {
+			token = entry.LegacyToken
+		}
+		if token == "" {
+			entry.LegacyToken = ""
+			continue
+		}
+		sealed, err := sealFRPToken(token)
+		if err != nil {
+			return err
+		}
+		entry.TokenEnc = sealed
+		entry.LegacyToken = ""
+	}
+	return nil
 }
 
 // --- Binary management ---
@@ -265,14 +428,8 @@ webServer.port = %d
 
 `, serverAddr, serverPort, token, adminPort))
 	for _, p := range proxies {
-		buf.WriteString(fmt.Sprintf(`[[proxies]]
-name = "%s"
-type = "tcp"
-localIP = "127.0.0.1"
-localPort = %d
-remotePort = %d
-
-`, p.Name, p.ServicePort, p.ExposedPort))
+		buf.WriteString(frpcProxyBlock(p))
+		buf.WriteString("\n")
 	}
 	if err := os.WriteFile(path, buf.Bytes(), 0600); err != nil {
 		return "", err
@@ -583,6 +740,50 @@ func frpStopProcess(cmd *exec.Cmd) error {
 	return nil
 }
 
+func normalizeFRPProxyType(value string) string {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "udp":
+		return "udp"
+	case "stcp":
+		return "stcp"
+	case "xtcp":
+		return "xtcp"
+	default:
+		return "tcp"
+	}
+}
+
+func nextFRPProxyType(value string) string {
+	switch normalizeFRPProxyType(value) {
+	case "tcp":
+		return "udp"
+	case "udp":
+		return "stcp"
+	case "stcp":
+		return "xtcp"
+	default:
+		return "tcp"
+	}
+}
+
+func frpcProxyBlock(entry *frpProxyEntry) string {
+	proxyType := normalizeFRPProxyType(entry.Type)
+	block := fmt.Sprintf(`
+[[proxies]]
+name = "%s"
+type = "%s"
+localIP = "127.0.0.1"
+localPort = %d
+`, entry.Name, proxyType, entry.ServicePort)
+	switch proxyType {
+	case "tcp", "udp":
+		block += fmt.Sprintf("remotePort = %d\n", entry.ExposedPort)
+	case "stcp", "xtcp":
+		block += fmt.Sprintf("secretKey = %q\n", entry.Token)
+	}
+	return block
+}
+
 // --- Setup command (runs all steps) ---
 
 func frpSetupCmd(alias string, direction string) tea.Cmd {
@@ -641,7 +842,7 @@ func frpSetupCmd(alias string, direction string) tea.Cmd {
 			frpcData, _ := os.ReadFile(frpcConfigPath)
 			remoteCfgDir := "~/.tssh"
 			if err := frpCopyToRemote(alias, frpcData,
-				filepath.Join(remoteCfgDir, fmt.Sprintf("frpc_%s.toml", alias)), "644"); err != nil {
+				filepath.Join(remoteCfgDir, fmt.Sprintf("frpc_%s.toml", alias)), "600"); err != nil {
 				frpStopProcess(frpsCmd)
 				return frpSetupProgressMsg{step: fmt.Sprintf("Config copy failed: %v", err), err: err}
 			}
@@ -660,14 +861,14 @@ func frpSetupCmd(alias string, direction string) tea.Cmd {
 			_ = frpcConfigPath
 
 			entry := &frpProxyEntry{
-				Alias:       alias,
-				Name:        "system:frps",
-				Direction:   direction,
-				FrpsAddr:    frpsAddr,
-				FrpsPort:    port,
-				Token:       token,
-				Active:      true,
-				LocalCmd:    frpsCmd,
+				Alias:     alias,
+				Name:      "system:frps",
+				Direction: direction,
+				FrpsAddr:  frpsAddr,
+				FrpsPort:  port,
+				Token:     token,
+				Active:    true,
+				LocalCmd:  frpsCmd,
 			}
 			trackEntry(entry)
 			_ = frpcCmd
@@ -702,7 +903,7 @@ webServer.port = %d
 `, port, token, adminPort)
 
 			if err := frpCopyToRemote(alias, []byte(frpsConfig),
-				filepath.Join(remoteCfgDir, fmt.Sprintf("frps_%s.toml", alias)), "644"); err != nil {
+				filepath.Join(remoteCfgDir, fmt.Sprintf("frps_%s.toml", alias)), "600"); err != nil {
 				return frpSetupProgressMsg{step: fmt.Sprintf("Config copy failed: %v", err), err: err}
 			}
 
@@ -737,19 +938,12 @@ func frpAddProxyCmd(alias string, entry *frpProxyEntry) tea.Cmd {
 				return frpStartResultMsg{entry: entry, err: fmt.Errorf("read remote config: %v", err)}
 			}
 			// append new proxy
-			proxyBlock := fmt.Sprintf(`
-[[proxies]]
-name = "%s"
-type = "tcp"
-localIP = "127.0.0.1"
-localPort = %d
-remotePort = %d
-`, entry.Name, entry.ServicePort, entry.ExposedPort)
+			proxyBlock := frpcProxyBlock(entry)
 
 			newConfig := existingOutput + proxyBlock
 			// write back
 			if err := frpCopyToRemote(alias, []byte(newConfig),
-				fmt.Sprintf("%s/frpc_%s.toml", remoteDir, alias), "644"); err != nil {
+				fmt.Sprintf("%s/frpc_%s.toml", remoteDir, alias), "600"); err != nil {
 				return frpStartResultMsg{entry: entry, err: fmt.Errorf("write config: %v", err)}
 			}
 			// reload frpc
@@ -782,14 +976,7 @@ remotePort = %d
 			if err != nil {
 				return frpStartResultMsg{entry: entry, err: fmt.Errorf("read config: %v", err)}
 			}
-			proxyBlock := fmt.Sprintf(`
-[[proxies]]
-name = "%s"
-type = "tcp"
-localIP = "127.0.0.1"
-localPort = %d
-remotePort = %d
-`, entry.Name, entry.ServicePort, entry.ExposedPort)
+			proxyBlock := frpcProxyBlock(entry)
 			newConfig := string(existingData) + proxyBlock
 			if err := os.WriteFile(frpcConfigPath, []byte(newConfig), 0600); err != nil {
 				return frpStartResultMsg{entry: entry, err: fmt.Errorf("write config: %v", err)}
@@ -853,7 +1040,7 @@ func frpStopProxyCmd(alias string, entry *frpProxyEntry) tea.Cmd {
 				if removed {
 					newConfig := strings.Join(newLines, "\n")
 					_ = frpCopyToRemote(alias, []byte(newConfig),
-						fmt.Sprintf("%s/frpc_%s.toml", remoteDir, alias), "644")
+						fmt.Sprintf("%s/frpc_%s.toml", remoteDir, alias), "600")
 					// reload
 					_, _ = frpExecRemote(alias,
 						fmt.Sprintf("%s/frpc reload -c %s/frpc_%s.toml 2>/dev/null || true",
@@ -917,6 +1104,7 @@ func frpStopProxyCmd(alias string, entry *frpProxyEntry) tea.Cmd {
 func initFrpState() frpProxyState {
 	return frpProxyState{
 		configPath: frpDefaultPath(),
+		proxyType:  "tcp",
 	}
 }
 
@@ -1110,6 +1298,7 @@ func (m *hostModel) handleFrpScanResults(msg tea.KeyPressMsg) (tea.Model, tea.Cm
 		m.frp.cursor = 0
 		m.frp.proxyName = fmt.Sprintf("proxy-%d", port)
 		m.frp.exposedPort = ""
+		m.frp.proxyType = "tcp"
 		m.frp.setupStep = fmt.Sprintf("%d", port)
 	case "esc":
 		m.frp.view = "list"
@@ -1168,6 +1357,7 @@ func (m *hostModel) handleFrpManualSetup(msg tea.KeyPressMsg) (tea.Model, tea.Cm
 			Alias:       m.frp.alias,
 			Name:        m.frp.proxyName,
 			Direction:   m.frp.direction,
+			Type:        normalizeFRPProxyType(m.frp.proxyType),
 			FrpsAddr:    m.frp.frpsAddr,
 			FrpsPort:    m.frp.frpsPort,
 			Token:       m.frp.token,
@@ -1177,6 +1367,8 @@ func (m *hostModel) handleFrpManualSetup(msg tea.KeyPressMsg) (tea.Model, tea.Cm
 		m.frp.view = "setup"
 		m.frp.setupStep = "Starting proxy..."
 		return m, frpAddProxyCmd(m.frp.alias, entry)
+	case "ctrl+t":
+		m.frp.proxyType = nextFRPProxyType(m.frp.proxyType)
 	case "esc":
 		m.frp.view = "menu"
 	case "backspace":
@@ -1269,6 +1461,7 @@ func (m *hostModel) handleFrpConfirm(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			Alias:       m.frp.alias,
 			Name:        m.frp.proxyName,
 			Direction:   m.frp.direction,
+			Type:        normalizeFRPProxyType(m.frp.proxyType),
 			FrpsAddr:    m.frp.frpsAddr,
 			FrpsPort:    m.frp.frpsPort,
 			Token:       m.frp.token,
@@ -1278,6 +1471,8 @@ func (m *hostModel) handleFrpConfirm(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		m.frp.view = "setup"
 		m.frp.setupStep = "Starting proxy..."
 		return m, frpAddProxyCmd(m.frp.alias, entry)
+	case "left", "right":
+		m.frp.proxyType = nextFRPProxyType(m.frp.proxyType)
 	case "esc":
 		m.frp.view = "scan_results"
 	case "backspace":
@@ -1463,7 +1658,7 @@ func (m *hostModel) renderFrpDirection(b *strings.Builder, maxLines int) {
 		if i == m.frp.cursor {
 			b.WriteString(m.bgLine(m.activeStyle.Render("▐█ "+item)) + "\n")
 		} else {
-			b.WriteString(m.bgLine("   " + item) + "\n")
+			b.WriteString(m.bgLine("   "+item) + "\n")
 		}
 	}
 	b.WriteString(m.bgLine("") + "\n")
@@ -1598,7 +1793,7 @@ func (m *hostModel) renderFrpManualSetup(b *strings.Builder, maxLines int) {
 	if m.frp.cursor == 0 {
 		b.WriteString(m.bgLine(m.activeStyle.Render("▐█ "+svcLabel+"▌")) + "\n")
 	} else {
-		b.WriteString(m.bgLine("   " + svcLabel) + "\n")
+		b.WriteString(m.bgLine("   "+svcLabel) + "\n")
 	}
 
 	// Proxy name
@@ -1606,20 +1801,24 @@ func (m *hostModel) renderFrpManualSetup(b *strings.Builder, maxLines int) {
 	if m.frp.cursor == 1 {
 		b.WriteString(m.bgLine(m.activeStyle.Render("▐█ "+nameLabel+"▌")) + "\n")
 	} else {
-		b.WriteString(m.bgLine("   " + nameLabel) + "\n")
+		b.WriteString(m.bgLine("   "+nameLabel) + "\n")
 	}
+
+	// Proxy type
+	typeLabel := fmt.Sprintf("  Type: %s  (Ctrl+T)", normalizeFRPProxyType(m.frp.proxyType))
+	b.WriteString(m.bgLine("   "+typeLabel) + "\n")
 
 	// Exposed port
 	expLabel := fmt.Sprintf("  Exposed port: %s", m.frp.exposedPort)
 	if m.frp.cursor == 2 {
 		b.WriteString(m.bgLine(m.activeStyle.Render("▐█ "+expLabel+"▌")) + "\n")
 	} else {
-		b.WriteString(m.bgLine("   " + expLabel) + "\n")
+		b.WriteString(m.bgLine("   "+expLabel) + "\n")
 	}
 
 	b.WriteString(m.bgLine("") + "\n")
-	b.WriteString(m.bgLine(m.helpStyle.Render("  Tab/↑↓ Switch field  Enter confirm  Esc back")) + "\n")
-	for i := 8; i < maxLines; i++ {
+	b.WriteString(m.bgLine(m.helpStyle.Render("  Tab/↑↓ Switch field  Ctrl+T Type  Enter confirm  Esc back")) + "\n")
+	for i := 9; i < maxLines; i++ {
 		b.WriteString(m.bgLine("") + "\n")
 	}
 }
@@ -1639,24 +1838,32 @@ func (m *hostModel) renderFrpConfirm(b *strings.Builder, maxLines int) {
 	if m.frp.cursor == 0 {
 		b.WriteString(m.bgLine(m.activeStyle.Render("▐█ "+nameLabel+"▌")) + "\n")
 	} else {
-		b.WriteString(m.bgLine("   " + nameLabel) + "\n")
+		b.WriteString(m.bgLine("   "+nameLabel) + "\n")
+	}
+
+	// Proxy type
+	typeLabel := fmt.Sprintf("  Type: %s  (←/→)", normalizeFRPProxyType(m.frp.proxyType))
+	if m.frp.cursor == 1 {
+		b.WriteString(m.bgLine(m.activeStyle.Render("▐█ "+typeLabel+"▌")) + "\n")
+	} else {
+		b.WriteString(m.bgLine("   "+typeLabel) + "\n")
 	}
 
 	// Service port (read-only)
 	svcLabel := fmt.Sprintf("  Service port: %s", servicePort)
-	b.WriteString(m.bgLine("   " + svcLabel) + "\n")
+	b.WriteString(m.bgLine("   "+svcLabel) + "\n")
 
 	// Exposed port
 	expLabel := fmt.Sprintf("  Exposed port: %s", m.frp.exposedPort)
 	if m.frp.cursor == 2 {
 		b.WriteString(m.bgLine(m.activeStyle.Render("▐█ "+expLabel+"▌")) + "\n")
 	} else {
-		b.WriteString(m.bgLine("   " + expLabel) + "\n")
+		b.WriteString(m.bgLine("   "+expLabel) + "\n")
 	}
 
 	b.WriteString(m.bgLine("") + "\n")
-	b.WriteString(m.bgLine(m.helpStyle.Render("  Tab/↑↓ Switch field  Enter confirm  Esc back")) + "\n")
-	for i := 6; i < maxLines; i++ {
+	b.WriteString(m.bgLine(m.helpStyle.Render("  Tab/↑↓ Switch field  ←/→ Type  Enter confirm  Esc back")) + "\n")
+	for i := 7; i < maxLines; i++ {
 		b.WriteString(m.bgLine("") + "\n")
 	}
 }
@@ -1679,8 +1886,8 @@ func (m *hostModel) renderFrpList(b *strings.Builder, maxLines int) {
 		if e.Direction == "l2r" {
 			direction = "L2R"
 		}
-		line := fmt.Sprintf("  · [%s] %s → %s:%d (service :%d)",
-			direction, e.Name, e.FrpsAddr, e.ExposedPort, e.ServicePort)
+		line := fmt.Sprintf("  · [%s/%s] %s → %s:%d (service :%d)",
+			direction, normalizeFRPProxyType(e.Type), e.Name, e.FrpsAddr, e.ExposedPort, e.ServicePort)
 		if e.Active {
 			line += " [ACTIVE]"
 		}

@@ -1,6 +1,7 @@
 package tssh
 
 import (
+	"bytes"
 	"errors"
 	"os"
 	"os/exec"
@@ -172,5 +173,186 @@ func TestEnsurePrivateDir(t *testing.T) {
 	}
 	if info.Mode().Perm() != 0o700 {
 		t.Fatalf("mode = %o, want 700", info.Mode().Perm())
+	}
+}
+
+func TestFRPTokenSealRoundTrip(t *testing.T) {
+	key := bytes.Repeat([]byte{0x42}, frpKeySize)
+	sealed, err := sealFRPTokenWithKey(key, "super-secret-token")
+	if err != nil {
+		t.Fatalf("seal: %v", err)
+	}
+	if strings.Contains(sealed, "super-secret-token") {
+		t.Fatal("ciphertext contains the plaintext token")
+	}
+	opened, err := openFRPTokenWithKey(key, sealed)
+	if err != nil {
+		t.Fatalf("open: %v", err)
+	}
+	if opened != "super-secret-token" {
+		t.Fatalf("opened = %q", opened)
+	}
+
+	wrongKey := bytes.Repeat([]byte{0x24}, frpKeySize)
+	if _, err := openFRPTokenWithKey(wrongKey, sealed); err == nil {
+		t.Fatal("wrong key must fail")
+	}
+}
+
+func TestFRPSaveLoadEncryptsToken(t *testing.T) {
+	originalKeyPath := frpKeyPath
+	keyPath := filepath.Join(t.TempDir(), "frp.key")
+	frpKeyPath = func() string { return keyPath }
+	t.Cleanup(func() { frpKeyPath = originalKeyPath })
+
+	path := filepath.Join(t.TempDir(), "frp.json")
+	entry := &frpProxyEntry{
+		Alias:       "a",
+		Name:        "proxy",
+		ServicePort: 80,
+		ExposedPort: 8080,
+		Token:       "super-secret-token",
+	}
+	if err := frpSaveConfig([]*frpProxyEntry{entry}, path); err != nil {
+		t.Fatalf("frpSaveConfig: %v", err)
+	}
+
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(data), "super-secret-token") {
+		t.Fatalf("token persisted in plaintext: %s", data)
+	}
+	if !strings.Contains(string(data), "token_enc") {
+		t.Fatalf("token_enc missing: %s", data)
+	}
+
+	loaded, err := frpLoadConfig(path, "a")
+	if err != nil {
+		t.Fatalf("frpLoadConfig: %v", err)
+	}
+	if len(loaded) != 1 || loaded[0].Token != "super-secret-token" {
+		t.Fatalf("loaded = %+v", loaded)
+	}
+	if loaded[0].LegacyToken != "" {
+		t.Fatalf("legacy token not cleared: %+v", loaded[0])
+	}
+
+	if info, err := os.Stat(keyPath); err != nil {
+		t.Fatal(err)
+	} else if info.Mode().Perm() != 0o600 {
+		t.Fatalf("key mode = %o, want 600", info.Mode().Perm())
+	}
+	if info, err := os.Stat(path); err != nil {
+		t.Fatal(err)
+	} else if info.Mode().Perm() != 0o600 {
+		t.Fatalf("config mode = %o, want 600", info.Mode().Perm())
+	}
+}
+
+func TestFRPLoadMigratesLegacyPlaintextToken(t *testing.T) {
+	originalKeyPath := frpKeyPath
+	frpKeyPath = func() string { return filepath.Join(t.TempDir(), "frp.key") }
+	t.Cleanup(func() { frpKeyPath = originalKeyPath })
+
+	path := filepath.Join(t.TempDir(), "frp.json")
+	legacy := `[{"alias":"a","name":"proxy","token":"legacy-secret","service_port":80,"exposed_port":8080}]`
+	if err := os.WriteFile(path, []byte(legacy), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	loaded, err := frpLoadConfig(path, "a")
+	if err != nil {
+		t.Fatalf("frpLoadConfig: %v", err)
+	}
+	if len(loaded) != 1 || loaded[0].Token != "legacy-secret" {
+		t.Fatalf("loaded = %+v", loaded)
+	}
+	if loaded[0].LegacyToken != "" {
+		t.Fatalf("legacy token not cleared after hydration: %+v", loaded[0])
+	}
+
+	if err := frpSaveConfig(loaded, path); err != nil {
+		t.Fatalf("frpSaveConfig: %v", err)
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(data), "legacy-secret") {
+		t.Fatalf("legacy token persisted in plaintext: %s", data)
+	}
+	if !strings.Contains(string(data), "token_enc") {
+		t.Fatalf("token_enc missing after migration: %s", data)
+	}
+}
+
+func TestFRPTokenSealFailsOnRNGError(t *testing.T) {
+	original := cryptoRandRead
+	t.Cleanup(func() { cryptoRandRead = original })
+	cryptoRandRead = func([]byte) (int, error) {
+		return 0, errors.New("rng unavailable")
+	}
+
+	if _, err := sealFRPTokenWithKey(bytes.Repeat([]byte{0x42}, frpKeySize), "token"); err == nil {
+		t.Fatal("seal must fail when the CSPRNG fails")
+	}
+}
+
+func TestNormalizeFRPProxyType(t *testing.T) {
+	cases := map[string]string{
+		"":      "tcp",
+		"tcp":   "tcp",
+		"TCP":   "tcp",
+		" udp ": "udp",
+		"stcp":  "stcp",
+		"xtcp":  "xtcp",
+		"http":  "tcp",
+	}
+	for input, want := range cases {
+		if got := normalizeFRPProxyType(input); got != want {
+			t.Errorf("normalizeFRPProxyType(%q) = %q, want %q", input, got, want)
+		}
+	}
+	if nextFRPProxyType("tcp") != "udp" || nextFRPProxyType("udp") != "stcp" ||
+		nextFRPProxyType("stcp") != "xtcp" || nextFRPProxyType("xtcp") != "tcp" {
+		t.Fatal("proxy type cycle is incorrect")
+	}
+}
+
+func TestFRPCProxyBlockTypes(t *testing.T) {
+	entry := &frpProxyEntry{
+		Name:        "proxy",
+		ServicePort: 8080,
+		ExposedPort: 9000,
+		Token:       "secret-key",
+	}
+
+	entry.Type = "tcp"
+	block := frpcProxyBlock(entry)
+	if !strings.Contains(block, `type = "tcp"`) || !strings.Contains(block, "remotePort = 9000") {
+		t.Fatalf("tcp block = %s", block)
+	}
+	if strings.Contains(block, "secretKey") {
+		t.Fatalf("tcp block must not use secretKey: %s", block)
+	}
+
+	entry.Type = "udp"
+	block = frpcProxyBlock(entry)
+	if !strings.Contains(block, `type = "udp"`) || !strings.Contains(block, "remotePort = 9000") {
+		t.Fatalf("udp block = %s", block)
+	}
+
+	for _, proxyType := range []string{"stcp", "xtcp"} {
+		entry.Type = proxyType
+		block = frpcProxyBlock(entry)
+		if !strings.Contains(block, `type = "`+proxyType+`"`) ||
+			!strings.Contains(block, `secretKey = "secret-key"`) {
+			t.Fatalf("%s block = %s", proxyType, block)
+		}
+		if strings.Contains(block, "remotePort") {
+			t.Fatalf("%s block must not use remotePort: %s", proxyType, block)
+		}
 	}
 }

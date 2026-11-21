@@ -87,11 +87,16 @@ make install                   # copies ./bin/tssh to /usr/bin/tssh
   `./bin/trssd --ssh-config ~/.ssh/config`
 - H-01 is resolved (`generateToken` fails closed; see `tssh/frp_proxy_test.go`).
 - H-02 is resolved (`ensurePrivateDir` forces FRP config/log dirs to `0700`).
+- H-03 is mitigated: FRP tokens are AES-GCM encrypted at rest with a local
+  `~/.tssh/frp.key` (`0600`); remote TOML files are copied with `0600`.
+- H-04 is partial: tcp/udp/stcp/xtcp proxy types are supported by config/UI;
+  version detection and a dedicated STCP secret remain open.
 - H-05 is resolved (remote FRP copy uses quoted `sh -c` arguments and tests).
 - Phase 0 does **not** change runtime behavior of `tssh`; the runtime changes so
-  far are the H-01 token fix, H-02 private FRP directories and H-05 remote-copy
-  quoting. Respect the status in each ADR: ADR-01, ADR-02 (prototype) and
-  ADR-03 are accepted; the rest remain open.
+  far are the H-01 token fix, H-02 private FRP directories, H-03 encrypted FRP
+  tokens, H-04 proxy types and H-05 remote-copy quoting. Respect the status in
+  each ADR: ADR-01, ADR-02 (prototype) and ADR-03 are accepted; the rest remain
+  open.
 
 ## Release
 - GoReleaser multi-platform: linux, darwin, windows, android, freebsd; 386/amd64/arm/arm64/loong64
