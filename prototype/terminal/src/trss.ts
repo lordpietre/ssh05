@@ -464,6 +464,117 @@ let frpForm: {
   remotePort: string
   bindPort: string
 } | null = null
+let actionBarFocused = false
+let actionBarCursor = 0
+let actionsMenuVisible = false
+let actionsMenuCursor = 0
+
+const actionBar = new BoxRenderable(renderer, {
+  id: "action-bar",
+  width: "100%",
+  height: 1,
+  flexDirection: "row",
+  backgroundColor: RGBA.fromInts(30, 36, 48),
+})
+
+const actionBarButtons: { node: TextRenderable; run: () => void }[] = []
+
+function addActionButton(label: string, run: () => void): void {
+  const index = actionBarButtons.length
+  const node = new TextRenderable(renderer, {
+    id: `action-${index}`,
+    content: ` ${label} `,
+    width: label.length + 2,
+    height: 1,
+    fg: RGBA.fromInts(215, 222, 235),
+    bg: RGBA.fromInts(38, 44, 58),
+    onMouseDown: () => {
+      actionBarFocused = true
+      actionBarCursor = index
+      run()
+      uiDirty()
+    },
+  })
+  actionBar.add(node)
+  actionBarButtons.push({ node, run })
+}
+
+addActionButton("Menú", () => openActionsMenu())
+addActionButton("Hosts", () => focusHosts())
+addActionButton("Nuevo", () => openNewHost())
+addActionButton("WS", () => openWorkspacePicker())
+addActionButton("Rutas", () => void probeCurrentHost())
+addActionButton("Diag", () => void diagnoseCurrentHost())
+addActionButton("Transferir", () => void openTransfers())
+addActionButton("FRP", () => void openFRP())
+addActionButton("Prefs", () => { preferencesVisible = true })
+addActionButton("Ayuda", () => { helpVisible = true })
+addActionButton("Salir", () => void quit())
+
+const actionsMenuItems: { label: string; run: () => void }[] = [
+  { label: "Ir a hosts", run: focusHosts },
+  { label: "Nuevo host", run: openNewHost },
+  { label: "Importar/recargar KeePass", run: () => void importHosts() },
+  { label: "Alternar tmux", run: () => { tmuxMode = !tmuxMode; uiDirty() } },
+  { label: "Cerrar pestaña", run: openCloseDialog },
+  { label: "Cambiar workspace", run: openWorkspacePicker },
+  { label: "Probar ruta", run: () => void probeCurrentHost() },
+  { label: "Diagnosticar host", run: () => void diagnoseCurrentHost() },
+  { label: "Escanear con Nmap", run: openNmapConfirm },
+  { label: "Información de red", run: () => void showNetworkInfo() },
+  { label: "Exportar diagnóstico saneado", run: () => void exportDiagnosticsReport() },
+  { label: "Preferencias", run: () => { preferencesVisible = true } },
+  { label: "Transferencias", run: () => void openTransfers() },
+  { label: "Subir archivo", run: () => void openTransferQuick("upload") },
+  { label: "Descargar archivo", run: () => void openTransferQuick("download") },
+  { label: "FRP", run: () => void openFRP() },
+  { label: "Favorito del host", run: () => void toggleFavorite() },
+  { label: "Color del host", run: () => void cycleHostColor() },
+  { label: "Etiquetas del host", run: openLabelsEditor },
+  { label: "Ayuda", run: () => { helpVisible = true } },
+  { label: "Salir", run: () => void quit() },
+]
+
+const actionsMenuBox = new BoxRenderable(renderer, {
+  id: "actions-menu",
+  position: "absolute",
+  top: 3,
+  left: 3,
+  width: 76,
+  height: Math.min(actionsMenuItems.length + 4, 32),
+  flexDirection: "column",
+  visible: false,
+  zIndex: 112,
+  backgroundColor: RGBA.fromInts(18, 22, 30),
+})
+
+const actionsMenuTitle = new TextRenderable(renderer, {
+  id: "actions-title",
+  content: " Acciones",
+  width: "100%",
+  height: 1,
+  fg: RGBA.fromInts(120, 190, 255),
+  bg: RGBA.fromInts(28, 33, 44),
+})
+actionsMenuBox.add(actionsMenuTitle)
+
+const actionsMenuRows: TextRenderable[] = []
+for (let index = 0; index < actionsMenuItems.length; index++) {
+  const row = new TextRenderable(renderer, {
+    id: `actions-row-${index}`,
+    content: "",
+    width: "100%",
+    height: 1,
+    onMouseDown: () => {
+      actionsMenuCursor = index
+      executeActionsMenu()
+    },
+  })
+  actionsMenuBox.add(row)
+  actionsMenuRows.push(row)
+}
+renderer.root.add(actionsMenuBox)
+root.add(actionBar, 1)
 
 const paletteCommands = [
   "Ir a hosts",
@@ -628,6 +739,8 @@ function uiDirty(): void {
   renderLabelsEditor()
   renderDiagnostics()
   renderPreferences()
+  renderActionBar()
+  renderActionsMenu()
   renderTransfers()
   renderNmapConfirm()
   renderHelp()
@@ -1340,6 +1453,33 @@ renderer.keyInput.on("keypress", (key) => {
     uiDirty()
     return
   }
+  if (name === "f6") {
+    key.stopPropagation()
+    actionBarFocused = !actionBarFocused
+    uiDirty()
+    return
+  }
+  if (actionBarFocused) {
+    key.stopPropagation()
+    if (name === "left" || name === "backtab") actionBarCursor = (actionBarCursor + actionBarButtons.length - 1) % actionBarButtons.length
+    else if (name === "right" || name === "tab") actionBarCursor = (actionBarCursor + 1) % actionBarButtons.length
+    else if (name === "escape") actionBarFocused = false
+    else if (name === "return" || name === "enter") actionBarButtons[actionBarCursor]?.run()
+    uiDirty()
+    return
+  }
+  if (hostFocused && name === "tab") {
+    key.stopPropagation()
+    actionBarFocused = true
+    actionBarCursor = 0
+    uiDirty()
+    return
+  }
+  if (actionsMenuVisible) {
+    key.stopPropagation()
+    handleActionsMenuKey(key)
+    return
+  }
   if (newHostVisible) {
     key.stopPropagation()
     void handleNewHostKey(key)
@@ -1721,6 +1861,66 @@ function handleWorkspaceKey(key: KeyEvent): void {
 }
 
 
+function renderActionBar(): void {
+  for (let index = 0; index < actionBarButtons.length; index++) {
+    const button = actionBarButtons[index]
+    const selected = actionBarFocused && index === actionBarCursor
+    button.node.fg = selected ? RGBA.fromInts(15, 18, 24) : RGBA.fromInts(215, 222, 235)
+    button.node.bg = selected ? RGBA.fromInts(120, 190, 255) : RGBA.fromInts(38, 44, 58)
+  }
+}
+
+function renderActionsMenu(): void {
+  actionsMenuBox.visible = actionsMenuVisible
+  if (!actionsMenuVisible) return
+  actionsMenuBox.height = Math.min(actionsMenuItems.length + 5, 33)
+  for (let index = 0; index < actionsMenuRows.length; index++) {
+    const selected = index === actionsMenuCursor
+    actionsMenuRows[index].content = `  ${selected ? ">" : " "} ${actionsMenuItems[index].label}`
+    actionsMenuRows[index].fg = selected ? RGBA.fromInts(15, 18, 24) : RGBA.fromInts(219, 226, 238)
+    actionsMenuRows[index].bg = selected ? RGBA.fromInts(120, 190, 255) : RGBA.fromInts(18, 22, 30)
+  }
+}
+
+function openActionsMenu(): void {
+  paletteVisible = false
+  actionBarFocused = false
+  actionsMenuVisible = true
+  actionsMenuCursor = 0
+  uiDirty()
+}
+
+function closeActionsMenu(): void {
+  actionsMenuVisible = false
+  actionBarFocused = false
+  uiDirty()
+}
+
+function executeActionsMenu(): void {
+  const item = actionsMenuItems[actionsMenuCursor]
+  actionsMenuVisible = false
+  actionBarFocused = false
+  if (item) item.run()
+  uiDirty()
+}
+
+function handleActionsMenuKey(key: KeyEvent): void {
+  const name = key.name.toLowerCase()
+  if (name === "escape") closeActionsMenu()
+  else if (name === "up") actionsMenuCursor = Math.max(0, actionsMenuCursor - 1)
+  else if (name === "down") actionsMenuCursor = Math.min(actionsMenuItems.length - 1, actionsMenuCursor + 1)
+  else if (name === "home") actionsMenuCursor = 0
+  else if (name === "end") actionsMenuCursor = actionsMenuItems.length - 1
+  else if (name === "return" || name === "enter") executeActionsMenu()
+  uiDirty()
+}
+
+async function openTransferQuick(direction: "upload" | "download"): Promise<void> {
+  transferVisible = true
+  await refreshTransfers()
+  openTransferForm(direction)
+}
+
 function renderNewHost(): void {
   if (!newHostVisible || !newHostForm) {
     newHostOverlay.visible = false
@@ -1842,7 +2042,7 @@ function renderHelp(): void {
     "  Ctrl+N nuevo host   Ctrl+G tmux          Ctrl+I KeePass       Ctrl+W cerrar",
     "  Ctrl+Tab pestaña    Ctrl+1..9 pestaña    Ctrl+Shift+←/→ mover",
     "  F2 favorito         F3 color             F4 etiquetas",
-    "  F10 salir           F1 ayuda",
+    "  F10 salir           F1 ayuda            F6 barra de acciones",
     "",
     "  En hosts: ↑↓ mover · Enter conectar · escribir busca",
     "  En FRP (Ctrl+F): n crear · d parar · x eliminar · s frps · r rotar",

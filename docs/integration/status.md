@@ -76,6 +76,7 @@
 | DAT-01 SCP/SFTP tipado | **Hecho** | `transfers.start/list/cancel`, UI y smoke real |
 | Preferencias de UI persistentes | **Hecho** | ancho, densidad, posición y reordenado |
 | Ayuda de atajos en la UI | **Hecho** | `F1` + comando en la paleta |
+| Barra de botones navegable | **Hecho** | `Menú`, acciones y ratón; `Tab`/flechas |
 | Alta de hosts desde la UI | **Hecho** | `hosts.create`, `Ctrl+N` |
 | Servicio de usuario y Docker opt-in | **Hecho** | `trssd.service`, `--docker` |
 | tmux solo se reengancha si existe | **Hecho** | `TmuxCreate=false`, sonda `has-session`, prueba real |

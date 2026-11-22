@@ -221,7 +221,8 @@ pestañas; `Ctrl+Shift+←/→` reordena la pestaña activa. Las preferencias se
 
 `F1` muestra la ayuda con todos los atajos.
 
-`Ctrl+N` en la lista de hosts abre el alta de un host (alias, HostName,
+La barra superior tiene botones navegables (`Tab`, flechas, `Enter`, ratón) y
+el botón `Menú` abre todas las acciones. `Ctrl+N` en la lista de hosts abre el alta de un host (alias, HostName,
 puerto, usuario, IdentityFile) y lo guarda en `ssh_config`; Enter guarda y
 conecta.
 

@@ -99,6 +99,12 @@ done
   "cd $(printf '%q' "$HERE") && TERM=xterm-256color TRSS_PREFERENCES=$(printf '%q' "$SOCKET_DIR/preferences.json") TRSS_SOCKET=$(printf '%q' "$SOCKET") TRSS_WORKSPACE=$(printf '%q' "$SOCKET_DIR/workspace.json") TRSS_UI_DEBUG=$(printf '%q' "$LOG") $(printf '%q' "$BUN") run src/trss.ts"
 
 assert_contains "Hosts (3)" "UI loads the real host inventory"
+assert_contains "Menú" "action bar is visible"
+send Tab
+send Enter
+assert_contains "Acciones" "actions menu opens from the button bar"
+send Escape
+sleep 0.3
 send F2
 assert_contains "★trss-ui-1" "favorite metadata is persisted"
 send F4
@@ -145,12 +151,12 @@ send C-1
 sleep 0.3
 send 'echo UI_TAB1_ALIVE; stty size' Enter
 assert_contains "UI_TAB1_ALIVE" "tab 1 accepts commands"
-assert_contains "34 90" "tab 1 PTY size is 90x34"
+assert_contains "33 90" "tab 1 PTY size is 90x33"
 
 "$TMUX" resize-window -t "$SESSION" -x 100 -y 30
 sleep 0.8
 send 'stty size' Enter
-assert_contains "28 70" "resize reaches the SSH PTY through the supervisor"
+assert_contains "27 70" "resize reaches the SSH PTY through the supervisor"
 
 send C-2
 sleep 0.3

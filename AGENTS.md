@@ -71,6 +71,10 @@ make install                   # copies ./bin/ssh05 to /usr/bin/ssh05
 - UI OpenTUI: `prototype/terminal/src/trss.ts` (`bun run ui`)
   - `Ctrl+G` activa/desactiva tmux remoto antes de abrir un host.
   - `Ctrl+P` abre el selector de workspaces; `n` crea uno nuevo.
+  - Barra de acciones visible (`Menú`, `Hosts`, `Nuevo`, `WS`, `Rutas`,
+    `Diag`, `Transferir`, `FRP`, `Prefs`, `Ayuda`, `Salir`). `Tab` la enfoca,
+    `←/→` navega, `Enter` activa, `Esc` sale; también acepta ratón.
+  - `Menú` abre la lista completa de acciones navegable y clicable.
   - `Ctrl+K` abre la paleta de comandos; incluye diagnosticar host y exportar
     un informe saneado.
   - `Ctrl+N` en la lista de hosts abre el alta de un host y lo guarda en
