@@ -34,3 +34,7 @@ agext.md
 # TRSS Phase 0 prototype dependencies
 prototype/**/node_modules/
 
+
+# Local .deb installers (published as release assets)
+installers/*.deb
+installers/*.sha256
