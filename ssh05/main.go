@@ -262,7 +262,7 @@ func execDockerExec(container, shell string) {
 	}
 }
 
-// TrzMain is the main function of ssh05 program.
+// Ssh05Main is the main function of the ssh05 program.
 func Ssh05Main(argv []string) int {
 	// parse ssh args
 	var args sshArgs
