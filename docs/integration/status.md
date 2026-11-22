@@ -3,7 +3,7 @@
 | Campo | Valor |
 |---|---|
 | Fecha | 22/11/2026 |
-| Commit base | `c0aa511` |
+| Commit base | `57a90e5` |
 | Documento | `SSH05_SDD_v0.3.md` |
 | Fase actual | **P0 + P1 cerrados**; **P2 funcional cerrado** |
 
@@ -80,7 +80,7 @@
 | Barra de botones navegable | **Hecho** | `Menú`, acciones y ratón; `Tab`/flechas |
 | Identidad ssh05 reunificada | **Hecho** | `ssh05d`, `src/ssh05.ts`, rutas `~/.config/ssh05`, `SSH05_*` con respaldo `TRSS_*` |
 | Vendor y soporte en el producto | **Hecho** | `internal/identity/`, `--version` y ayuda; `Dinámicas Electrónicas` |
-| Publicación del release 0.3.18 | **Hecho** | `v0.3.18`: `.deb` Ubuntu/Debian + checksums, binarios Linux/macOS/Windows/FreeBSD/Android, rpm y win7; `docs/releases/0.3.18.md` |
+| Publicación de releases | **Hecho** | `v0.3.18` (identidad) y `v0.3.19` (trzsz/Zmodem): `.deb`, rpm, binarios y win7 |
 | Alta de hosts desde la UI | **Hecho** | `hosts.create`, `Ctrl+N` |
 | Servicio de usuario y Docker opt-in | **Hecho** | `ssh05d.service`, `--docker` |
 | tmux solo se reengancha si existe | **Hecho** | `TmuxCreate=false`, sonda `has-session`, prueba real |
@@ -93,10 +93,9 @@
 | Prioridad | Trabajo | Criterio de cierre |
 |---|---|---|
 | — | GeoIP de ciudad | No incluido; ASN/RDAP y país orientativo ya operativos |
-| P2 | Publicar release 0.3.19 | `--trzsz`/`--zmodem`; artefactos en CI y notas en `docs/releases/0.3.19.md` |
 
-El release 0.3.18 está publicado en
-<https://github.com/lordpietre/ssh05/releases/tag/v0.3.18>.
+Releases publicados: <https://github.com/lordpietre/ssh05/releases> (`v0.3.18`
+identidad, `v0.3.19` trzsz/Zmodem).
 
 ## Invariantes que no se negocian
 
