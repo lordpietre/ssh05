@@ -478,6 +478,9 @@ func TestClosingSessionKeepsFRPTunnel(t *testing.T) {
 }
 
 func TestServiceDiagnosticsReportIsSanitized(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("test uses POSIX stubs")
+	}
 	dir := t.TempDir()
 	frpc := filepath.Join(dir, "frpc")
 	if err := os.WriteFile(frpc, []byte("#!/bin/sh\nif [ \"$1\" = \"verify\" ]; then exit 0; fi\nexec sleep 30\n"), 0o755); err != nil {
@@ -592,6 +595,9 @@ func callHostDiagnostics(t *testing.T, ctx context.Context, service *Service, ho
 }
 
 func TestServiceTransfers(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("test uses POSIX stubs")
+	}
 	dir := t.TempDir()
 	log := filepath.Join(dir, "scp.log")
 	scp := filepath.Join(dir, "scp")

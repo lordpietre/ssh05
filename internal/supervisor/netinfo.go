@@ -161,17 +161,25 @@ func selectRoute(routes []contracts.ConnectionRoute, id string) (contracts.Conne
 	return routes[len(routes)-1], true
 }
 
-func lookupASN(ctx context.Context, ip net.IP) contracts.ASNInfo {
-	query := ""
+func asnQuery(ip net.IP) string {
 	if v4 := ip.To4(); v4 != nil {
-		query = fmt.Sprintf("%d.%d.%d.%d.origin.asn.cymru.com", v4[3], v4[2], v4[1], v4[0])
-	} else {
-		hex := strings.ReplaceAll(strings.ToLower(ip.String()), ":", "")
-		parts := make([]string, 0, len(hex))
-		for index := len(hex) - 1; index >= 0; index-- {
-			parts = append(parts, string(hex[index]))
-		}
-		query = strings.Join(parts, ".") + ".origin6.asn.cymru.com"
+		return fmt.Sprintf("%d.%d.%d.%d.origin.asn.cymru.com", v4[3], v4[2], v4[1], v4[0])
+	}
+	v6 := ip.To16()
+	if v6 == nil {
+		return ""
+	}
+	parts := make([]string, 0, 32)
+	for index := len(v6) - 1; index >= 0; index-- {
+		parts = append(parts, fmt.Sprintf("%x", v6[index]&0x0f), fmt.Sprintf("%x", v6[index]>>4))
+	}
+	return strings.Join(parts, ".") + ".origin6.asn.cymru.com"
+}
+
+func lookupASN(ctx context.Context, ip net.IP) contracts.ASNInfo {
+	query := asnQuery(ip)
+	if query == "" {
+		return contracts.ASNInfo{Error: "unparseable IP"}
 	}
 	lookupCtx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()

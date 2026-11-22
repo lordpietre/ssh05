@@ -1,8 +1,11 @@
+//go:build !windows
+
 package supervisor
 
 import (
 	"context"
 	"encoding/json"
+	"net"
 	"os"
 	"path/filepath"
 	"strings"
@@ -15,6 +18,18 @@ func TestParseASNRecord(t *testing.T) {
 	info := parseASNRecord(`"13335 | 104.16.0.0/13 | US | arin | 2014-03-28"`)
 	if info.ASN != "13335" || info.Prefix != "104.16.0.0/13" || info.Country != "US" || info.Registry != "arin" {
 		t.Fatalf("info = %+v", info)
+	}
+}
+
+func TestASNQueryIPv6(t *testing.T) {
+	query := asnQuery(net.ParseIP("2001:db8::1"))
+	prefix := strings.TrimSuffix(query, ".origin6.asn.cymru.com")
+	parts := strings.Split(prefix, ".")
+	if len(parts) != 32 || parts[0] != "1" || parts[1] != "0" {
+		t.Fatalf("query = %q", query)
+	}
+	if got := asnQuery(net.ParseIP("1.2.3.4")); got != "4.3.2.1.origin.asn.cymru.com" {
+		t.Fatalf("ipv4 query = %q", got)
 	}
 }
 

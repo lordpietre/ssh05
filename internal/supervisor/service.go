@@ -248,6 +248,10 @@ func (s *Service) transferTarget(ctx context.Context, hostProfileID, routeID str
 	}
 	if host, port, err := net.SplitHostPort(rest); err == nil {
 		if number, convErr := strconv.Atoi(port); convErr == nil {
+			host = strings.Trim(host, "[]")
+			if strings.Contains(host, ":") {
+				host = "[" + host + "]"
+			}
 			return user + host, number
 		}
 	}
