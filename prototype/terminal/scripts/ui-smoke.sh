@@ -114,6 +114,11 @@ assert_contains "Preferencias" "preferences command listed"
 assert_contains "Transferencias" "transfers command listed"
 assert_contains "Escanear con Nmap" "nmap command listed"
 assert_contains "Información de red" "network info command listed"
+assert_contains "Ayuda" "help command listed"
+send Escape
+sleep 0.3
+send F1
+assert_contains "Ayuda · atajos" "help overlay opens"
 send Escape
 sleep 0.3
 send C-f

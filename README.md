@@ -195,6 +195,8 @@ La paleta «Preferencias» ajusta ancho del panel, densidad y posición de las
 pestañas; `Ctrl+Shift+←/→` reordena la pestaña activa. Las preferencias se guardan en
 `~/.config/trss/preferences.json` (`TRSS_PREFERENCES`).
 
+`F1` muestra la ayuda con todos los atajos.
+
 Desde la lista de hosts, `F2` marca favorito, `F3` cicla el color y `F4` edita
 etiquetas. Los cambios se guardan en `~/.config/trss/hosts.json` sin tocar
 `~/.ssh/config` (`TRSS_HOST_OVERRIDES` permite otra ruta).

@@ -72,6 +72,7 @@ make install                   # copies ./bin/tssh to /usr/bin/tssh
     un informe saneado.
   - `--workspace <nombre>` o `TRSS_WORKSPACE_NAME`; `TRSS_WORKSPACE_DIR`.
   - `Ctrl+I` importa/recarga KeePass si `trssd` tiene KDBX configurado.
+  `F1` ayuda con todos los atajos.
   `F2` favorito, `F3` color, `F4` etiquetas; overrides en
   `~/.config/trss/hosts.json` (`TRSS_HOST_OVERRIDES`).
   Atajos configurables (incl. `favorite`, `color`, `labels`) en

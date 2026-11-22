@@ -335,6 +335,22 @@ const nmapOverlay = new TextRenderable(renderer, {
 
 renderer.root.add(nmapOverlay)
 
+const helpOverlay = new TextRenderable(renderer, {
+  id: "help-overlay",
+  position: "absolute",
+  top: 0,
+  left: 0,
+  width: "100%",
+  height: "100%",
+  visible: false,
+  zIndex: 109,
+  content: "",
+  fg: RGBA.fromInts(219, 226, 238),
+  bg: RGBA.fromInts(16, 19, 26),
+})
+
+renderer.root.add(helpOverlay)
+
 const pendingPlaceholder = new TextRenderable(renderer, {
   id: "pending-view",
   position: "absolute",
@@ -387,6 +403,7 @@ let paletteVisible = false
 let paletteCursor = 0
 let closeDialogVisible = false
 let closeDialogCursor = 0
+let helpVisible = false
 let nmapConfirmVisible = false
 let nmapPorts = "22,80,443"
 let transferVisible = false
@@ -438,6 +455,7 @@ const paletteCommands = [
   "Transferencias",
   "FRP",
   "Salir de TRSS",
+  "Ayuda",
 ]
 
 function truncate(value: string, max: number): string {
@@ -583,6 +601,7 @@ function uiDirty(): void {
   renderPreferences()
   renderTransfers()
   renderNmapConfirm()
+  renderHelp()
   renderer.requestRender()
 }
 
@@ -732,6 +751,9 @@ function executePalette(index: number): void {
       break
     case 13:
       void quit()
+      break
+    case 14:
+      helpVisible = true
       break
   }
 }
@@ -1273,6 +1295,18 @@ function handleHostKey(key: KeyEvent): void {
 
 renderer.keyInput.on("keypress", (key) => {
   const name = key.name.toLowerCase()
+  if (name === "f1") {
+    key.stopPropagation()
+    helpVisible = !helpVisible
+    uiDirty()
+    return
+  }
+  if (helpVisible) {
+    key.stopPropagation()
+    if (name === "escape" || name === "return" || name === "enter") helpVisible = false
+    uiDirty()
+    return
+  }
   if (nmapConfirmVisible) {
     key.stopPropagation()
     if (name === "escape") {
@@ -1643,6 +1677,31 @@ function handleWorkspaceKey(key: KeyEvent): void {
   uiDirty()
 }
 
+
+function renderHelp(): void {
+  if (!helpVisible) {
+    helpOverlay.visible = false
+    return
+  }
+  helpOverlay.visible = true
+  helpOverlay.content = [
+    "",
+    "  Ayuda · atajos",
+    "",
+    "  Ctrl+T hosts        Ctrl+K paleta        Ctrl+P workspaces",
+    "  Ctrl+G tmux         Ctrl+I KeePass       Ctrl+W cerrar pestaña",
+    "  Ctrl+Tab pestaña    Ctrl+1..9 pestaña    Ctrl+Shift+←/→ mover",
+    "  F2 favorito         F3 color             F4 etiquetas",
+    "  F10 salir           F1 ayuda",
+    "",
+    "  En hosts: ↑↓ mover · Enter conectar · escribir busca",
+    "  En FRP (Ctrl+F): n crear · d parar · x eliminar · s frps · r rotar",
+    "  En transferencias: u subir · d descargar · c cancelar",
+    "  En Nmap: Enter confirma el escaneo · Esc cancela",
+    "",
+    "  Esc/Enter cerrar",
+  ].join("\n")
+}
 
 function renderNmapConfirm(): void {
   if (!nmapConfirmVisible) {
