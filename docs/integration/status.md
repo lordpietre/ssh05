@@ -3,7 +3,7 @@
 | Campo | Valor |
 |---|---|
 | Fecha | 22/11/2026 |
-| Commit base | `57a90e5` |
+| Commit base | `c166d58` |
 | Documento | `SSH05_SDD_v0.3.md` |
 | Fase actual | **P0 + P1 cerrados**; **P2 funcional cerrado** |
 
@@ -80,7 +80,7 @@
 | Barra de botones navegable | **Hecho** | `Menú`, acciones y ratón; `Tab`/flechas |
 | Identidad ssh05 reunificada | **Hecho** | `ssh05d`, `src/ssh05.ts`, rutas `~/.config/ssh05`, `SSH05_*` con respaldo `TRSS_*` |
 | Vendor y soporte en el producto | **Hecho** | `internal/identity/`, `--version` y ayuda; `Dinámicas Electrónicas` |
-| Publicación de releases | **Hecho** | `v0.3.18` (identidad) y `v0.3.19` (trzsz/Zmodem): `.deb`, rpm, binarios y win7 |
+| Publicación de releases | **Hecho** | `v0.3.18`, `v0.3.19` y `v0.3.20`: `.deb`, rpm, binarios y win7 |
 | Paquete autosuficiente | **Hecho** | `.deb` con `ssh05`, `ssh05d`, `ssh05-ui`, Bun y dependencias de producción |
 | Supervisor por defecto | **Hecho** | `default.target.wants` global + arranque bajo demanda desde `ssh05-ui` |
 | Alta de hosts desde la UI | **Hecho** | `hosts.create`, `Ctrl+N` |
@@ -95,10 +95,9 @@
 | Prioridad | Trabajo | Criterio de cierre |
 |---|---|---|
 | — | GeoIP de ciudad | No incluido; ASN/RDAP y país orientativo ya operativos |
-| P2 | Publicar release 0.3.20 | `.deb` con UI y supervisor habilitado; notas en `docs/releases/0.3.20.md` |
 
 Releases publicados: <https://github.com/lordpietre/ssh05/releases> (`v0.3.18`
-identidad, `v0.3.19` trzsz/Zmodem).
+identidad, `v0.3.19` trzsz/Zmodem, `v0.3.20` paquete autosuficiente).
 
 ## Invariantes que no se negocian
 
