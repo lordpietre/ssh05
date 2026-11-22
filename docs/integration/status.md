@@ -65,7 +65,7 @@
 | Recuperación tras caída de UI (`sessions.list`/`attach`) | **Hecho** | reengancha sesiones vivas sin duplicar |
 | Aceptación Fase 1 P0 | **Aprobada** | `docs/phase-1/acceptance.md`, `make phase1-smoke` |
 | Aceptación P1 completa | **Aprobada** | `docs/phase-1/p1-acceptance.md`, `make p1-smoke` |
-| Revisión funcional completa P0/P1/P2 | **Aprobada con límites** | `docs/audit/functional-review-0.3.13.md` |
+| Revisión funcional completa P0/P1/P2 | **Aprobada con límites** | `docs/audit/functional-review-0.3.14.md` |
 | SshLogin concurrente con la misma config | **Hecho** | `acquireConfigRead`, `TestSshLoginConcurrent` |
 | Informe de diagnóstico saneado | **Hecho** | `diagnostics.report`, `src/diagnostics/export.ts` |
 | Retención de auditoría y buffers | **Hecho** | `--audit-max-files`, `--max-pending-bytes` |

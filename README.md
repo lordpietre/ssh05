@@ -1,4 +1,4 @@
-## ssh05 — fork de trzsz-ssh v0.3.13
+## ssh05 — fork de trzsz-ssh v0.3.14
 
 Cliente SSH con interfaz TUI ncurses, reemplazo directo de OpenSSH. Fork de [trzsz-ssh](https://github.com/trzsz/trzsz-ssh) con gestión visual de hosts, túneles y edición inline.
 

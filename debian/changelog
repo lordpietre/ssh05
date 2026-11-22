@@ -1,3 +1,9 @@
+ssh05 (0.3.14) unstable; urgency=medium
+
+  * Revisión funcional completa y paquete con ssh05 + trssd.
+
+ -- lordpietre <pietrelinux@gmail.com>  Sun, 22 Nov 2026 18:00:00 +0000
+
 ssh05 (0.3.13) unstable; urgency=medium
 
   * ssh05 v0.3.13, fork of trzsz-ssh.
