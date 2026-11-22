@@ -57,6 +57,9 @@ func main() {
 	sftpBin := flag.String("sftp", "sftp", "sftp binary for file transfers")
 	nmapBin := flag.String("nmap", "nmap", "opt-in nmap binary for diagnostics")
 	dockerHosts := flag.Bool("docker", false, "include Docker containers as hosts")
+	trzszEnabled := flag.Bool("trzsz", true, "enable trz/tsz transfers inside sessions")
+	zmodemEnabled := flag.Bool("zmodem", false, "enable rz/sz transfers inside sessions")
+	downloadPath := flag.String("download-path", identity.DownloadDir(), "default folder for trzsz/zmodem downloads (empty: desktop picker)")
 	flag.Parse()
 
 	if *version {
@@ -76,7 +79,13 @@ func main() {
 	}
 
 	backend := supervisor.NewBackend(
-		&supervisor.SSHRunner{Config: supervisor.SSHConfig{ConfigPath: *sshConfig, Terminal: *terminal}},
+		&supervisor.SSHRunner{Config: supervisor.SSHConfig{
+			ConfigPath:   *sshConfig,
+			Terminal:     *terminal,
+			Trzsz:        *trzszEnabled,
+			Zmodem:       *zmodemEnabled,
+			DownloadPath: *downloadPath,
+		}},
 		supervisor.Options{
 			MaxSessions:   *maxSessions,
 			MaxPending:    *maxPending,

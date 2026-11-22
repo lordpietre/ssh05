@@ -28,7 +28,7 @@ else
 	GO_TEST := ${shell basename `which gotest 2>/dev/null` 2>/dev/null || echo go test}
 endif
 
-.PHONY: all clean test install download-frp phase0 bench contracts-check ui-check ui-smoke ssh05d trssd frp-smoke ssh05d-frp-smoke trssd-frp-smoke hostkey-smoke phase1-smoke p1-smoke verify deb
+.PHONY: all clean test install download-frp phase0 bench contracts-check ui-check ui-smoke ssh05d trssd frp-smoke ssh05d-frp-smoke trssd-frp-smoke hostkey-smoke trzsz-smoke phase1-smoke p1-smoke verify deb
 
 # Check if frp source is available (may not exist on clone since /frp/ is gitignored)
 ifneq ("$(wildcard $(FRP_DIR)/go.mod)","")
@@ -111,7 +111,10 @@ trssd-frp-smoke: ssh05d-frp-smoke
 
 p1-smoke: hostkey-smoke ui-smoke ssh05d-frp-smoke
 
-verify: test contracts-check p1-smoke
+trzsz-smoke:
+	./scripts/trzsz-smoke.sh
+
+verify: test contracts-check p1-smoke trzsz-smoke
 
 deb:
 	./scripts/build-deb.sh ubuntu amd64

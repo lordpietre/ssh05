@@ -20,7 +20,7 @@ const (
 	// Supervisor is the name of the local supervisor daemon.
 	Supervisor = "ssh05d"
 	// Version is the client and supervisor version.
-	Version = "0.3.18"
+	Version = "0.3.19"
 	// Vendor owns this distribution.
 	Vendor = "Dinámicas Electrónicas"
 	// SupportEmail is the public support contact.
@@ -73,6 +73,21 @@ func LegacyDir(env map[string]string, key, fallback string) string {
 		home, _ = os.UserHomeDir()
 	}
 	return filepath.Join(home, fallback, LegacyName)
+}
+
+// DownloadDir returns the user's existing Downloads folder, or an empty
+// string when it does not exist. It is used as the default destination for
+// trzsz/zmodem downloads without creating directories.
+func DownloadDir() string {
+	home, err := os.UserHomeDir()
+	if err != nil || home == "" {
+		return ""
+	}
+	dir := filepath.Join(home, "Downloads")
+	if info, statErr := os.Stat(dir); statErr == nil && info.IsDir() {
+		return dir
+	}
+	return ""
 }
 
 // RuntimeDir returns a private per-user runtime directory for the control

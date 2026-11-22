@@ -1,4 +1,4 @@
-## ssh05 — fork de trzsz-ssh v0.3.18
+## ssh05 — fork de trzsz-ssh v0.3.19
 
 Cliente SSH con interfaz TUI ncurses, reemplazo directo de OpenSSH. Fork de [trzsz-ssh](https://github.com/trzsz/trzsz-ssh) con gestión visual de hosts, túneles y edición inline.
 
@@ -207,9 +207,9 @@ Línea base de rendimiento: `make bench` (ver `docs/performance.md`).
 El supervisor permite acotar `--max-sessions` y `--max-pending-bytes`, y la
 auditoría retiene `--audit-max-files` archivos rotados.
 
-El SDD 0.2 queda cubierto en P0, P1 y P2 funcional: sesiones, inventario,
-KeePass, FRP, rutas, diagnóstico, transferencias SCP/SFTP, workspaces y
-preferencias. Solo trzsz/Zmodem queda condicionado a compatibilidad remota.
+El SDD queda cubierto en P0, P1 y P2 funcional: sesiones, inventario,
+KeePass, FRP, rutas, diagnóstico, transferencias SCP/SFTP, trzsz/Zmodem en
+sesiones, workspaces y preferencias.
 
 La paleta incluye «Escanear con Nmap» (optativo, con confirmación y solo en
 hosts del inventario) e «Información de red» (ASN por Team Cymru, RDAP y país
@@ -218,8 +218,13 @@ locales no se envían a registros públicos.
 
 La paleta «Transferencias» permite subir/descargar con SCP o SFTP usando el
 mismo `ssh_config` y agente que las sesiones. Requiere autenticación no
-interactiva (`BatchMode`); no se ejecuta ninguna shell. Trzsz/Zmodem queda
-pendiente de compatibilidad remota.
+interactiva (`BatchMode`); no se ejecuta ninguna shell.
+
+Dentro de una sesión, `ssh05d` activa por defecto el filtro trzsz (`trz`/`tsz`)
+y permite Zmodem con `--zmodem` (`rz`/`sz`). Las descargas usan
+`--download-path` o `~/Downloads` si existe; si no, abren el selector del
+escritorio. El extremo remoto necesita las herramientas correspondientes
+(`tsz`/`trz` o `lrzsz`); `--trzsz=false` desactiva el filtro.
 
 La paleta «Preferencias» ajusta ancho del panel, densidad y posición de las
 pestañas; `Ctrl+Shift+←/→` reordena la pestaña activa. Las preferencias se guardan en

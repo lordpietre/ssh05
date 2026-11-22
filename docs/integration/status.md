@@ -5,7 +5,7 @@
 | Fecha | 22/11/2026 |
 | Commit base | `c0aa511` |
 | Documento | `SSH05_SDD_v0.3.md` |
-| Fase actual | **P0 + P1 cerrados**; **P2 funcional cerrado** salvo trzsz/Zmodem condicional |
+| Fase actual | **P0 + P1 cerrados**; **P2 funcional cerrado** |
 
 ## Hecho
 
@@ -74,6 +74,7 @@
 | DIA-03 ASN/RDAP y país orientativo | **Hecho** | Team Cymru DNS + rdap.org; IP privadas no se consultan |
 | Línea base de rendimiento | **Hecho** | `make bench`, `docs/performance.md` |
 | DAT-01 SCP/SFTP tipado | **Hecho** | `transfers.start/list/cancel`, UI y smoke real |
+| DAT-01 trzsz/Zmodem en sesiones | **Hecho** | `sessionFilter`, `--trzsz`/`--zmodem`/`--download-path`, `make trzsz-smoke` |
 | Preferencias de UI persistentes | **Hecho** | ancho, densidad, posición y reordenado |
 | Ayuda de atajos en la UI | **Hecho** | `F1` + comando en la paleta |
 | Barra de botones navegable | **Hecho** | `Menú`, acciones y ratón; `Tab`/flechas |
@@ -91,8 +92,8 @@
 
 | Prioridad | Trabajo | Criterio de cierre |
 |---|---|---|
-| — | DAT-01: trzsz/Zmodem | Condicionado a compatibilidad remota; SCP/SFTP ya operativos |
 | — | GeoIP de ciudad | No incluido; ASN/RDAP y país orientativo ya operativos |
+| P2 | Publicar release 0.3.19 | `--trzsz`/`--zmodem`; artefactos en CI y notas en `docs/releases/0.3.19.md` |
 
 El release 0.3.18 está publicado en
 <https://github.com/lordpietre/ssh05/releases/tag/v0.3.18>.

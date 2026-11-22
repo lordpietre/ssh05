@@ -47,6 +47,9 @@ AllowUsers $USER_NAME
 LogLevel VERBOSE
 Subsystem sftp internal-sftp
 EOF
+    if [[ -n "${SSH05_SSH_FIXTURE_PATH:-}" ]]; then
+      printf 'SetEnv PATH="%s"\n' "$SSH05_SSH_FIXTURE_PATH" >> "$DIR/sshd_config"
+    fi
     "$SSHD" -t -f "$DIR/sshd_config"
     "$SSHD" -f "$DIR/sshd_config" -E "$DIR/sshd.log"
     for _ in $(seq 1 50); do

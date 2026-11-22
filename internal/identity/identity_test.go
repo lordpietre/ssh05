@@ -56,3 +56,18 @@ func TestSocketPathHonorsOverride(t *testing.T) {
 		t.Fatalf("socket = %q", got)
 	}
 }
+
+func TestDownloadDirOnlyWhenPresent(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	if got := DownloadDir(); got != "" {
+		t.Fatalf("DownloadDir without folder = %q, want empty", got)
+	}
+	downloads := filepath.Join(home, "Downloads")
+	if err := os.MkdirAll(downloads, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if got := DownloadDir(); got != downloads {
+		t.Fatalf("DownloadDir = %q, want %q", got, downloads)
+	}
+}

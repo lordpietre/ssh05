@@ -1,3 +1,11 @@
+ssh05 (0.3.19) unstable; urgency=medium
+
+  * DAT-01: trzsz (trz/tsz) y Zmodem (rz/sz) dentro de las sesiones del
+    supervisor, con `--trzsz`, `--zmodem` y `--download-path`.
+  * Las descargas trzsz usan ~/Downloads si existe; el resto abre el selector.
+
+ -- Dinámicas Electrónicas <dinamicas.electronicas@gmail.com>  Sun, 22 Nov 2026 22:30:00 +0000
+
 ssh05 (0.3.18) unstable; urgency=medium
 
   * Reunificación de identidad: supervisor ssh05d, UI src/ssh05.ts y rutas

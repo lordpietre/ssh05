@@ -14,6 +14,7 @@ go build -o ./bin/ ./cmd/ssh05
 go test -v -count=1 ./ssh05    # must run from repo root
 make test                      # same as above (prefers `gotest` on unix)
 make bench                     # benchmarks de IPC, backend y FRP
+make trzsz-smoke               # descarga trzsz real vía supervisor (sshd de pruebas)
 make ssh05d                    # supervisor local -> ./bin/ssh05d
 make verify                    # tests, contratos y smoke completo P1/P2
 make deb                       # .deb para Ubuntu y Debian (amd64/arm64) en dist/
@@ -135,6 +136,9 @@ make install                   # copies ./bin/ssh05 y ./bin/ssh05d to /usr/bin
 - Límites: `--max-sessions N`, `--max-pending-bytes N`.
 - Overrides de hosts: `--hosts-overrides /ruta/hosts.json`.
 - Transferencias: `--scp scp --sftp sftp`; panel «Transferencias» en la paleta.
+  `--trzsz` (por defecto) y `--zmodem` habilitan `trz`/`tsz` y `rz`/`sz` dentro
+  de las sesiones; `--download-path` fija el destino (por defecto
+  `~/Downloads` si existe). Smoke real: `make trzsz-smoke`.
 - Diagnóstico de red: `--nmap nmap`; Nmap exige confirmación explícita.
 - Supervisor: `--docker` incluye contenedores; por defecto se ocultan. Los `.deb`
   instalan `usr/lib/systemd/user/ssh05d.service`.

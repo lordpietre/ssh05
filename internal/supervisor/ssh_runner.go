@@ -9,6 +9,7 @@ import (
 	"github.com/lordpietre/ssh05/contracts"
 	"github.com/lordpietre/ssh05/ssh05"
 	"github.com/trzsz/shellescape"
+	"github.com/trzsz/trzsz-go/trzsz"
 	"golang.org/x/crypto/ssh"
 )
 
@@ -16,6 +17,47 @@ import (
 type SSHConfig struct {
 	ConfigPath string
 	Terminal   string
+	// Trzsz enables trz/tsz transfers inside the session stream.
+	Trzsz bool
+	// Zmodem enables rz/sz transfers inside the session stream.
+	Zmodem bool
+	// DownloadPath is the default folder for trzsz/zmodem downloads. An empty
+	// value keeps the desktop file picker.
+	DownloadPath string
+}
+
+// sessionFilter bridges a supervisor session with the trzsz/zmodem filter.
+//
+// The filter inspects server output for trz/tsz/rz/sz triggers and, when one
+// is found, performs the transfer over the same PTY stream. Bytes outside a
+// transfer pass through unchanged.
+type sessionFilter struct {
+	input  *io.PipeWriter
+	output *io.PipeReader
+	filter *trzsz.TrzszFilter
+}
+
+func newSessionFilter(serverIn io.WriteCloser, serverOut io.Reader, columns int32, zmodem bool, downloadPath string) *sessionFilter {
+	clientIn, clientInWriter := io.Pipe()
+	clientOutReader, clientOut := io.Pipe()
+	filter := trzsz.NewTrzszFilter(clientIn, clientOut, serverIn, serverOut, trzsz.TrzszOptions{
+		TerminalColumns: columns,
+		EnableZmodem:    zmodem,
+		EnableOSC52:     false,
+	})
+	if downloadPath != "" {
+		filter.SetDefaultDownloadPath(downloadPath)
+	}
+	return &sessionFilter{input: clientInWriter, output: clientOutReader, filter: filter}
+}
+
+func (f *sessionFilter) Resize(cols int32) { f.filter.SetTerminalColumns(cols) }
+
+// Close stops the filter and unblocks its read loop.
+func (f *sessionFilter) Close() {
+	f.filter.Close()
+	_ = f.input.Close()
+	_ = f.output.Close()
 }
 
 func tmuxStartCommand(sessionName string) string {
@@ -124,6 +166,11 @@ func (r *SSHRunner) Start(ctx context.Context, profileID string, cols, rows int,
 		done:    make(chan struct{}),
 		tmux:    attachedTmux,
 	}
+	if r.Config.Trzsz || r.Config.Zmodem {
+		run.filter = newSessionFilter(stdin, stdout, int32(cols), r.Config.Zmodem, r.Config.DownloadPath)
+		run.stdin = run.filter.input
+		run.stdout = run.filter.output
+	}
 	go run.pump()
 	go run.wait()
 	go func() {
@@ -142,6 +189,7 @@ type sshRun struct {
 	stdin   io.WriteCloser
 	stdout  io.Reader
 	tmux    string
+	filter  *sessionFilter
 
 	output chan []byte
 	done   chan struct{}
@@ -186,6 +234,9 @@ func (r *sshRun) Resize(cols, rows int) error {
 	if r.closed {
 		return ErrSessionClosed
 	}
+	if r.filter != nil {
+		r.filter.Resize(int32(cols))
+	}
 	return r.session.WindowChange(rows, cols)
 }
 
@@ -207,6 +258,9 @@ func (r *sshRun) Close() error {
 		r.mu.Lock()
 		r.closed = true
 		r.mu.Unlock()
+		if r.filter != nil {
+			r.filter.Close()
+		}
 		_ = r.session.Close()
 		_ = r.client.Close()
 	})

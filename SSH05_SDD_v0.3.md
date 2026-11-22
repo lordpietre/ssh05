@@ -716,8 +716,12 @@ Navegación completa por teclado, foco visible, mensajes legibles sin color, sop
   romper scripts, servicios ni sesiones de desarrollo.
 - El informe de diagnóstico pasa a `ssh05-diagnostics-*.json` y los nombres de
   sesión tmux generados usan el prefijo `ssh05-`.
-- Versión del cliente: **0.3.18**. Se mantiene la compatibilidad con
+- Versión del cliente: **0.3.19**. Se mantiene la compatibilidad con
   `~/.tssh.conf`, `TSSH_*` y `~/.tssh/` heredada de `trzsz-ssh`.
-- **Publicado:** release `v0.3.18` con los `.deb` de Ubuntu/Debian
-  (amd64/arm64) y sus checksums, generados con la identidad ssh05 y el
-  servicio `ssh05d.service`. Notas en `docs/releases/0.3.18.md`.
+- **DAT-01 completado:** `trz`/`tsz` (y Zmodem opcional con `--zmodem`) se
+  integran en el flujo de la sesión del supervisor, con `--download-path` para
+  las descargas y `make trzsz-smoke` como prueba real. `transfers.start` sigue
+  siendo la API tipada de SCP/SFTP.
+- **Publicado:** releases `v0.3.18` (reunificación de identidad) y `v0.3.19`
+  (trzsz/Zmodem en sesiones), con `.deb` de Ubuntu/Debian (amd64/arm64) y
+  binarios multiplataforma. Notas en `docs/releases/`.
