@@ -1,12 +1,12 @@
-# Instaladores ssh05 0.3.14
+# Instaladores ssh05 0.3.15
 
 Los `.deb` para Ubuntu y Debian están en esta carpeta:
 
 ```text
-ssh05_0.3.14_ubuntu_amd64.deb
-ssh05_0.3.14_ubuntu_arm64.deb
-ssh05_0.3.14_debian_amd64.deb
-ssh05_0.3.14_debian_arm64.deb
+ssh05_0.3.15_ubuntu_amd64.deb
+ssh05_0.3.15_ubuntu_arm64.deb
+ssh05_0.3.15_debian_amd64.deb
+ssh05_0.3.15_debian_arm64.deb
 *.sha256
 ```
 
@@ -18,12 +18,12 @@ repositorio (`prototype/terminal`, `bun install && bun run ui`).
 Instalación:
 
 ```sh
-sudo apt install ./ssh05_0.3.14_ubuntu_amd64.deb
+sudo apt install ./ssh05_0.3.15_ubuntu_amd64.deb
 ```
 
 También están publicados en:
 
-https://github.com/lordpietre/ssh05/releases/tag/v0.3.14
+https://github.com/lordpietre/ssh05/releases/tag/v0.3.15
 
 Para regenerarlos:
 

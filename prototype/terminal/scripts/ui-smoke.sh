@@ -115,6 +115,7 @@ assert_contains "Transferencias" "transfers command listed"
 assert_contains "Escanear con Nmap" "nmap command listed"
 assert_contains "Información de red" "network info command listed"
 assert_contains "Ayuda" "help command listed"
+assert_contains "Nuevo host" "new host command listed"
 send Escape
 sleep 0.3
 send F1

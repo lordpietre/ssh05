@@ -76,6 +76,7 @@
 | DAT-01 SCP/SFTP tipado | **Hecho** | `transfers.start/list/cancel`, UI y smoke real |
 | Preferencias de UI persistentes | **Hecho** | ancho, densidad, posición y reordenado |
 | Ayuda de atajos en la UI | **Hecho** | `F1` + comando en la paleta |
+| Alta de hosts desde la UI | **Hecho** | `hosts.create`, `Ctrl+N` |
 | tmux solo se reengancha si existe | **Hecho** | `TmuxCreate=false`, sonda `has-session`, prueba real |
 | FRP real de extremo a extremo | **Hecho** | `scripts/trssd-frp-smoke.sh`: TCP/UDP/STCP; XTCP condicional a STUN |
 | `SessionBackend` y `TabStore` | Definidos | `contracts/session.go`, `contracts/ts/index.ts` |

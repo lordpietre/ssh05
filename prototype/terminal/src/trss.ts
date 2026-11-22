@@ -351,6 +351,22 @@ const helpOverlay = new TextRenderable(renderer, {
 
 renderer.root.add(helpOverlay)
 
+const newHostOverlay = new TextRenderable(renderer, {
+  id: "new-host-overlay",
+  position: "absolute",
+  top: 0,
+  left: 0,
+  width: "100%",
+  height: "100%",
+  visible: false,
+  zIndex: 111,
+  content: "",
+  fg: RGBA.fromInts(219, 226, 238),
+  bg: RGBA.fromInts(16, 19, 26),
+})
+
+renderer.root.add(newHostOverlay)
+
 const pendingPlaceholder = new TextRenderable(renderer, {
   id: "pending-view",
   position: "absolute",
@@ -403,6 +419,15 @@ let paletteVisible = false
 let paletteCursor = 0
 let closeDialogVisible = false
 let closeDialogCursor = 0
+let newHostVisible = false
+let newHostForm: {
+  field: number
+  alias: string
+  hostname: string
+  port: string
+  username: string
+  identityFile: string
+} | null = null
 let helpVisible = false
 let nmapConfirmVisible = false
 let nmapPorts = "22,80,443"
@@ -442,6 +467,7 @@ let frpForm: {
 
 const paletteCommands = [
   "Ir a hosts",
+  "Nuevo host",
   "Importar/recargar KeePass",
   "Alternar tmux",
   "Cerrar pestaña activa",
@@ -567,7 +593,7 @@ function renderStatus(): void {
   }
   if (hostFocused) {
     status.content =
-      ` Hosts · ↑↓ Enter conectar · F2 favorito · F3 color · F4 etiquetas · Ctrl+I KeePass` +
+      ` Hosts · ↑↓ Enter conectar · Ctrl+N nuevo · F2 favorito · F3 color · F4 etiquetas` +
       ` · tmux:${tmuxMode ? "on" : "off"} · F10 salir`
     return
   }
@@ -602,6 +628,7 @@ function uiDirty(): void {
   renderTransfers()
   renderNmapConfirm()
   renderHelp()
+  renderNewHost()
   renderer.requestRender()
 }
 
@@ -713,46 +740,49 @@ function executePalette(index: number): void {
       focusHosts()
       break
     case 1:
-      void importHosts()
+      openNewHost()
       break
     case 2:
+      void importHosts()
+      break
+    case 3:
       tmuxMode = !tmuxMode
       uiDirty()
       break
-    case 3:
+    case 4:
       openCloseDialog()
       break
-    case 4:
+    case 5:
       openWorkspacePicker()
       break
-    case 5:
+    case 6:
       void probeCurrentHost()
       break
-    case 6:
+    case 7:
       void diagnoseCurrentHost()
       break
-    case 7:
+    case 8:
       openNmapConfirm()
       break
-    case 8:
+    case 9:
       void showNetworkInfo()
       break
-    case 9:
+    case 10:
       void exportDiagnosticsReport()
       break
-    case 10:
+    case 11:
       preferencesVisible = true
       break
-    case 11:
+    case 12:
       void openTransfers()
       break
-    case 12:
+    case 13:
       void openFRP()
       break
-    case 13:
+    case 14:
       void quit()
       break
-    case 14:
+    case 15:
       helpVisible = true
       break
   }
@@ -1307,6 +1337,11 @@ renderer.keyInput.on("keypress", (key) => {
     uiDirty()
     return
   }
+  if (newHostVisible) {
+    key.stopPropagation()
+    void handleNewHostKey(key)
+    return
+  }
   if (nmapConfirmVisible) {
     key.stopPropagation()
     if (name === "escape") {
@@ -1402,6 +1437,11 @@ renderer.keyInput.on("keypress", (key) => {
   if (matchesAction(key, keybindings, "close")) {
     key.stopPropagation()
     openCloseDialog()
+    return
+  }
+  if (hostFocused && key.ctrl && name === "n") {
+    key.stopPropagation()
+    openNewHost()
     return
   }
   if (key.ctrl && key.shift && (name === "left" || name === "right")) {
@@ -1678,6 +1718,113 @@ function handleWorkspaceKey(key: KeyEvent): void {
 }
 
 
+function renderNewHost(): void {
+  if (!newHostVisible || !newHostForm) {
+    newHostOverlay.visible = false
+    return
+  }
+  newHostOverlay.visible = true
+  const form = newHostForm
+  const marker = (index: number) => (index === form.field ? ">" : " ")
+  newHostOverlay.content = [
+    "",
+    "  Nuevo host",
+    "",
+    `  ${marker(0)} Alias:        ${form.alias}`,
+    `  ${marker(1)} HostName:    ${form.hostname}`,
+    `  ${marker(2)} Puerto:      ${form.port}`,
+    `  ${marker(3)} Usuario:     ${form.username}`,
+    `  ${marker(4)} IdentityFile: ${form.identityFile}`,
+    "",
+    "  Tab/↑↓ cambiar campo · Enter guardar y conectar · Esc cancelar",
+  ].join("\n")
+}
+
+function openNewHost(): void {
+  newHostVisible = true
+  newHostForm = {
+    field: 0,
+    alias: "",
+    hostname: "",
+    port: "22",
+    username: process.env.USER ?? "",
+    identityFile: "",
+  }
+  uiDirty()
+}
+
+async function handleNewHostKey(key: KeyEvent): Promise<void> {
+  if (!newHostForm) return
+  const form = newHostForm
+  const name = key.name.toLowerCase()
+  if (name === "escape") {
+    newHostVisible = false
+    newHostForm = null
+  } else if (name === "tab" || name === "down") {
+    form.field = (form.field + 1) % 5
+  } else if (name === "up") {
+    form.field = (form.field + 4) % 5
+  } else if (name === "return" || name === "enter") {
+    await saveNewHost(true)
+    return
+  } else if (name === "backspace" || name === "delete") {
+    const clear = name === "delete"
+    if (form.field === 0) form.alias = clear ? "" : form.alias.slice(0, -1)
+    else if (form.field === 1) form.hostname = clear ? "" : form.hostname.slice(0, -1)
+    else if (form.field === 2) form.port = clear ? "" : form.port.slice(0, -1)
+    else if (form.field === 3) form.username = clear ? "" : form.username.slice(0, -1)
+    else if (form.field === 4) form.identityFile = clear ? "" : form.identityFile.slice(0, -1)
+  } else if (!key.ctrl && !key.meta && key.sequence) {
+    const chars = Array.from(key.sequence)
+    if (chars.length === 1 && chars[0] >= " ") {
+      if (form.field === 0) form.alias += chars[0]
+      else if (form.field === 1) form.hostname += chars[0]
+      else if (form.field === 2 && /[0-9]/.test(chars[0])) form.port += chars[0]
+      else if (form.field === 3) form.username += chars[0]
+      else if (form.field === 4) form.identityFile += chars[0]
+    }
+  }
+  uiDirty()
+}
+
+async function saveNewHost(connect: boolean): Promise<void> {
+  if (!client || !newHostForm) return
+  const form = newHostForm
+  const port = Number.parseInt(form.port, 10)
+  if (!form.alias.trim() || !form.hostname.trim()) {
+    transientText = "Host: alias y HostName son obligatorios"
+    uiDirty()
+    return
+  }
+  if (!Number.isFinite(port) || port < 1 || port > 65535) {
+    transientText = "Host: puerto inválido"
+    uiDirty()
+    return
+  }
+  try {
+    const profile = await client.call(
+      "hosts.create",
+      {
+        alias: form.alias,
+        hostname: form.hostname,
+        port,
+        username: form.username,
+        identityFile: form.identityFile,
+      },
+      { timeoutMs: 8000 },
+    )
+    await loadHosts()
+    newHostVisible = false
+    newHostForm = null
+    transientText = `Host ${profile.alias} guardado`
+    if (connect) await connectHost(profile)
+    else uiDirty()
+  } catch (error) {
+    transientText = `No se pudo guardar el host: ${String(error)}`
+    uiDirty()
+  }
+}
+
 function renderHelp(): void {
   if (!helpVisible) {
     helpOverlay.visible = false
@@ -1689,7 +1836,7 @@ function renderHelp(): void {
     "  Ayuda · atajos",
     "",
     "  Ctrl+T hosts        Ctrl+K paleta        Ctrl+P workspaces",
-    "  Ctrl+G tmux         Ctrl+I KeePass       Ctrl+W cerrar pestaña",
+    "  Ctrl+N nuevo host   Ctrl+G tmux          Ctrl+I KeePass       Ctrl+W cerrar",
     "  Ctrl+Tab pestaña    Ctrl+1..9 pestaña    Ctrl+Shift+←/→ mover",
     "  F2 favorito         F3 color             F4 etiquetas",
     "  F10 salir           F1 ayuda",

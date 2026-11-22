@@ -305,6 +305,14 @@ export interface HostsImportResult {
   conflicts?: HostConflict[]
 }
 
+export interface HostCreateParams {
+  alias: string
+  hostname: string
+  port?: number
+  username?: string
+  identityFile?: string
+}
+
 export interface HostOverridePatch {
   hostProfileId: string
   labels?: string[]
@@ -606,6 +614,7 @@ export interface MethodContracts {
   "hosts.list": { params: HostsListParams; result: HostsListResult }
   "hosts.import": { params: HostsImportParams; result: HostsImportResult }
   "hosts.overrides.set": { params: HostOverridePatch; result: HostProfile }
+  "hosts.create": { params: HostCreateParams; result: HostProfile }
   "hosts.resolve": { params: HostsListParams; result: RoutesPlanResult }
   "sessions.open": { params: SessionsOpenParams; result: SessionsOpenResult }
   "sessions.write": { params: SessionsWriteParams; result: void }
@@ -648,6 +657,7 @@ export const IPC_METHODS = [
   "hosts.import",
   "hosts.resolve",
   "hosts.overrides.set",
+  "hosts.create",
   "sessions.open",
   "sessions.write",
   "sessions.resize",

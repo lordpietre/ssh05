@@ -21,6 +21,7 @@ const (
 	MethodHostsImport        Method = "hosts.import"
 	MethodHostsResolve       Method = "hosts.resolve"
 	MethodHostsOverridesSet  Method = "hosts.overrides.set"
+	MethodHostsCreate        Method = "hosts.create"
 	MethodSessionsOpen       Method = "sessions.open"
 	MethodSessionsWrite      Method = "sessions.write"
 	MethodSessionsResize     Method = "sessions.resize"
@@ -58,6 +59,7 @@ var validMethods = map[Method]struct{}{
 	MethodHostsImport:        {},
 	MethodHostsResolve:       {},
 	MethodHostsOverridesSet:  {},
+	MethodHostsCreate:        {},
 	MethodSessionsOpen:       {},
 	MethodSessionsWrite:      {},
 	MethodSessionsResize:     {},
@@ -169,6 +171,14 @@ type HostsImportResult struct {
 	Imported  int            `json:"imported"`
 	Skipped   int            `json:"skipped"`
 	Conflicts []HostConflict `json:"conflicts,omitempty"`
+}
+
+type HostCreateParams struct {
+	Alias        string `json:"alias"`
+	Hostname     string `json:"hostname"`
+	Port         int    `json:"port,omitempty"`
+	Username     string `json:"username,omitempty"`
+	IdentityFile string `json:"identityFile,omitempty"`
 }
 
 type HostOverridePatch struct {

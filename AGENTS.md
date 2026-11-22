@@ -73,6 +73,8 @@ make install                   # copies ./bin/ssh05 to /usr/bin/ssh05
   - `Ctrl+P` abre el selector de workspaces; `n` crea uno nuevo.
   - `Ctrl+K` abre la paleta de comandos; incluye diagnosticar host y exportar
     un informe saneado.
+  - `Ctrl+N` en la lista de hosts abre el alta de un host y lo guarda en
+    `ssh_config`; Enter guarda y conecta.
   - `--workspace <nombre>` o `TRSS_WORKSPACE_NAME`; `TRSS_WORKSPACE_DIR`.
   - `Ctrl+I` importa/recarga KeePass si `trssd` tiene KDBX configurado.
   `F1` ayuda con todos los atajos.

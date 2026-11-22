@@ -1,4 +1,4 @@
-## ssh05 — fork de trzsz-ssh v0.3.14
+## ssh05 — fork de trzsz-ssh v0.3.15
 
 Cliente SSH con interfaz TUI ncurses, reemplazo directo de OpenSSH. Fork de [trzsz-ssh](https://github.com/trzsz/trzsz-ssh) con gestión visual de hosts, túneles y edición inline.
 
@@ -213,6 +213,10 @@ pestañas; `Ctrl+Shift+←/→` reordena la pestaña activa. Las preferencias se
 `~/.config/trss/preferences.json` (`TRSS_PREFERENCES`).
 
 `F1` muestra la ayuda con todos los atajos.
+
+`Ctrl+N` en la lista de hosts abre el alta de un host (alias, HostName,
+puerto, usuario, IdentityFile) y lo guarda en `ssh_config`; Enter guarda y
+conecta.
 
 Desde la lista de hosts, `F2` marca favorito, `F3` cicla el color y `F4` edita
 etiquetas. Los cambios se guardan en `~/.config/trss/hosts.json` sin tocar

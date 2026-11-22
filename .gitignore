@@ -38,3 +38,7 @@ prototype/**/node_modules/
 # Local .deb installers (published as release assets)
 installers/*.deb
 installers/*.sha256
+
+# Go toolchain downloads
+go*.tar.gz
+go*.tar.gz.*

@@ -33,6 +33,7 @@ type HostInventory interface {
 	VaultStatus() contracts.VaultStatusResult
 	Import(ctx context.Context, source string, path string) (contracts.HostsImportResult, error)
 	SetOverride(ctx context.Context, patch contracts.HostOverridePatch) (contracts.HostProfile, error)
+	CreateHost(ctx context.Context, params contracts.HostCreateParams) (contracts.HostProfile, error)
 }
 
 // Service maps the typed IPC methods onto the supervisor backend.
@@ -88,6 +89,8 @@ func (s *Service) Handle(ctx context.Context, conn *ipc.Conn, req contracts.RPCR
 		return s.resolveHosts(ctx, req)
 	case contracts.MethodHostsOverridesSet:
 		return s.setHostOverride(ctx, req)
+	case contracts.MethodHostsCreate:
+		return s.createHost(ctx, req)
 	case contracts.MethodSessionsOpen:
 		return s.openSession(ctx, conn, req)
 	case contracts.MethodSessionsWrite:
@@ -154,6 +157,24 @@ func (s *Service) Handle(ctx context.Context, conn *ipc.Conn, req contracts.RPCR
 	default:
 		return nil, notImplemented()
 	}
+}
+
+func (s *Service) createHost(ctx context.Context, req contracts.RPCRequest) (json.RawMessage, *contracts.RPCError) {
+	inventory, ok := s.hosts.(HostInventory)
+	if !ok {
+		return nil, notImplemented()
+	}
+	params, rpcError := decodeParams[contracts.HostCreateParams](req)
+	if rpcError != nil {
+		return nil, rpcError
+	}
+	profile, err := inventory.CreateHost(ctx, params)
+	if err != nil {
+		s.log(audit.Event{Action: "host.create", HostProfileID: params.Alias, Result: "error", ErrorCode: "internal"})
+		return nil, internalError(err)
+	}
+	s.log(audit.Event{Action: "host.create", HostProfileID: profile.ID, Result: "ok"})
+	return marshal(profile)
 }
 
 func (s *Service) setHostOverride(ctx context.Context, req contracts.RPCRequest) (json.RawMessage, *contracts.RPCError) {

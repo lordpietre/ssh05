@@ -1,3 +1,9 @@
+ssh05 (0.3.15) unstable; urgency=medium
+
+  * Alta de hosts desde la UI OpenTUI y paquete con ssh05 + trssd.
+
+ -- lordpietre <pietrelinux@gmail.com>  Sun, 22 Nov 2026 19:00:00 +0000
+
 ssh05 (0.3.14) unstable; urgency=medium
 
   * Revisión funcional completa y paquete con ssh05 + trssd.
