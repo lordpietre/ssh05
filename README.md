@@ -109,6 +109,7 @@ El diseño de la evolución multipestaña TRSS vive en [TRSS_SDD_v0.2.md](TRSS_S
 La Fase 0 (auditoría, ADRs y prototipo PTY/OpenTUI) está documentada en:
 
 - [Auditoría del código actual](docs/audit/phase-0-audit.md)
+- [Revisión funcional completa P0/P1/P2](docs/audit/functional-review-0.3.14.md)
 - [ADRs de arquitectura](docs/adr/README.md)
 - [Prototipo y resultados reproducibles](docs/phase-0/README.md)
 - [Contratos UI ↔ supervisor](contracts/README.md)
