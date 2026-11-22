@@ -488,16 +488,23 @@ func TestBackendReconnectExhaustionFails(t *testing.T) {
 	runner.last().finish(1)
 	eventually(t, func() bool { return len(backend.List()) == 0 })
 
+	sawDegraded := false
 	sawFailed := false
 	for !sawFailed {
 		select {
 		case status := <-statuses:
+			if status.Phase == contracts.PhaseDegraded {
+				sawDegraded = true
+			}
 			if status.Phase == contracts.PhaseFailed {
 				sawFailed = true
 			}
 		case <-time.After(2 * time.Second):
-			t.Fatal("failed status not observed")
+			t.Fatalf("failed status not observed: degraded=%v", sawDegraded)
 		}
+	}
+	if !sawDegraded {
+		t.Fatal("degraded status not observed")
 	}
 }
 

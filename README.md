@@ -84,8 +84,8 @@ sudo apt install ./dist/ssh05_*_ubuntu_amd64.deb
 ```
 
 Cada push a `main` genera `.deb` para Ubuntu y Debian (amd64 y arm64)
-como artifacts de GitHub Actions. Las etiquetas `v*` también los adjuntan
-al release.
+como artifacts de GitHub Actions. Los paquetes incluyen `ssh05` y `trssd`.
+Las etiquetas `v*` también los adjuntan al release.
 
 ### Compilar
 

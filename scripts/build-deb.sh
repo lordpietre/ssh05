@@ -29,7 +29,9 @@ trap cleanup EXIT
 mkdir -p "$STAGE/DEBIAN" "$STAGE/usr/bin" "$STAGE/usr/share/doc/ssh05"
 CGO_ENABLED=0 GOOS=linux GOARCH="$ARCH" "$GO" build -trimpath -ldflags "-s -w" \
   -o "$STAGE/usr/bin/ssh05" ./cmd/ssh05
-chmod 0755 "$STAGE/usr/bin/ssh05"
+CGO_ENABLED=0 GOOS=linux GOARCH="$ARCH" "$GO" build -trimpath -ldflags "-s -w" \
+  -o "$STAGE/usr/bin/trssd" ./cmd/trssd
+chmod 0755 "$STAGE/usr/bin/ssh05" "$STAGE/usr/bin/trssd"
 cp README.md "$STAGE/usr/share/doc/ssh05/README.md"
 cp debian/copyright "$STAGE/usr/share/doc/ssh05/copyright"
 gzip -9n -c "$STAGE/usr/share/doc/ssh05/README.md" > "$STAGE/usr/share/doc/ssh05/README.md.gz"
@@ -48,6 +50,7 @@ Homepage: https://github.com/lordpietre/ssh05
 Description: OpenSSH-compatible client with TUI and local supervisor
  ssh05 is a highly OpenSSH-compatible client with a TUI host manager,
  optional tmux sessions, FRP tunnels, diagnostics and SCP/SFTP transfers.
+ It also includes trssd, the local supervisor used by the OpenTUI frontend.
  This package is built for ${DISTRO} ${DEB_ARCH}.
 EOF
 chmod 0644 "$STAGE/DEBIAN/control"

@@ -189,6 +189,8 @@ func (b *Backend) tryReconnect(s *session) bool {
 		}
 		run, err := b.runner.Start(context.Background(), s.profileID, s.cols, s.rows, s.options)
 		if err != nil {
+			b.emitStatus(s, contracts.PhaseDegraded, "reconnect_failed",
+				fmt.Sprintf("attempt %d/%d: %v", attempt, b.options.ReconnectMax, err))
 			continue
 		}
 		b.mu.Lock()
