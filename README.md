@@ -1,4 +1,4 @@
-## ssh05 — fork de trzsz-ssh v0.3.15
+## ssh05 — fork de trzsz-ssh v0.3.16
 
 Cliente SSH con interfaz TUI ncurses, reemplazo directo de OpenSSH. Fork de [trzsz-ssh](https://github.com/trzsz/trzsz-ssh) con gestión visual de hosts, túneles y edición inline.
 
@@ -91,6 +91,13 @@ La UI OpenTUI no se incluye en el `.deb`: requiere Bun y dependencias nativas.
 Se ejecuta desde `prototype/terminal` con `bun install && bun run ui` contra un
 `trssd` en marcha.
 
+El paquete instala `trssd.service` para systemd de usuario:
+
+```sh
+systemctl --user daemon-reload
+systemctl --user enable --now trssd
+```
+
 ### Compilar
 
 ```sh
@@ -109,7 +116,7 @@ El diseño de la evolución multipestaña TRSS vive en [TRSS_SDD_v0.2.md](TRSS_S
 La Fase 0 (auditoría, ADRs y prototipo PTY/OpenTUI) está documentada en:
 
 - [Auditoría del código actual](docs/audit/phase-0-audit.md)
-- [Revisión funcional completa P0/P1/P2](docs/audit/functional-review-0.3.15.md)
+- [Revisión funcional completa P0/P1/P2](docs/audit/functional-review-0.3.16.md)
 - [ADRs de arquitectura](docs/adr/README.md)
 - [Prototipo y resultados reproducibles](docs/phase-0/README.md)
 - [Contratos UI ↔ supervisor](contracts/README.md)

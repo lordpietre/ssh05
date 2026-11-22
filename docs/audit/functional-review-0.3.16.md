@@ -1,4 +1,4 @@
-# Revisión funcional completa — ssh05 0.3.15
+# Revisión funcional completa — ssh05 0.3.16
 
 | Campo | Valor |
 |---|---|
@@ -106,11 +106,11 @@ generados incluyen `ssh05` y `trssd`.
 
 ## Límites explícitos
 
-1. **OpenTUI no está dentro del `.deb`.** El paquete instala `ssh05` y `trssd`;
-   la UI OpenTUI requiere Bun y se ejecuta desde `prototype/terminal`. No se
-   empaqueta porque OpenTUI necesita runtime Bun y dependencias nativas, y el
-   binario único de Bun no resuelve el módulo nativo musl/glibc de forma
-   portable.
+1. **OpenTUI no está dentro del `.deb`.** El paquete instala `ssh05` y `trssd`
+   y una unidad `trssd.service`; la UI OpenTUI requiere Bun y se ejecuta desde
+   `prototype/terminal`. No se empaqueta porque OpenTUI necesita runtime Bun y
+   dependencias nativas, y el binario único de Bun no resuelve el módulo nativo
+   musl/glibc de forma portable.
 2. **trzsz/Zmodem** no se ofrece en `transfers.start`; sigue en el cliente
    interactivo clásico. La API del supervisor usa SCP/SFTP.
 3. **GeoIP** se limita al país del registro RDAP/ASN; no se inventa ciudad.
@@ -118,6 +118,7 @@ generados incluyen `ssh05` y `trssd`.
    condicional. TCP, UDP y STCP son deterministas.
 5. **Windows**: `ssh05` compila, pero el supervisor IPC es Unix; los tests de
    integración se ejecutan en Linux.
+6. **Docker** no aparece por defecto en el supervisor; `--docker` lo habilita.
 
 ## Conclusión
 

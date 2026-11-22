@@ -33,7 +33,7 @@ import (
 	"strings"
 )
 
-const kSSH05Version = "0.3.15"
+const kSSH05Version = "0.3.16"
 
 // buildTag stores the version tag injected at build time via -ldflags.
 var buildTag = ""

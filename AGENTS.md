@@ -126,6 +126,8 @@ make install                   # copies ./bin/ssh05 to /usr/bin/ssh05
 - Overrides de hosts: `--hosts-overrides /ruta/hosts.json`.
 - Transferencias: `--scp scp --sftp sftp`; panel «Transferencias» en la paleta.
 - Diagnóstico de red: `--nmap nmap`; Nmap exige confirmación explícita.
+- Supervisor: `--docker` incluye contenedores; por defecto se ocultan. Los `.deb`
+  instalan `usr/lib/systemd/user/trssd.service`.
   ASN/RDAP usan Team Cymru DNS y `rdap.org`.
 - FRP: `--frp-server`, `--frp-port`, `--frp-token`, `--frpc`, `--frpc-sha256`, `--frps-listen`, `--frps`, `--frps-sha256`, `--frp-token-force`, `--frp-config`; panel `Ctrl+F` (`s` inicia/para frps local).
 - KeePass opcional:

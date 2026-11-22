@@ -59,7 +59,12 @@ func main() {
 	scpBin := flag.String("scp", "scp", "scp binary for file transfers")
 	sftpBin := flag.String("sftp", "sftp", "sftp binary for file transfers")
 	nmapBin := flag.String("nmap", "nmap", "opt-in nmap binary for diagnostics")
+	dockerHosts := flag.Bool("docker", false, "include Docker containers as hosts")
 	flag.Parse()
+
+	if !*dockerHosts {
+		_ = os.Setenv("TSSH_DISABLE_DOCKER", "1")
+	}
 
 	logger, err := audit.NewRotating(*auditPath, *auditMaxBytes, *auditMaxFiles)
 	if err != nil {

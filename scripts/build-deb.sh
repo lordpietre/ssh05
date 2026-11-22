@@ -5,7 +5,7 @@ cd "$(dirname "$0")/.."
 ROOT="$(pwd)"
 DISTRO="${1:-${DISTRO:-ubuntu}}"
 ARCH="${2:-${ARCH:-amd64}}"
-VERSION="${VERSION:-0.3.15}"
+VERSION="${VERSION:-0.3.16}"
 VERSION="${VERSION#v}"
 OUT="${OUT:-$ROOT/dist}"
 GO="${GO:-go}"
@@ -26,12 +26,15 @@ STAGE="$(mktemp -d "${TMPDIR:-/tmp}/ssh05-deb.XXXXXX")"
 cleanup() { rm -rf "$STAGE"; }
 trap cleanup EXIT
 
-mkdir -p "$STAGE/DEBIAN" "$STAGE/usr/bin" "$STAGE/usr/share/doc/ssh05"
+mkdir -p "$STAGE/DEBIAN" "$STAGE/usr/bin" "$STAGE/usr/share/doc/ssh05" \
+  "$STAGE/usr/lib/systemd/user"
 CGO_ENABLED=0 GOOS=linux GOARCH="$ARCH" "$GO" build -trimpath -ldflags "-s -w" \
   -o "$STAGE/usr/bin/ssh05" ./cmd/ssh05
 CGO_ENABLED=0 GOOS=linux GOARCH="$ARCH" "$GO" build -trimpath -ldflags "-s -w" \
   -o "$STAGE/usr/bin/trssd" ./cmd/trssd
 chmod 0755 "$STAGE/usr/bin/ssh05" "$STAGE/usr/bin/trssd"
+cp packaging/trssd.service "$STAGE/usr/lib/systemd/user/trssd.service"
+chmod 0644 "$STAGE/usr/lib/systemd/user/trssd.service"
 cp README.md "$STAGE/usr/share/doc/ssh05/README.md"
 cp debian/copyright "$STAGE/usr/share/doc/ssh05/copyright"
 gzip -9n -c "$STAGE/usr/share/doc/ssh05/README.md" > "$STAGE/usr/share/doc/ssh05/README.md.gz"

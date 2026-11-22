@@ -1,0 +1,14 @@
+[Unit]
+Description=ssh05 supervisor (trssd)
+Documentation=https://github.com/lordpietre/ssh05
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/trssd --ssh-config=%h/.ssh/config
+Restart=on-failure
+RestartSec=2
+Environment=TSSH_DISABLE_DOCKER=1
+
+[Install]
+WantedBy=default.target
