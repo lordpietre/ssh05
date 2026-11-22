@@ -649,7 +649,9 @@ function renderHosts(): void {
     hostList.content =
       `\n No hay hosts disponibles.\n\n` +
       ` ${SUPERVISOR}: ${socketPath}\n\n` +
-      " Añade un bloque Host a ~/.ssh/config\n"
+      " Ctrl+N crea un host; también lee ~/.ssh/config.\n" +
+      " Contenedores Docker: añade --docker al servicio\n" +
+      "   (systemctl --user edit ssh05d.service)\n"
     return
   }
 

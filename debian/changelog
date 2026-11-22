@@ -1,3 +1,12 @@
+ssh05 (0.3.21) unstable; urgency=medium
+
+  * La unidad ssh05d ya no fuerza SSH05_DISABLE_DOCKER; `--docker` vuelve a
+    funcionar al añadirlo a ExecStart.
+  * Estado vacío de la UI: explica Ctrl+N, ~/.ssh/config y cómo habilitar
+    contenedores Docker en el servicio.
+
+ -- Dinámicas Electrónicas <dinamicas.electronicas@gmail.com>  Mon, 23 Nov 2026 01:00:00 +0100
+
 ssh05 (0.3.20) unstable; urgency=medium
 
   * El .deb incluye la UI OpenTUI (`ssh05-ui`) con su runtime Bun y las

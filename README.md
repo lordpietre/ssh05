@@ -1,4 +1,4 @@
-## ssh05 — fork de trzsz-ssh v0.3.20
+## ssh05 — fork de trzsz-ssh v0.3.21
 
 Cliente SSH con interfaz TUI ncurses, reemplazo directo de OpenSSH. Fork de [trzsz-ssh](https://github.com/trzsz/trzsz-ssh) con gestión visual de hosts, túneles y edición inline.
 
@@ -88,7 +88,7 @@ Descarga el `.deb` de tu arquitectura desde
 `amd64` o `arm64`):
 
 ```sh
-VERSION=0.3.20
+VERSION=0.3.21
 wget "https://github.com/lordpietre/ssh05/releases/download/v${VERSION}/ssh05_${VERSION}_ubuntu_amd64.deb"
 wget "https://github.com/lordpietre/ssh05/releases/download/v${VERSION}/ssh05_${VERSION}_ubuntu_amd64.deb.sha256"
 sha256sum -c "ssh05_${VERSION}_ubuntu_amd64.deb.sha256"
@@ -122,8 +122,8 @@ systemctl --user start ssh05d
 
 ```sh
 make deb
-sudo apt install ./dist/ssh05_0.3.20_ubuntu_amd64.deb
-# o ./dist/ssh05_0.3.20_debian_amd64.deb
+sudo apt install ./dist/ssh05_0.3.21_ubuntu_amd64.deb
+# o ./dist/ssh05_0.3.21_debian_amd64.deb
 ```
 
 Cada push a `main` genera `.deb` para Ubuntu y Debian (amd64 y arm64)

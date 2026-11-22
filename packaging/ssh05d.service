@@ -8,8 +8,6 @@ Type=simple
 ExecStart=/usr/bin/ssh05d --ssh-config=%h/.ssh/config
 Restart=on-failure
 RestartSec=2
-Environment=TSSH_DISABLE_DOCKER=1
-Environment=SSH05_DISABLE_DOCKER=1
 
 [Install]
 WantedBy=default.target

@@ -716,7 +716,7 @@ Navegación completa por teclado, foco visible, mensajes legibles sin color, sop
   romper scripts, servicios ni sesiones de desarrollo.
 - El informe de diagnóstico pasa a `ssh05-diagnostics-*.json` y los nombres de
   sesión tmux generados usan el prefijo `ssh05-`.
-- Versión del cliente: **0.3.20**. Se mantiene la compatibilidad con
+- Versión del cliente: **0.3.21**. Se mantiene la compatibilidad con
   `~/.tssh.conf`, `TSSH_*` y `~/.tssh/` heredada de `trzsz-ssh`.
 - **DAT-01 completado:** `trz`/`tsz` (y Zmodem opcional con `--zmodem`) se
   integran en el flujo de la sesión del supervisor, con `--download-path` para
@@ -730,3 +730,6 @@ Navegación completa por teclado, foco visible, mensajes legibles sin color, sop
   habilitado globalmente para usuarios (`/etc/systemd/user/default.target.wants`)
   y `ssh05-ui` arranca el supervisor si el socket no existe; no se requieren
   pasos manuales de `systemctl`.
+- **0.3.21:** la unidad ya no fuerza la desactivación de Docker, de modo que
+  `--docker` en `ExecStart` incluye contenedores; la UI explica en el estado
+  vacío cómo crear hosts y cómo habilitar Docker.
