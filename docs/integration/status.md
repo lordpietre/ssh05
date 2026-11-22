@@ -15,16 +15,16 @@
 | Prototipo PTY/OpenTUI (`vim`, `htop`, `tmux`, SSH, resize) | Hecho | `docs/phase-0/README.md` |
 | ADR-01 motor SSH | **Aceptada** | `docs/adr/ADR-01-ssh-engine.md` |
 | ADR-02 terminal embebido | Aceptada (prototipo) | `docs/adr/ADR-02-vt-emulator.md` |
-| H-01 token FRP con fallback estático | **Resuelto** | `tssh/frp_proxy.go`, `tssh/frp_proxy_test.go` |
+| H-01 token FRP con fallback estático | **Resuelto** | `ssh05/frp_proxy.go`, `ssh05/frp_proxy_test.go` |
 | H-02 permisos del directorio FRP | **Resuelto** | `ensurePrivateDir`, test |
 | H-03 token FRP en reposo | **Resuelto** | AES-GCM + `~/.tssh/frp.key` 0600; TOML remoto 0600 |
 | H-04 tipos de proxy FRP | **Resuelto** | 4 tipos validados; runtime TCP/STCP/XTCP/UDP |
-| H-05 inyección en copia remota FRP | **Resuelto** | `tssh/frp_proxy.go`, `tssh/frp_proxy_test.go` |
+| H-05 inyección en copia remota FRP | **Resuelto** | `ssh05/frp_proxy.go`, `ssh05/frp_proxy_test.go` |
 | Contratos UI ↔ supervisor | **Definidos** | `contracts/`, `contracts/ts/` |
 | IPC local autenticado (transporte) | **Hecho** | `internal/ipc/`, tests |
 | Backend `SessionBackend` + runner SSH | **Hecho** | `internal/supervisor/` |
 | Servicio IPC de sesiones + daemon | **Hecho** | `internal/supervisor/service.go`, `cmd/trssd` |
-| Inventario `hosts.list` desde `ssh_config` | **Hecho** | `tssh/hosts_api.go`, `internal/supervisor/hosts.go` |
+| Inventario `hosts.list` desde `ssh_config` | **Hecho** | `ssh05/hosts_api.go`, `internal/supervisor/hosts.go` |
 | Importación KDBX con KeePassXC CLI | **Hecho** | `internal/supervisor/keepass.go` |
 | Deduplicación y provenance ssh_config+KDBX | **Hecho** | `internal/supervisor/inventory.go` |
 | Conflictos de inventario sin sobrescritura | **Hecho** | `HostsListResult.conflicts` + tests |
@@ -76,7 +76,7 @@
 | Preferencias de UI persistentes | **Hecho** | ancho, densidad, posición y reordenado |
 | Ayuda de atajos en la UI | **Hecho** | `F1` + comando en la paleta |
 | tmux solo se reengancha si existe | **Hecho** | `TmuxCreate=false`, sonda `has-session`, prueba real |
-| FRP real de extremo a extremo | **Hecho** | `scripts/trssd-frp-smoke.sh`: TCP/UDP/STCP/XTCP |
+| FRP real de extremo a extremo | **Hecho** | `scripts/trssd-frp-smoke.sh`: TCP/UDP/STCP; XTCP condicional a STUN |
 | `SessionBackend` y `TabStore` | Definidos | `contracts/session.go`, `contracts/ts/index.ts` |
 | Envelope IPC y métodos del Anexo B | Definidos | `contracts/ipc.go`, `contracts/ts/index.ts` |
 
@@ -98,7 +98,7 @@
 ## Comandos de verificación
 
 ```sh
-CGO_ENABLED=0 go test -count=1 ./tssh ./contracts
+CGO_ENABLED=0 go test -count=1 ./ssh05 ./contracts
 cd prototype/terminal && bun run typecheck && bun run typecheck:contracts
 # o:
 make contracts-check

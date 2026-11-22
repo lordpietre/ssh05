@@ -1,4 +1,4 @@
-## tssh — fork de trzsz-ssh v0.1.25
+## ssh05 — fork de trzsz-ssh v0.3.13
 
 Cliente SSH con interfaz TUI ncurses, reemplazo directo de OpenSSH. Fork de [trzsz-ssh](https://github.com/trzsz/trzsz-ssh) con gestión visual de hosts, túneles y edición inline.
 
@@ -27,7 +27,7 @@ Cliente SSH con interfaz TUI ncurses, reemplazo directo de OpenSSH. Fork de [trz
 | **Temas** | `PromptThemeLayout: tiny/simple/table`, `PromptThemeColors` personalizable, `PromptCursorIcon`/`PromptSelectedIcon` emoji |
 | **Autenticación** | Public key, password, keyboard-interactive, SSH agent, PKCS#11, Kerberos/GSSAPI, certificados OpenSSH |
 | **i18n** | Español, inglés, chino. `language = english | chinese` en `~/.tssh.conf` |
-| **Compatibilidad** | Drop-in de OpenSSH. Soporta `-o`, `-G`, `Include`, `Match`, `ControlMaster`, todos los flags estándar. `#!!` prefix para opciones tssh-only en `~/.ssh/config` |
+| **Compatibilidad** | Drop-in de OpenSSH. Soporta `-o`, `-G`, `Include`, `Match`, `ControlMaster`, todos los flags estándar. `#!!` prefix para opciones ssh05-only en `~/.ssh/config` |
 | **Multiplataforma** | Linux, macOS, Windows (+ Win7), Android/Termux, FreeBSD. Binarios para 386/amd64/arm/arm64/loong64 |
 
 ### Navegación
@@ -54,7 +54,7 @@ Cliente SSH con interfaz TUI ncurses, reemplazo directo de OpenSSH. Fork de [trz
 - **Manual**: puerto remoto y local, lanza `ssh -NL` en segundo plano
 - **Automático**: escanea puertos abiertos vía `ss`, seleccionas y creas túnel
 - `d` sobre un túnel → modo borrado, `Enter` confirma
-- Persistencia en `~/.ssh_tunnels`
+- Persistencia en `~/.tssh_tunnels`
 
 ### Edición inline
 
@@ -75,17 +75,29 @@ DragFileUploadCommand = trz -y
 DefaultDownloadPath = ~/Downloads
 ```
 
+### Instalar .deb (Ubuntu / Debian)
+
+```sh
+make deb
+sudo apt install ./dist/ssh05_*_ubuntu_amd64.deb
+# o ./dist/ssh05_*_debian_amd64.deb
+```
+
+Cada push a `main` genera `.deb` para Ubuntu y Debian (amd64 y arm64)
+como artifacts de GitHub Actions. Las etiquetas `v*` también los adjuntan
+al release.
+
 ### Compilar
 
 ```sh
-CGO_ENABLED=0 go build -o ./bin/ ./cmd/tssh
+CGO_ENABLED=0 go build -o ./bin/ ./cmd/ssh05
 ```
 
 ### Documentación integrada
 
-Ejecuta `tssh --help-config` para ver la referencia completa de opciones de `~/.tssh.conf`.
+Ejecuta `ssh05 --help-config` para ver la referencia completa de opciones de `~/.tssh.conf`.
 
-Para documentación detallada de todas las features (trzsz, zmodem, UDP, expect, scp/sftp, remember passwords, external password managers, Wayland, clipboard, themes, etc.), visita [trzsz.github.io/tssh](https://trzsz.github.io/tssh) o lee [README.en.md](README.en.md).
+Para documentación detallada de todas las features (trzsz, zmodem, UDP, expect, scp/sftp, remember passwords, external password managers, Wayland, clipboard, themes, etc.), visita el [repositorio ssh05](https://github.com/lordpietre/ssh05) o lee [README.en.md](README.en.md).
 
 ### TRSS — Fase 0
 

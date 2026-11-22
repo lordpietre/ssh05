@@ -11,14 +11,14 @@ El SDD exige que el supervisor abra sesiones SSH reales con PTY, señales,
 resize, ProxyJump, agent, verificación estricta de host y cancelación. El
 repositorio actual ya implementa un cliente SSH completo sobre
 `golang.org/x/crypto/ssh` con una interfaz estable (`SshClient`, `SshSession`)
-en `tssh/ssh.go`. La alternativa es delegar en el binario `ssh` del sistema.
+en `ssh05/ssh.go`. La alternativa es delegar en el binario `ssh` del sistema.
 
 La decisión importa porque el supervisor necesita multiplexar sesiones, aislar
 fallos y no depender de la versión de OpenSSH instalada en cada equipo.
 
 ## Alternativas
 
-1. **Reutilizar el cliente Go existente** (`tssh/ssh.go`, `login.go`,
+1. **Reutilizar el cliente Go existente** (`ssh05/ssh.go`, `login.go`,
    `auth_method.go`, `known_hosts.go`).
    - Ventaja: agent, ProxyJump, teclado interactivo, OTP, certificados,
      known_hosts y UDP ya resueltos; sin parseo de salida de un proceso.
@@ -48,13 +48,13 @@ de pestaña o por el nombre del host.
 
 | Capacidad | Implementación actual |
 |---|---|
-| PTY remoto | `SshSession.RequestPty` (`tssh/ssh.go:134`) |
-| Resize | `SshSession.WindowChange` (`tssh/ssh.go:108`) |
-| Shell/ejecución | `SshSession.Shell`, `Run`, `Start` (`tssh/ssh.go:98-112`) |
-| ProxyJump | `tssh/login.go` (multihop) |
-| Agent / claves | `tssh/agent.go`, `tssh/auth_method.go` |
-| Host key estricta | `tssh/known_hosts.go` |
-| UDP/KCP/QUIC | `tssh/udp.go` (adaptador separado, no P0) |
+| PTY remoto | `SshSession.RequestPty` (`ssh05/ssh.go:134`) |
+| Resize | `SshSession.WindowChange` (`ssh05/ssh.go:108`) |
+| Shell/ejecución | `SshSession.Shell`, `Run`, `Start` (`ssh05/ssh.go:98-112`) |
+| ProxyJump | `ssh05/login.go` (multihop) |
+| Agent / claves | `ssh05/agent.go`, `ssh05/auth_method.go` |
+| Host key estricta | `ssh05/known_hosts.go` |
+| UDP/KCP/QUIC | `ssh05/udp.go` (adaptador separado, no P0) |
 
 **Condición conocida:** `SshSession` no incluye señales en su interfaz base;
 el runner SSH usa la interfaz opcional `SshSignalSender`. El transporte
@@ -87,8 +87,8 @@ condición de salida de la Fase 1.
 
 ## Validación ejecutada
 
-- `CGO_ENABLED=0 go build ./cmd/tssh` OK con Go 1.25.0.
-- `CGO_ENABLED=0 go test -count=1 ./tssh` OK.
+- `CGO_ENABLED=0 go build ./cmd/ssh05` OK con Go 1.25.0.
+- `CGO_ENABLED=0 go test -count=1 ./ssh05` OK.
 - Interfaz `SshClient`/`SshSession` compilada y usada por el login actual.
 - El prototipo de Fase 0 abrió una sesión SSH real con PTY y resize.
 
@@ -103,9 +103,9 @@ condición de salida de la Fase 1.
 
 ## Evidencia
 
-- `tssh/ssh.go:208` (`SshLogin`, `SshClient`, `SshSession`).
-- `tssh/login.go` (resolución de destino, ProxyJump, PTY, keepalive).
-- `tssh/known_hosts.go` (host key callback).
-- `tssh/agent.go`, `tssh/auth_method.go`, `tssh/otp.go`.
+- `ssh05/ssh.go:208` (`SshLogin`, `SshClient`, `SshSession`).
+- `ssh05/login.go` (resolución de destino, ProxyJump, PTY, keepalive).
+- `ssh05/known_hosts.go` (host key callback).
+- `ssh05/agent.go`, `ssh05/auth_method.go`, `ssh05/otp.go`.
 - `contracts/session.go` y `contracts/ts/index.ts` (`SessionBackend`).
 - `contracts/README.md` (reglas de compatibilidad y transporte).

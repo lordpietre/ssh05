@@ -1,4 +1,4 @@
-# Plan: Mejora del sistema FRP Proxy en tssh
+# Plan: Mejora del sistema FRP Proxy en ssh05
 
 ## Problemas identificados (revisión 2026-07-05)
 
@@ -31,13 +31,13 @@ entries persistidos. En operaciones de reload/restart el token se pierde.
 ## Plan de implementación
 
 ### S1 — Arreglar bug de scan remoto (R2L)
-**Archivo:** `tssh/frp_proxy.go`
+**Archivo:** `ssh05/frp_proxy.go`
 **Cambio:** Crear `frpScanRemotePorts(alias)` que hace SSH y parsea puertos,
 retornando `frpScanResultMsg` directamente. Reemplazar `tunnelScanRemote()` en
 el flujo R2L de `host_model.go:590`.
 
 ### S2 — Fallback manual cuando scan falla o vacío
-**Archivo:** `tssh/frp_proxy.go`
+**Archivo:** `ssh05/frp_proxy.go`
 **Cambio:** En el handler de `frpScanResultMsg`, si `err != nil` o `len(ports) == 0`,
 en vez de mostrar error, ir a vista de entrada manual (`manual_setup`) con campos
 para:
@@ -46,14 +46,14 @@ para:
   - Exposed port (numérico, default = service port)
 
 ### S3 — Detección de puerto libre
-**Archivo:** `tssh/frp_proxy.go`
+**Archivo:** `ssh05/frp_proxy.go`
 **Cambio:** Crear `findFreePort(startPort)` que prueba conectividad TCP a
 `127.0.0.1:port` desde `startPort` hacia arriba hasta encontrar uno libre.
 Usarlo en `frpSetupCmd` en vez del hardcode `kFrpDefaultPort=7000`.
 Aplicar también para `kFrpAdminPort=7400`.
 
 ### S4 — Validación de entrada
-**Archivo:** `tssh/frp_proxy.go`
+**Archivo:** `ssh05/frp_proxy.go`
 **Cambio:**
 - `handleFrpConfirm`: validar que `proxyName` no contenga `"`
 - Validar que `exposedPort` sea número > 0
@@ -63,13 +63,13 @@ Aplicar también para `kFrpAdminPort=7400`.
 - `frpLoadConfig`: retornar error visible al usuario
 
 ### S5 — Persistir token en entries
-**Archivo:** `tssh/frp_proxy.go`
+**Archivo:** `ssh05/frp_proxy.go`
 **Cambio:** Guardar `entry.Token = m.frp.token` al crear el proxy en
 `handleFrpConfirm`. El token se genera en `frpSetupCmd` y se almacena
 en `m.frp` para ser usado después.
 
 ### S6 — Feedback de errores al usuario
-**Archivo:** `tssh/frp_proxy.go`
+**Archivo:** `ssh05/frp_proxy.go`
 **Cambio:**
 - `frpSaveConfig`: retornar `error`, mostrar en UI si falla
 - `frpLoadConfig`: retornar `error`, mostrar en UI si falla
@@ -79,8 +79,8 @@ en `m.frp` para ser usado después.
 
 ## Testing
 
-1. `CGO_ENABLED=0 go build -o ./bin/ ./cmd/tssh`
-2. `CGO_ENABLED=0 go test -v -count=1 ./tssh`
+1. `CGO_ENABLED=0 go build -o ./bin/ ./cmd/ssh05`
+2. `CGO_ENABLED=0 go test -v -count=1 ./ssh05`
 3. Probar R2L con host real
 4. Probar L2R con host real
 5. Probar fallback manual (simular `ss` no disponible)

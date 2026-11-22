@@ -64,7 +64,7 @@ done
 
 CGO_ENABLED=0 "$GO" build -o "$DIR/trssd" ./cmd/trssd
 XDG_STATE_HOME="$DIR/state" "$DIR/trssd" --socket "$DIR/control.sock" --ssh-config /dev/null \
-  --audit-log "$DIR/audit.log" --frps-listen 127.0.0.1:17000 \
+  --audit-log "$DIR/audit.log" --frps-listen 0.0.0.0:17000 \
   --frpc "$ROOT/bin/frpc" --frps "$ROOT/bin/frps" --frp-config "$DIR/frp.json" \
   >"$DIR/trssd.log" 2>&1 &
 TRSSD_PID=$!
@@ -77,4 +77,4 @@ done
 
 TRSS_SOCKET="$DIR/control.sock" "$BUN" prototype/terminal/scripts/trssd-frp-smoke.ts || fail "FRP smoke failed"
 
-echo "PASS: managed frps + frpc with TCP/UDP/STCP/XTCP"
+echo "PASS: managed frps + frpc with TCP/UDP/STCP (XTCP conditional)"

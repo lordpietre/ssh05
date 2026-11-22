@@ -5,7 +5,7 @@ import (
 	"net"
 	"sync"
 
-	"github.com/trzsz/trzsz-ssh/contracts"
+	"github.com/lordpietre/ssh05/contracts"
 )
 
 // BinaryHandler receives a PTY chunk and its session id.

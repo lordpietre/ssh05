@@ -9,8 +9,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/trzsz/trzsz-ssh/contracts"
-	"github.com/trzsz/trzsz-ssh/internal/ipc"
+	"github.com/lordpietre/ssh05/contracts"
+	"github.com/lordpietre/ssh05/internal/ipc"
 )
 
 // TestServiceSSHIntegration is an opt-in end-to-end check:

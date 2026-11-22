@@ -1,10 +1,10 @@
 Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
-Upstream-Name: tssh
-Upstream-Contact: Lonny Wong <lonnywong@qq.com>
-Source: https://github.com/trzsz/trzsz-ssh
+Upstream-Name: ssh05
+Upstream-Contact: lordpietre <pietrelinux@gmail.com>
+Source: https://github.com/lordpietre/ssh05
 
 Files: *
-Copyright: 2023-2026 The Trzsz SSH Authors.
+Copyright: 2023-2026 The Trzsz SSH Authors; 2026 ssh05 contributors.
 License: MIT
  Permission is hereby granted, free of charge, to any person obtaining a
  copy of this software and associated documentation files (the "Software"),

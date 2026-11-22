@@ -1,11 +1,11 @@
-project_name: tssh
+project_name: ssh05
 before:
   hooks:
     - go mod tidy
 builds:
-  - id: tssh
-    main: ./cmd/tssh
-    binary: tssh
+  - id: ssh05
+    main: ./cmd/ssh05
+    binary: ssh05
     env:
       - CGO_ENABLED=0
     goos:
@@ -39,7 +39,7 @@ builds:
       - goos: freebsd
         goarch: "386"
 archives:
-  - id: tssh
+  - id: ssh05
     name_template: >-
       {{ .ProjectName }}_
       {{- .Version }}_
@@ -57,9 +57,9 @@ archives:
     files:
       - none*
 nfpms:
-  - id: tssh
+  - id: ssh05
     builds:
-      - tssh
+      - ssh05
     section: net
     file_name_template: >-
       {{ .ProjectName }}_
@@ -71,10 +71,10 @@ nfpms:
       {{- else if eq .Arch "arm64" }}aarch64
       {{- else if eq .Arch "arm" }}armv{{ .Arm }}
       {{- else }}{{ .Arch }}{{ end }}
-    homepage: https://trzsz.github.io/tssh
-    maintainer: Lonny Wong <lonnywong@qq.com>
+    homepage: https://github.com/lordpietre/ssh05
+    maintainer: lordpietre <pietrelinux@gmail.com>
     description: |
-      tssh is a highly OpenSSH-compatible client with extended features.
+      ssh05 is a highly OpenSSH-compatible client with extended features.
     license: MIT
     formats:
       - rpm

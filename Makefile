@@ -15,9 +15,9 @@ else
 endif
 
 ifdef WIN_TARGET
-	TSSH := tssh.exe
+	SSH05 := ssh05.exe
 else
-	TSSH := tssh
+	SSH05 := ssh05
 endif
 
 ifeq (${OS}, Windows_NT)
@@ -28,21 +28,21 @@ else
 	GO_TEST := ${shell basename `which gotest 2>/dev/null` 2>/dev/null || echo go test}
 endif
 
-.PHONY: all clean test install download-frp phase0 bench contracts-check ui-check ui-smoke trssd frp-smoke trssd-frp-smoke hostkey-smoke phase1-smoke p1-smoke verify
+.PHONY: all clean test install download-frp phase0 bench contracts-check ui-check ui-smoke trssd frp-smoke trssd-frp-smoke hostkey-smoke phase1-smoke p1-smoke verify deb
 
 # Check if frp source is available (may not exist on clone since /frp/ is gitignored)
 ifneq ("$(wildcard $(FRP_DIR)/go.mod)","")
   HAS_FRP := yes
 endif
 
-all: ${BIN_DIR}/${TSSH}
+all: ${BIN_DIR}/${SSH05}
 
 ifeq ($(HAS_FRP),yes)
 all: ${BIN_DIR}/frps ${BIN_DIR}/frpc
 endif
 
-${BIN_DIR}/${TSSH}: $(wildcard ./cmd/tssh/*.go ./tssh/*.go) go.mod go.sum
-	CGO_ENABLED=0 go build -o ${BIN_DIR}/ ./cmd/tssh
+${BIN_DIR}/${SSH05}: $(wildcard ./cmd/ssh05/*.go ./ssh05/*.go) go.mod go.sum
+	CGO_ENABLED=0 go build -o ${BIN_DIR}/ ./cmd/ssh05
 
 ifeq ($(HAS_FRP),yes)
 ${BIN_DIR}/frps: ${FRP_DIR}/go.mod ${FRP_DIR}/go.sum
@@ -78,10 +78,10 @@ download-frp:
 	echo "FRP binaries installed in ${BIN_DIR}/"
 
 clean:
-	$(RM) ${BIN_DIR}/tssh ${BIN_DIR}/tssh.exe ${BIN_DIR}/trssd ${BIN_DIR}/trssd.exe ${BIN_DIR}/frps ${BIN_DIR}/frpc 2>/dev/null; true
+	$(RM) ${BIN_DIR}/ssh05 ${BIN_DIR}/ssh05.exe ${BIN_DIR}/trssd ${BIN_DIR}/trssd.exe ${BIN_DIR}/frps ${BIN_DIR}/frpc 2>/dev/null; true
 
 test:
-	${GO_TEST} -v -count=1 ./tssh ./contracts ./internal/ipc ./internal/supervisor ./internal/audit ./internal/frp ./internal/transfer
+	${GO_TEST} -v -count=1 ./ssh05 ./contracts ./internal/ipc ./internal/supervisor ./internal/audit ./internal/frp ./internal/transfer
 
 trssd:
 	CGO_ENABLED=0 go build -o ${BIN_DIR}/ ./cmd/trssd
@@ -105,6 +105,12 @@ p1-smoke: hostkey-smoke ui-smoke trssd-frp-smoke
 
 verify: test contracts-check p1-smoke
 
+deb:
+	./scripts/build-deb.sh ubuntu amd64
+	./scripts/build-deb.sh ubuntu arm64
+	./scripts/build-deb.sh debian amd64
+	./scripts/build-deb.sh debian arm64
+
 bench:
 	CGO_ENABLED=0 ${GO_TEST} -run '^$$' -bench . -benchmem ./internal/ipc ./internal/supervisor ./internal/frp
 
@@ -117,7 +123,7 @@ ifdef WIN_TARGET
 	@echo install target is not supported for Windows
 else
 	@mkdir -p ${DESTDIR}${BIN_DST}
-	cp ${BIN_DIR}/tssh ${DESTDIR}${BIN_DST}/
+	cp ${BIN_DIR}/ssh05 ${DESTDIR}${BIN_DST}/
 endif
 
 hostkey-smoke:

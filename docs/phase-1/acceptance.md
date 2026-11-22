@@ -20,14 +20,14 @@
 | AUT-01 agent/claves OpenSSH | Runner SSH real con key auth | `make ui-smoke` |
 | UI-01 OpenTUI + teclado | UI completa, tabs, paleta, workspaces | `make ui-smoke` |
 | SEG-01 host key estricta | Clave correcta conecta; cambiada bloquea | `make hostkey-smoke` |
-| SEG-02 sin inyección/filtración | IPC tipado, comandos citados, auditoría saneada | `go test ./tssh ./internal/ipc` |
+| SEG-02 sin inyección/filtración | IPC tipado, comandos citados, auditoría saneada | `go test ./ssh05 ./internal/ipc` |
 | PTY 100 MB acotado | Buffer pendiente ≤1 MiB | `go test ./internal/supervisor` |
 | Recuperación tras caída UI | `sessions.list`/`attach` sin duplicar | `make ui-smoke` |
 
 ## Comandos
 
 ```sh
-CGO_ENABLED=0 go test -count=1 ./tssh ./contracts ./internal/ipc ./internal/supervisor ./internal/audit
+CGO_ENABLED=0 go test -count=1 ./ssh05 ./contracts ./internal/ipc ./internal/supervisor ./internal/audit
 make hostkey-smoke
 make ui-smoke
 ```

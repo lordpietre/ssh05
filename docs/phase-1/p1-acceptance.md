@@ -11,7 +11,7 @@
 ## Cómo reproducir
 
 ```sh
-CGO_ENABLED=0 go test -count=1 ./tssh ./contracts ./internal/ipc ./internal/supervisor ./internal/audit ./internal/frp
+CGO_ENABLED=0 go test -count=1 ./ssh05 ./contracts ./internal/ipc ./internal/supervisor ./internal/audit ./internal/frp
 cd prototype/terminal && bun run typecheck && bun test
 
 make p1-smoke          # host key + UI + FRP real del supervisor
@@ -29,7 +29,7 @@ Los binarios FRP se obtienen con `make download-frp`.
 | SES-06 | Cumplido | `internal/supervisor/backend.go`: backoff, límite y cancelación; tests de reconexión |
 | SES-07 | Cumplido | tmux opcional con `Ctrl+G`; nombres `trss-<alias>`; `tmuxStartCommand` en el runner |
 | SES-08 | Cumplido | Restauración pendiente; `TmuxCreate=false` + `tmux has-session`; si falta, shell y se borra el binding |
-| INV-02 | Cumplido | `tssh.ListHostEntries` respeta `Include`; `TestSSHHostsInclude` |
+| INV-02 | Cumplido | `ssh05.ListHostEntries` respeta `Include`; `TestSSHHostsInclude` |
 | INV-03 | Cumplido | `internal/supervisor/keepass.go` importa KDBX con `keepassxc-cli` |
 | INV-04 | Cumplido | `Inventory.mergeLocked` conserva procedencia y expone conflictos sin sobrescribir |
 | INV-05 | Cumplido | `#!!` + overrides persistentes en `~/.config/trss/hosts.json`; `F2` favorito, `F3` color, `F4` etiquetas |
@@ -95,7 +95,7 @@ a `~/.local/state/trss/diagnostics/` con permisos `0600`.
 
 ## Extra posterior: concurrencia de conexiones
 
-`TestSshLoginConcurrent` (en `tssh/login_concurrent_test.go`) abre tres sesiones
+`TestSshLoginConcurrent` (en `ssh05/login_concurrent_test.go`) abre tres sesiones
 a la vez con la misma configuración; se ejecuta dentro de `make ui-smoke` y
 también con `-race` de forma manual. La inicialización sigue serializada, pero
 el establecimiento de conexiones ya no lo está.
@@ -104,7 +104,9 @@ el establecimiento de conexiones ya no lo está.
 
 `make trssd-frp-smoke` levanta un `frps` gestionado y un `frpc` reales, crea
 proxies TCP, UDP, STCP y XTCP, comprueba HTTP y eco UDP, valida la ruta FRP
-STCP, detiene cada proxy y verifica que deja de ser alcanzable.
+STCP, detiene cada proxy y verifica que deja de ser alcanzable. XTCP se prueba
+de extremo a extremo cuando STUN/NAT lo permite; en redes restringidas se
+informa como SKIP.
 
 `make ui-smoke` cubre tres sesiones SSH, resize, cierre independiente, tmux,
 10 pestañas con overflow, recuperación tras caída de la UI y workspaces.

@@ -68,5 +68,5 @@ logs, argv ni variables de entorno.
 ## Evidencia
 
 - `docs/audit/phase-0-audit.md` §3 (AUT/INV).
-- `tssh/config.go` (cifrado AES-GCM de `encPassword`).
+- `ssh05/config.go` (cifrado AES-GCM de `encPassword`).
 - SDD §7 y §19.3.

@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/trzsz/trzsz-ssh/contracts"
+	"github.com/lordpietre/ssh05/contracts"
 )
 
 func TestSSHHostsList(t *testing.T) {

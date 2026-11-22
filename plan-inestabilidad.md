@@ -7,20 +7,20 @@ Las conexiones SSH se congelan/timeout durante sesiones normales.
 
 ### 1.1 Verificar configuración actual
 ```bash
-# Ver configuración activa de tssh
+# Ver configuración activa de ssh05
 cat ~/.tssh.conf 2>/dev/null || echo "No existe ~/.tssh.conf"
 
 # Ver configuración SSH del host
 cat ~/.ssh/config | grep -A 10 -i "ServerAlive" || echo "No hay configuración de keepalive"
 
 # Ver configuración efectiva de un host específico
-tssh -G <host> | grep -i "alive"
+ssh05 -G <host> | grep -i "alive"
 ```
 
 ### 1.2 Habilitar logs de debug
 ```bash
 # Ejecutar con verbose para ver qué está pasando
-tssh -vvv <host>
+ssh05 -vvv <host>
 
 # O habilitar debug logging en ~/.tssh.conf
 echo "LogLevel = DEBUG" >> ~/.tssh.conf
@@ -37,8 +37,8 @@ LOG=/tmp/ssh-keepalive-$(date +%Y%m%d-%H%M%S).log
 echo "Monitoreando keepalives para $HOST..." | tee $LOG
 echo "Log guardado en: $LOG" | tee -a $LOG
 
-# Ejecutar tssh con verbose y capturar output
-tssh -vvv $HOST 2>&1 | grep -E "(keep.?alive|timeout|disconnect)" | tee -a $LOG
+# Ejecutar ssh05 con verbose y capturar output
+ssh05 -vvv $HOST 2>&1 | grep -E "(keep.?alive|timeout|disconnect)" | tee -a $LOG
 ```
 
 ### 1.4 Verificar timeouts del sistema
@@ -72,7 +72,7 @@ Host problematico
 
 ### 2.3 Usar opción de línea de comandos
 ```bash
-tssh -o ServerAliveInterval=15 -o ServerAliveCountMax=5 <host>
+ssh05 -o ServerAliveInterval=15 -o ServerAliveCountMax=5 <host>
 ```
 
 ### 2.4 Habilitar TCP keepalive a nivel de sistema
@@ -95,19 +95,19 @@ sudo sysctl -p
 ```bash
 # Capturar paquetes SSH para analizar
 sudo tcpdump -i any -w /tmp/ssh-debug.pcap 'port 22' &
-tssh <host>
+ssh05 <host>
 # Después de reproducir el problema:
 sudo killall tcpdump
 # Analizar con Wireshark o:
 tshark -r /tmp/ssh-debug.pcap -Y "ssh" | head -50
 ```
 
-### 3.2 Verificar si es problema de red o de tssh
+### 3.2 Verificar si es problema de red o de ssh05
 ```bash
 # Probar con ssh estándar
 ssh -o ServerAliveInterval=15 -o ServerAliveCountMax=5 <host>
 
-# Si ssh estándar funciona pero tssh no, es problema de tssh
+# Si ssh estándar funciona pero ssh05 no, es problema de ssh05
 # Si ambos fallan, es problema de red/servidor
 ```
 
@@ -160,7 +160,7 @@ DURATION=300  # 5 minutos
 
 echo "Probando estabilidad de conexión a $HOST por ${DURATION}s..."
 START=$(date +%s)
-tssh -o ServerAliveInterval=15 -o ServerAliveCountMax=5 $HOST "sleep $DURATION && echo 'Conexión estable'" &
+ssh05 -o ServerAliveInterval=15 -o ServerAliveCountMax=5 $HOST "sleep $DURATION && echo 'Conexión estable'" &
 PID=$!
 
 # Monitorear cada 30 segundos

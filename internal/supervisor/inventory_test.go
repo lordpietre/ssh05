@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/trzsz/trzsz-ssh/contracts"
+	"github.com/lordpietre/ssh05/contracts"
 )
 
 func keepassFixture(t *testing.T) (db, key string) {
@@ -156,4 +156,9 @@ func TestInventoryVaultIdleLockDropsKeePassProfiles(t *testing.T) {
 	if len(hosts) != 0 {
 		t.Fatalf("hosts after idle lock = %+v", hosts)
 	}
+}
+
+func TestMain(m *testing.M) {
+	_ = os.Setenv("TSSH_DISABLE_DOCKER", "1")
+	os.Exit(m.Run())
 }

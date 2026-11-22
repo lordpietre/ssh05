@@ -1,228 +1,70 @@
-## trzsz-ssh(tssh): 高度兼容 OpenSSH 并提供丰富扩展功能的 SSH 客户端
+## ssh05: 高度兼容 OpenSSH 并提供丰富扩展功能的 SSH 客户端
 
 [![MIT License](https://img.shields.io/badge/license-MIT-green.svg?style=flat)](https://choosealicense.com/licenses/mit/)
-[![GitHub Release](https://img.shields.io/github/v/release/trzsz/trzsz-ssh)](https://github.com/trzsz/trzsz-ssh/releases)
-[![WebSite](https://img.shields.io/badge/WebSite-https%3A%2F%2Ftrzsz.github.io%2Ftssh-blue?style=flat)](https://trzsz.github.io/tssh)
-[![中文文档](https://img.shields.io/badge/%E4%B8%AD%E6%96%87%E6%96%87%E6%A1%A3-https%3A%2F%2Ftrzsz.github.io%2Fcn%2Ftssh-blue?style=flat)](https://trzsz.github.io/cn/tssh)
+[![GitHub Release](https://img.shields.io/github/v/release/lordpietre/ssh05)](https://github.com/lordpietre/ssh05/releases)
+[![Repository](https://img.shields.io/badge/Repository-github.com%2Flordpietre%2Fssh05-blue?style=flat)](https://github.com/lordpietre/ssh05)
 
-trzsz-ssh ( tssh ) 设计为 ssh 客户端的直接替代品，提供与 openssh 完全兼容的基础功能，同时实现其他有用的扩展功能。
 
-trzsz-ssh ( tssh ) 与 [tsshd](https://github.com/trzsz/tsshd) 一起，适用于高延迟的弱网连接，切换网络、休眠与唤醒都不会掉线，让 ssh 会话永远保持。
+ssh05 设计为 ssh 客户端的直接替代品，提供与 openssh 完全兼容的基础功能，同时实现其他有用的扩展功能。
+
+ssh05 与 [tsshd](https://github.com/trzsz/tsshd) 一起，适用于高延迟的弱网连接，切换网络、休眠与唤醒都不会掉线，让 ssh 会话永远保持。
 
 ### 为什么做
 
-- 服务器太多，记不住所有别名，`tssh` 内置登录界面，支持搜索和选择服务器登录。
+- 服务器太多，记不住所有别名，`ssh05` 内置登录界面，支持搜索和选择服务器登录。
 
-- `tssh` 登录服务器后，内置支持 [trzsz](https://trzsz.github.io/cn/) ( trz / tsz ) 工具，传文件无需另外新开窗口。
+- `ssh05` 登录服务器后，内置支持 [trzsz](https://trzsz.github.io/cn/) ( trz / tsz ) 工具，传文件无需另外新开窗口。
 
-- 有时需要同时登录一批机器，`tssh` 支持多选并批量登录，同时支持执行预设的命令。
+- 有时需要同时登录一批机器，`ssh05` 支持多选并批量登录，同时支持执行预设的命令。
 
-- 有些服务器不支持公钥登录，`tssh` 支持记住密码，支持自动交互，提升登录的效率。
+- 有些服务器不支持公钥登录，`ssh05` 支持记住密码，支持自动交互，提升登录的效率。
 
-- 在 Windows 中使用 `tssh` 代替 `trzsz ssh`，可以解决 `trz` 上传速度很慢的问题。
+- 在 Windows 中使用 `ssh05` 代替 `trzsz ssh`，可以解决 `trz` 上传速度很慢的问题。
 
-- `tssh` 与 [tsshd](https://github.com/trzsz/tsshd) 类似于 mosh，解决了部分 mosh 的问题，例如 SSH 转发和 ProxyJump 等。
+- `ssh05` 与 [tsshd](https://github.com/trzsz/tsshd) 类似于 mosh，解决了部分 mosh 的问题，例如 SSH 转发和 ProxyJump 等。
 
 ### 安装方法
 
-> 💡 **注意**：Homebrew 中命名为 `trzsz-ssh`，其他地方通常命名为 `tssh`。
+> 💡 **注意**：Homebrew、scoop、winget、choco、apt PPA、dnf/copr、conda 和 Arch 的包属于上游 `trzsz-ssh` 项目。本 fork 提供 `.deb` 包和源码构建。
 
-- Windows 可用 scoop / winget / choco 安装
+#### Debian / Ubuntu
 
-  <details><summary><code>scoop install tssh</code> / <code>winget install tssh</code> / <code>choco install tssh</code></summary>
+从 GitHub Actions artifacts 或 Releases 下载 `ssh05_<version>_<debian|ubuntu>_<arch>.deb`，然后安装：
 
-  ```sh
-  scoop install tssh
-  ```
+```sh
+sudo apt install ./ssh05_*.deb
+```
 
-  ```sh
-  winget install tssh
-  ```
+本地可用 `make deb` 构建 Ubuntu 和 Debian 两种标签，产物在 `dist/`。
 
-  ```sh
-  choco install tssh
-  ```
+#### Go
 
-  </details>
+```sh
+go install github.com/lordpietre/ssh05/cmd/ssh05@latest
+```
 
-- MacOS 可用 Homebrew 安装
+#### 源码构建
 
-  <details><summary><code>brew install trzsz-ssh</code></summary>
-
-  ```sh
-  brew install trzsz-ssh
-  ```
-
-  </details>
-
-- Ubuntu 可用 apt 安装
-
-  <details><summary><code>sudo apt install tssh</code></summary>
-
-  ```sh
-  sudo apt update && sudo apt install software-properties-common
-  sudo add-apt-repository ppa:trzsz/ppa && sudo apt update
-
-  sudo apt install tssh
-  ```
-
-  </details>
-
-- Debian 可用 apt 安装
-
-  <details><summary><code>sudo apt install tssh</code></summary>
-
-  ```sh
-  sudo apt install curl gpg
-  curl -s 'https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x7074ce75da7cc691c1ae1a7c7e51d1ad956055ca' \
-    | gpg --dearmor -o /usr/share/keyrings/trzsz.gpg
-  echo 'deb [signed-by=/usr/share/keyrings/trzsz.gpg] https://ppa.launchpadcontent.net/trzsz/ppa/ubuntu jammy main' \
-    | sudo tee /etc/apt/sources.list.d/trzsz.list
-  sudo apt update
-
-  sudo apt install tssh
-  ```
-
-  </details>
-
-- Fedora / CentOS / RHEL 可用 dnf 安装
-
-  <details><summary><code>sudo dnf install tssh</code></summary>
-
-  ```sh
-  sudo dnf copr enable @trzsz/trzsz
-  sudo dnf install tssh
-  ```
-
-  </details>
-
-- 传统版本 CentOS / RHEL 可用 yum 安装
-
-  <details><summary><code>sudo yum install tssh</code></summary>
-
-  - 国内推荐使用 [wlnmp](https://www.wlnmp.com/install) 源，安装 tssh 只需要添加 wlnmp 源（ 配置 epel 源不是必须的 ）：
-
-    ```sh
-    curl -fsSL "https://sh.wlnmp.com/wlnmp.sh" | bash
-
-    sudo yum install tssh
-    ```
-
-  - 也可使用 [gemfury](https://gemfury.com/) 源（ 只要网络通，所有操作系统通用 ）
-
-    ```sh
-    echo '[trzsz]
-    name=Trzsz Repo
-    baseurl=https://yum.fury.io/trzsz/
-    enabled=1
-    gpgcheck=0' | sudo tee /etc/yum.repos.d/trzsz.repo
-
-    sudo yum install tssh
-    ```
-
-  </details>
-
-- ArchLinux 可用 yay 安装
-
-  <details><summary><code>yay -S tssh</code></summary>
-
-  ```sh
-  yay -Syu
-  yay -S tssh
-  ```
-
-  </details>
-
-- ChromeOS 可用 Chromebrew 安装
-
-  <details><summary><code>crew install tssh</code></summary>
-
-  ```sh
-  crew install tssh
-  ```
-
-  </details>
-
-- 用 pixi / conda / mamba 从 [conda-forge](https://github.com/conda-forge/tssh-feedstock) 安装
-
-  <details><summary><code>pixi global install tssh</code> / <code>conda install tssh</code> / <code>mamba install tssh</code></summary>
-
-  ```sh
-  pixi global install tssh
-  ```
-
-  ```sh
-  conda install -c conda-forge tssh
-  ```
-
-  ```sh
-  mamba install -c conda-forge tssh
-  ```
-
-  </details>
-
-- 用 Go 直接安装（ 要求 go 1.25 以上 ）
-
-  <details><summary><code>go install github.com/trzsz/trzsz-ssh/cmd/tssh@latest</code></summary>
-
-  ```sh
-  # 最新发布版本
-  go install github.com/trzsz/trzsz-ssh/cmd/tssh@latest
-
-  # 最新开发版本（ main 分支 ）
-  go install github.com/trzsz/trzsz-ssh/cmd/tssh@main
-  ```
-
-  安装后，`tssh` 程序一般位于 `~/go/bin/` 目录下（ Windows 一般在 `C:\Users\your_name\go\bin\` ）。
-
-  </details>
-
-- 用 Go 自己编译（ 要求 go 1.25 以上 ）
-
-  <details><summary><code>sudo make install</code></summary>
-
-  ```sh
-  git clone --depth 1 https://github.com/trzsz/trzsz-ssh.git
-  cd trzsz-ssh
-  make
-  sudo make install
-  ```
-
-  </details>
-
-- 可从 [GitHub Releases](https://github.com/trzsz/trzsz-ssh/releases) 或 [Pre-Release](https://github.com/trzsz/trzsz-ssh/releases/tag/dev) 中下载，国内可从 [Gitee 发行版](https://gitee.com/trzsz/tssh/releases) 中下载，然后本地安装。
-
-  <details><summary><code>下载并本地安装</code></summary>
-
-  ```sh
-  sudo apt install /tmp/tssh_*.deb
-
-  sudo dpkg -i /tmp/tssh_*.deb
-
-  sudo dnf install /tmp/tssh_*.rpm
-
-  sudo yum install /tmp/tssh_*.rpm
-
-  sudo rpm -i /tmp/tssh_*.rpm
-
-  tar zxvf tssh_*.tar.gz && sudo cp tssh_*/tssh /usr/bin/
-  ```
-
-  </details>
+```sh
+git clone --depth 1 https://github.com/lordpietre/ssh05.git
+cd ssh05
+make
+sudo make install
+```
 
 ### 登录界面
 
 - 使用之前，需要配置好 `~/.ssh/config` ( Windows 是 `C:\Users\xxx\.ssh\config`, `xxx` 换成用户名 )。
 
-- 关于如何配置 `~/.ssh/config`，请参考 [openssh](https://manpages.debian.org/bookworm/openssh-client/ssh_config.5.en.html) ( `Match` 中的 `exec` 暂时要参考下文配置 `UseOpenSSHConfig` 才支持 )，或参考 tssh wiki [SSH基本配置](https://github.com/trzsz/trzsz-ssh/wiki/SSH%E5%9F%BA%E6%9C%AC%E9%85%8D%E7%BD%AE)。
+- 关于如何配置 `~/.ssh/config`，请参考 [openssh](https://manpages.debian.org/bookworm/openssh-client/ssh_config.5.en.html) ( `Match` 中的 `exec` 暂时要参考下文配置 `UseOpenSSHConfig` 才支持 )，或参考 ssh05 wiki [SSH基本配置](https://github.com/trzsz/trzsz-ssh/wiki/SSH%E5%9F%BA%E6%9C%AC%E9%85%8D%E7%BD%AE)。
 
-- 直接无参数运行 `tssh` 命令就会打开登录界面，或者有除目标机器外的其他参数也会打开登录界面。
+- 直接无参数运行 `ssh05` 命令就会打开登录界面，或者有除目标机器外的其他参数也会打开登录界面。
 
 - 如果目标机器参数是 `~/.ssh/config` 中别名的一部分，不能完全匹配某个别名，也会打开登录界面。
 
 - 如果配置了 `#!! HideHost yes`，或者别名中含有 `*` 或 `?` 通配符时，则不会显示在登录界面中。
 
-- `tssh` 支持很多快捷键，支持搜索，在 `tmux`、`iTerm2` 和 `Windows Terminal` 等中使用时支持多选。
+- `ssh05` 支持很多快捷键，支持搜索，在 `tmux`、`iTerm2` 和 `Windows Terminal` 等中使用时支持多选。
 
   | 操作      | 全局快捷键                      | 非搜索快捷键 | 快捷键描述      |
   | --------- | ------------------------------- | ------------ | --------------- |
@@ -246,16 +88,16 @@ trzsz-ssh ( tssh ) 与 [tsshd](https://github.com/trzsz/tsshd) 一起，适用�
 
 ### 主题风格
 
-- `tssh` 支持多种主题风格，在 `$XDG_CONFIG_HOME/tssh/tssh.conf` ( 或 `~/.tssh.conf` ) 中配置 `PromptThemeLayout` 选用。欢迎一起来创造更多更好看的。
+- `ssh05` 支持多种主题风格，在 `$XDG_CONFIG_HOME/tssh/tssh.conf` ( 或 `~/.tssh.conf` ) 中配置 `PromptThemeLayout` 选用。欢迎一起来创造更多更好看的。
 
 - 每种主题风格都支持自定义颜色，在 `$XDG_CONFIG_HOME/tssh/tssh.conf` ( 或 `~/.tssh.conf` ) 中配置 `PromptThemeColors`，只要配置非默认的颜色即可。
 
-- 请为你喜欢的主题风格[❤️投票❤️](https://github.com/trzsz/trzsz-ssh/issues/75)，得票数最高的主题风格将会在下个版本被设置为默认主题。
+- 请为你喜欢的主题风格[❤️投票❤️](https://github.com/lordpietre/ssh05/issues/75)，得票数最高的主题风格将会在下个版本被设置为默认主题。
 
 #### tiny 小巧风
 
 - 在 `$XDG_CONFIG_HOME/tssh/tssh.conf` ( 或 `~/.tssh.conf` ) 中配置 `PromptThemeLayout = tiny` 选用 `tiny 小巧风`。
-  ![tssh tiny](https://trzsz.github.io/images/tssh_tiny.gif)
+  ![ssh05 tiny](https://trzsz.github.io/images/tssh_tiny.gif)
 
 - 在 `$XDG_CONFIG_HOME/tssh/tssh.conf` ( 或 `~/.tssh.conf` ) 中配置 `PromptThemeColors`，要求配置成一行。`tiny 小巧风` 支持以下配置项：
 
@@ -315,14 +157,14 @@ trzsz-ssh ( tssh ) 与 [tsshd](https://github.com/trzsz/tsshd) 一起，适用�
 #### simple 简约风
 
 - 在 `$XDG_CONFIG_HOME/tssh/tssh.conf` ( 或 `~/.tssh.conf` ) 中配置 `PromptThemeLayout = simple` 选用 `simple 简约风`。
-  ![tssh simple](https://trzsz.github.io/images/tssh_simple.gif)
+  ![ssh05 simple](https://trzsz.github.io/images/tssh_simple.gif)
 
 - `simple 简约风` 支持的颜色配置项、默认值和颜色枚举，和 `tiny 小巧风` 完全相同，请参考前文。
 
 #### table 表格风
 
 - 在 `$XDG_CONFIG_HOME/tssh/tssh.conf` ( 或 `~/.tssh.conf` ) 中配置 `PromptThemeLayout = table` 选用 `table 表格风`。
-  ![tssh table](https://trzsz.github.io/images/tssh_table.gif)
+  ![ssh05 table](https://trzsz.github.io/images/tssh_table.gif)
 
 - 在 `$XDG_CONFIG_HOME/tssh/tssh.conf` ( 或 `~/.tssh.conf` ) 中配置 `PromptThemeColors`，要求配置成一行。`table 表格风` 支持以下配置项：
 
@@ -372,7 +214,7 @@ trzsz-ssh ( tssh ) 与 [tsshd](https://github.com/trzsz/tsshd) 一起，适用�
     DragFileUploadCommand trz -y
   ```
 
-- 如果只是想临时启用拖拽上传功能，可以在命令行中使用 `tssh --dragfile` 登录服务器。
+- 如果只是想临时启用拖拽上传功能，可以在命令行中使用 `ssh05 --dragfile` 登录服务器。
 
 - 在 `~/.ssh/config` 或 `ExConfigPath` 配置文件中，配置 `EnableTrzsz` 为 `no` 禁用 trzsz 和 zmodem。
 
@@ -385,16 +227,16 @@ trzsz-ssh ( tssh ) 与 [tsshd](https://github.com/trzsz/tsshd) 一起，适用�
 - 可使用 `--upload-file` 参数在命令行中指定文件或目录直接上传，也可在服务器后面指定 `trz` 上传命令参数和保存路径，如：
 
   ```sh
-  tssh --upload-file /path/to/file1 --upload-file /path/to/dir2 xxx_server '~/.local/bin/trz -d /tmp/'
+  ssh05 --upload-file /path/to/file1 --upload-file /path/to/dir2 xxx_server '~/.local/bin/trz -d /tmp/'
   ```
 
 - 可在命令行中使用 `tsz` 直接下载文件或目录到本地，可一并使用 `--download-path` 参数指定本地保存的路径，如：
 
   ```sh
-  tssh -t --client --download-path /tmp/ xxx_server 'tsz -d /path/to/file1 /path/to/dir2'
+  ssh05 -t --client --download-path /tmp/ xxx_server 'tsz -d /path/to/file1 /path/to/dir2'
   ```
 
-![tssh trzsz](https://trzsz.github.io/images/tssh_trzsz.gif)
+![ssh05 trzsz](https://trzsz.github.io/images/tssh_trzsz.gif)
 
 ### 支持 zmodem
 
@@ -421,35 +263,35 @@ trzsz-ssh ( tssh ) 与 [tsshd](https://github.com/trzsz/tsshd) 一起，适用�
   scoop install lrzsz / choco install lrzsz / winget install lrzsz
   ```
 
-- 如果只是想临时启用 `rz / sz` 传文件功能，可以在命令行中使用 `tssh --zmodem` 登录服务器。
+- 如果只是想临时启用 `rz / sz` 传文件功能，可以在命令行中使用 `ssh05 --zmodem` 登录服务器。
 
 - 关于 `rz / sz` 进度条，己传大小和传输速度会有一点偏差，它的主要作用只是指示传输正在进行中。
 
 - 可使用 `--upload-file` 参数在命令行中指定文件直接上传，在服务器后面 `cd` 到保存路径再指定 `rz` 命令及参数即可，如：
 
   ```sh
-  tssh --upload-file /path/to/file1 --upload-file /path/to/file2 xxx_server 'cd /tmp/ && rz -yeb'
+  ssh05 --upload-file /path/to/file1 --upload-file /path/to/file2 xxx_server 'cd /tmp/ && rz -yeb'
   ```
 
 - 可在命令行中使用 `sz` 直接下载文件到本地，可一并使用 `--download-path` 参数指定本地保存的路径，如：
 
   ```sh
-  tssh -t --client --zmodem --download-path /tmp/ xxx_server 'sz /path/to/file1 /path/to/file2'
+  ssh05 -t --client --zmodem --download-path /tmp/ xxx_server 'sz /path/to/file1 /path/to/file2'
   ```
 
 ### 支持 scp sftp
 
-- 使用了 `tssh` 记住密码的功能，登录时不用手工输入密码了，`scp` 和 `sftp` 也一样可以不用手工输入密码。
+- 使用了 `ssh05` 记住密码的功能，登录时不用手工输入密码了，`scp` 和 `sftp` 也一样可以不用手工输入密码。
 
-- 使用了 `tssh` 的 UDP 模式，SSH 通讯走加密的 UDP 通道了，`scp` 和 `sftp` 也一样可以走加密的 UDP 通道。
+- 使用了 `ssh05` 的 UDP 模式，SSH 通讯走加密的 UDP 通道了，`scp` 和 `sftp` 也一样可以走加密的 UDP 通道。
 
-- 只要 `scp` 和 `sftp` 使用 `-S` 选项指定 `tssh`，或者配置个 alias 即可使用 `tssh` 提供的一些功能，如：
+- 只要 `scp` 和 `sftp` 使用 `-S` 选项指定 `ssh05`，或者配置个 alias 即可使用 `ssh05` 提供的一些功能，如：
 
   ```sh
-  sftp -S tssh xxx
-  scp -S tssh xxx @xxx:/tmp/
-  alias tscp='scp -S tssh'
-  alias tsftp='sftp -S tssh'
+  sftp -S ssh05 xxx
+  scp -S ssh05 xxx @xxx:/tmp/
+  alias tscp='scp -S ssh05'
+  alias tsftp='sftp -S ssh05'
   ```
 
 ### 批量登录
@@ -462,14 +304,14 @@ trzsz-ssh ( tssh ) 与 [tsshd](https://github.com/trzsz/tsshd) 一起，适用�
 
 - 按下 `p` 或 `Ctrl+P` 以分屏的方式登录，`w` 或 `Ctrl+W` 以新窗口登录，`t` 或 `Ctrl+T` 以新 tab 登录。
 
-- `tssh` 不带参数启动可以批量登录服务器，若带 `-o RemoteCommand` 参数启动则可以批量执行指定的命令。支持执行指定命令之后进入交互式 shell，但 `Windows Terminal` 不支持分号 `;`，可以用 `|cat&&` 代替。举例：
+- `ssh05` 不带参数启动可以批量登录服务器，若带 `-o RemoteCommand` 参数启动则可以批量执行指定的命令。支持执行指定命令之后进入交互式 shell，但 `Windows Terminal` 不支持分号 `;`，可以用 `|cat&&` 代替。举例：
 
   ```sh
-  tssh -t -o RemoteCommand='ping -c3 trzsz.github.io ; bash -l'
-  tssh -t -o RemoteCommand="ping -c3 trzsz.github.io |cat&& bash -l"
+  ssh05 -t -o RemoteCommand='ping -c3 trzsz.github.io ; bash -l'
+  ssh05 -t -o RemoteCommand="ping -c3 trzsz.github.io |cat&& bash -l"
   ```
 
-![tssh batch](https://trzsz.github.io/images/tssh_batch.gif)
+![ssh05 batch](https://trzsz.github.io/images/tssh_batch.gif)
 
 ### 分组标签
 
@@ -481,7 +323,7 @@ trzsz-ssh ( tssh ) 与 [tsshd](https://github.com/trzsz/tsshd) 一起，适用�
 
 - 支持在一个 `GroupLabels` 中以空格分隔，配置多个分组标签；支持配置多个 `GroupLabels`。
 
-- 支持以通配符 \* 的形式，在多个 Host 节点配置分组标签，`tssh` 会将所有的标签汇总起来。
+- 支持以通配符 \* 的形式，在多个 Host 节点配置分组标签，`ssh05` 会将所有的标签汇总起来。
 
   ```
   # 以下 testAA 具有标签 group1 group2 label3 label4 group5，可以加上 `#!!` 前缀，以兼容标准 ssh
@@ -501,10 +343,10 @@ trzsz-ssh ( tssh ) 与 [tsshd](https://github.com/trzsz/tsshd) 一起，适用�
       #!! ExpectCount 2  # 配置自动交互的次数，默认是 0 即无自动交互
       #!! ExpectTimeout 30  # 配置自动交互的超时时间（单位：秒），默认是 30 秒
       #!! ExpectPattern1 *assword  # 配置第一个自动交互的匹配表达式
-      # 配置第一个自动输入（密文），这是由 tssh --enc-secret 编码得到的字符串，tssh 会自动发送 \r 回车
+      # 配置第一个自动输入（密文），这是由 ssh05 --enc-secret 编码得到的字符串，ssh05 会自动发送 \r 回车
       #!! ExpectSendPass1 d7983b4a8ac204bd073ed04741913befd4fbf813ad405d7404cb7d779536f8b87e71106d7780b2
       #!! ExpectPattern2 hostname*$  # 配置第二个自动交互的匹配表达式
-      #!! ExpectSendText2 echo tssh expect\r  # 配置第二个自动输入（明文），需要指定 \r 才会发送回车
+      #!! ExpectSendText2 echo ssh05 expect\r  # 配置第二个自动输入（明文），需要指定 \r 才会发送回车
       # 以上 ExpectSendPass? 和 ExpectSendText? 只要二选一即可，若都配置则 ExpectSendPass? 的优先级更高
   ```
 
@@ -528,7 +370,7 @@ trzsz-ssh ( tssh ) 与 [tsshd](https://github.com/trzsz/tsshd) 一起，适用�
       #!! ExpectPattern1 token:  # 配置第一个自动交互的匹配表达式
       #!! ExpectSendTotp1 xxxxx  # 配置 totp 的 secret（明文），一般可通过扫二维码获得
       #!! ExpectPattern2 token:  # 配置第二个自动交互的匹配表达式
-      # 下面是运行 tssh --enc-secret 输入 totp 的 secret 得到的密文串
+      # 下面是运行 ssh05 --enc-secret 输入 totp 的 secret 得到的密文串
       #!! ExpectSendEncTotp2 821fe830270201c36cd1a869876a24453014ac2f1d2d3b056f3601ce9cc9a87023
   ```
 
@@ -540,7 +382,7 @@ trzsz-ssh ( tssh ) 与 [tsshd](https://github.com/trzsz/tsshd) 一起，适用�
       #!! ExpectPattern1 token:  # 配置第一个自动交互的匹配表达式
       #!! ExpectSendOtp1 oathtool --totp -b xxxxx  # 配置获取动态密码的命令（明文）
       #!! ExpectPattern2 token:  # 配置第二个自动交互的匹配表达式
-      # 下面是运行 tssh --enc-secret 输入命令 oathtool --totp -b xxxxx 得到的密文串
+      # 下面是运行 ssh05 --enc-secret 输入命令 oathtool --totp -b xxxxx 得到的密文串
       #!! ExpectSendEncOtp2 77b4ce85d087b39909e563efb165659b22b9ea700a537f1258bdf56ce6fdd6ea70bc7591ea5c01918537a65433133bc0bd5ed3e4
   ```
 
@@ -561,11 +403,11 @@ trzsz-ssh ( tssh ) 与 [tsshd](https://github.com/trzsz/tsshd) 一起，适用�
   - 配置 `ExpectPassSleep each` 则每输入一个字符就 sleep 一小段时间，默认 100 毫秒，可配置 `ExpectSleepMS` 进行调整。
   - 配置 `ExpectPassSleep enter` 则只是在发送 `\r` 回车之前 sleep 一小段时间，默认 100 毫秒，可配置 `ExpectSleepMS` 进行调整。
 
-- 如果不知道 `ExpectPattern2` 如何配置，可以先将 `ExpectCount` 配置为 `2`，然后使用 `tssh --debug` 登录，就会看到 `expect` 捕获到的输出，可以直接复制输出的最后部分来配置 `ExpectPattern2`。把 `2` 换成其他任意的数字也适用。
+- 如果不知道 `ExpectPattern2` 如何配置，可以先将 `ExpectCount` 配置为 `2`，然后使用 `ssh05 --debug` 登录，就会看到 `expect` 捕获到的输出，可以直接复制输出的最后部分来配置 `ExpectPattern2`。把 `2` 换成其他任意的数字也适用。
 
 ### 记住密码
 
-- 推荐使用公钥认证登录，可参考 openssh 的文档，或者参考 tssh wiki [公钥认证登录](https://github.com/trzsz/trzsz-ssh/wiki/%E5%85%AC%E9%92%A5%E8%AE%A4%E8%AF%81%E7%99%BB%E5%BD%95)。
+- 推荐使用公钥认证登录，可参考 openssh 的文档，或者参考 ssh05 wiki [公钥认证登录](https://github.com/trzsz/trzsz-ssh/wiki/%E5%85%AC%E9%92%A5%E8%AE%A4%E8%AF%81%E7%99%BB%E5%BD%95)。
 
 - 如果只能使用密码登录，建议至少设置一下配置文件的权限，如：
 
@@ -578,26 +420,26 @@ trzsz-ssh ( tssh ) 与 [tsshd](https://github.com/trzsz/tsshd) 一起，适用�
   ```
   # 如果配置在 ~/.ssh/config 中，可以加上 `#!!` 前缀，以兼容标准 ssh
   Host test1
-      # 下面是运行 tssh --enc-secret 输入密码 123456 得到的密文串，每次运行结果不同。
+      # 下面是运行 ssh05 --enc-secret 输入密码 123456 得到的密文串，每次运行结果不同。
       #!! encPassword 756b17766f45bdc44c37f811db9990b0880318d5f00f6531b15e068ef1fde2666550
 
   # 如果配置在 ~/.ssh/password 中，则不需要考虑是否兼容标准 ssh
   Host test2
-      # 下面是运行 tssh --enc-secret 输入密码 123456 得到的密文串，每次运行结果不同。
+      # 下面是运行 ssh05 --enc-secret 输入密码 123456 得到的密文串，每次运行结果不同。
       encPassword 051a2f0fdc7d0d40794b845967df4c2d05b5eb0f25339021dc4e02a9d7620070654b
 
-  # ~/.ssh/config 和 ~/.ssh/password 是支持通配符的，tssh 会使用第一个匹配到的值。
+  # ~/.ssh/config 和 ~/.ssh/password 是支持通配符的，ssh05 会使用第一个匹配到的值。
   # 这里希望 test2 使用区别于其他 test* 的密码，所以将 test* 放在了 test2 的后面。
 
   Host test*
-      Password 111111  # 支持明文密码，但是推荐使用 tssh --enc-secret 简单加密一下。
+      Password 111111  # 支持明文密码，但是推荐使用 ssh05 --enc-secret 简单加密一下。
   ```
 
 - 如果记住密码后还是要求输入密码，可能是需要[记住答案](#%E8%AE%B0%E4%BD%8F%E7%AD%94%E6%A1%88)，可配置`encQuestionAnswer1`试试：
 
   ```
   Host test1
-      # 下面是运行 tssh --enc-secret 输入密码 123456 得到的密文串，每次运行结果不同。
+      # 下面是运行 ssh05 --enc-secret 输入密码 123456 得到的密文串，每次运行结果不同。
       #!! encQuestionAnswer1 756b17766f45bdc44c37f811db9990b0880318d5f00f6531b15e068ef1fde2666550
   ```
 
@@ -607,7 +449,7 @@ trzsz-ssh ( tssh ) 与 [tsshd](https://github.com/trzsz/tsshd) 一起，适用�
   Host ctrl
       #!! CtrlExpectCount 1  # 配置自动交互的次数，一般只要输入一次密码
       #!! CtrlExpectPattern1 *assword    # 配置密码提示语的匹配表达式
-      #!! CtrlExpectSendPass1 d7983b...  # 配置 tssh --enc-secret 编码后的密码
+      #!! CtrlExpectSendPass1 d7983b...  # 配置 ssh05 --enc-secret 编码后的密码
   ```
 
 - 支持记住私钥的`Passphrase`（ 推荐使用 `ssh-agent` ）。支持与 `IdentityFile` 一起配置, 支持使用私钥文件名代替 Host 别名设置通用密钥的 `Passphrase`。举例：
@@ -616,18 +458,18 @@ trzsz-ssh ( tssh ) 与 [tsshd](https://github.com/trzsz/tsshd) 一起，适用�
   # IdentityFile 和 Passphrase 一起配置，可以加上 `#!!` 前缀，以兼容标准 ssh
   Host test1
       IdentityFile /path/to/id_rsa
-      # 下面是运行 tssh --enc-secret 输入密码 123456 得到的密文串，每次运行结果不同。
+      # 下面是运行 ssh05 --enc-secret 输入密码 123456 得到的密文串，每次运行结果不同。
       #!! encPassphrase 6f419911555b0cdc84549ae791ef69f654118d734bb4351de7e83163726ef46d176a
 
   # 在 ~/.ssh/config 中配置通用私钥 ~/.ssh/id_ed25519 对应的 Passphrase
-  # 可以加上通配符 * 以避免 tssh 搜索和选择时，文件名出现在服务器列表中。
+  # 可以加上通配符 * 以避免 ssh05 搜索和选择时，文件名出现在服务器列表中。
   Host id_ed25519*
-      # 下面是运行 tssh --enc-secret 输入密码 111111 得到的密文串，每次运行结果不同。
+      # 下面是运行 ssh05 --enc-secret 输入密码 111111 得到的密文串，每次运行结果不同。
       #!! encPassphrase 3a929328f2ab1be0ba3fccf29e8125f8e2dac6dab73c946605cf0bb8060b05f02a68
 
   # 在 ~/.ssh/password 中配置则不需要通配符*，也不会出现在服务器列表中。
   Host id_rsa
-      Passphrase 111111  # 支持明文密码，但是推荐使用 tssh --enc-secret 简单加密一下。
+      Passphrase 111111  # 支持明文密码，但是推荐使用 ssh05 --enc-secret 简单加密一下。
   ```
 
 - `记住密码`之后还提示输入密码？可能服务器的认证方式是 `keyboard interactive`，请参考下文`记住答案`。
@@ -687,21 +529,21 @@ trzsz-ssh ( tssh ) 与 [tsshd](https://github.com/trzsz/tsshd) 一起，适用�
 
 - 对于只有一个问题，且答案（密码）固定不变的，只要配置 `QuestionAnswer1` 即可。对于有多个问题的，可以按问题的序号进行配置，也可以按问题的 hex 编码进行配置。
 
-- 使用 `tssh --debug` 登录，会输出问题的 hex 编码，从而知道该如何使用 hex 编码进行配置。配置举例：
+- 使用 `ssh05 --debug` 登录，会输出问题的 hex 编码，从而知道该如何使用 hex 编码进行配置。配置举例：
 
   ```
   # 如果配置在 ~/.ssh/config 中，可以加上 `#!!` 前缀，以兼容标准 ssh
   Host test1
-      # 下面是运行 tssh --enc-secret 输入答案 `答案一` 得到的密文串，每次运行结果不同。
+      # 下面是运行 ssh05 --enc-secret 输入答案 `答案一` 得到的密文串，每次运行结果不同。
       encQuestionAnswer1 482de7690ccc5229299ccadd8de1cb7c6d842665f0dc92ff947a302f644817baecbab38601
   Host test2
-      # 下面是运行 tssh --enc-secret 输入答案 `答案一` 得到的密文串，每次运行结果不同。
+      # 下面是运行 ssh05 --enc-secret 输入答案 `答案一` 得到的密文串，每次运行结果不同。
       encQuestionAnswer1 43e86f1140cf6d8c786248aad95a26f30633f1eab671676b0860ecb5b1a64fb3ec5212dddf
-      QuestionAnswer2 答案二  # 支持明文答案，但是推荐使用 tssh --enc-secret 简单加密一下。
+      QuestionAnswer2 答案二  # 支持明文答案，但是推荐使用 ssh05 --enc-secret 简单加密一下。
       QuestionAnswer3 答案三
   Host test3
       # 其中 `6e616d653a20` 是问题 `name: ` 的 hex 编码，`enc` 前缀代表配置的是密文串。
-      # 下面是运行 tssh --enc-secret 输入答案 `my_name` 得到的密文串，每次运行结果不同。
+      # 下面是运行 ssh05 --enc-secret 输入答案 `my_name` 得到的密文串，每次运行结果不同。
       enc6e616d653a20 775f2523ab747384e1661aba7779011cb754b73f2e947672c7fd109607b801d70902d1
       636f64653a20 my_code  # 其中 `636f64653a20` 是问题 `code: ` 的 hex 编码, `my_code` 是明文答案
   ```
@@ -712,7 +554,7 @@ trzsz-ssh ( tssh ) 与 [tsshd](https://github.com/trzsz/tsshd) 一起，适用�
   Host totp
       TotpSecret1 xxxxx  # 按序号配置 totp 的 secret（明文），一般可通过扫二维码获得
       totp636f64653a20 xxxxx  # 按 `code: ` 的 hex 编码 `636f64653a20` 配置 totp 的 secret（明文）
-      # 下面是运行 tssh --enc-secret 输入命令 xxxxx 得到的密文串，加上 `enc` 前缀进行配置
+      # 下面是运行 ssh05 --enc-secret 输入命令 xxxxx 得到的密文串，加上 `enc` 前缀进行配置
       encTotpSecret2 8ba828bd54ff694bc8c4619f802b5bed73232e60a680bbac05ba5626269a81a00b
       enctotp636f64653a20 8ba828bd54ff694bc8c4619f802b5bed73232e60a680bbac05ba5626269a81a00b
   ```
@@ -723,12 +565,12 @@ trzsz-ssh ( tssh ) 与 [tsshd](https://github.com/trzsz/tsshd) 一起，适用�
   Host otp
       OtpCommand1 oathtool --totp -b xxxxx  # 按序号配置获取动态密码的命令
       otp636f64653a20 oathtool --totp -b xxxxx  # 按 `code: ` 的 hex 编码 `636f64653a20` 配置获取动态密码的命令
-      # 下面是运行 tssh --enc-secret 输入命令 oathtool --totp -b xxxxx 得到的密文串，加上 `enc` 前缀进行配置
+      # 下面是运行 ssh05 --enc-secret 输入命令 oathtool --totp -b xxxxx 得到的密文串，加上 `enc` 前缀进行配置
       encOtpCommand2 77b4ce85d087b39909e563efb165659b22b9ea700a537f1258bdf56ce6fdd6ea70bc7591ea5c01918537a65433133bc0bd5ed3e4
       encotp636f64653a20 77b4ce85d087b39909e563efb165659b22b9ea700a537f1258bdf56ce6fdd6ea70bc7591ea5c01918537a65433133bc0bd5ed3e4
   ```
 
-- 可以自己实现获取动态密码的程序，指定 `%q` 参数可以得到问题内容，将动态密码输出到 stdout 并正常退出即可，调试信息可以输出到 stderr （ `tssh --debug` 运行时可以看到 ）。配置举例（序号代表第几个问题，一般只有一个问题，只需配置 `OtpCommand1` 即可）：
+- 可以自己实现获取动态密码的程序，指定 `%q` 参数可以得到问题内容，将动态密码输出到 stdout 并正常退出即可，调试信息可以输出到 stderr （ `ssh05 --debug` 运行时可以看到 ）。配置举例（序号代表第几个问题，一般只有一个问题，只需配置 `OtpCommand1` 即可）：
 
   ```
   Host custom_otp_command
@@ -743,13 +585,13 @@ trzsz-ssh ( tssh ) 与 [tsshd](https://github.com/trzsz/tsshd) 一起，适用�
       #!! CtrlExpectCount 1  # 配置自动交互的次数
       #!! CtrlExpectPattern1 code:  # 配置密码提示语的匹配表达式（这里以 2FA 验证码举例）
       #!! CtrlExpectSendTotp1 xxxxx  # 配置 totp 的 secret（明文），一般可通过扫二维码获得
-      #!! CtrlExpectSendEncTotp1 622ada31cf...  # 或者配置 tssh --enc-secret 得到的密文串
+      #!! CtrlExpectSendEncTotp1 622ada31cf...  # 或者配置 ssh05 --enc-secret 得到的密文串
 
   Host ctrl_otp
       #!! CtrlExpectCount 1  # 配置自动交互的次数
       #!! CtrlExpectPattern1 token:  # 配置密码提示语的匹配表达式（这里以动态密码举例）
       #!! CtrlExpectSendOtp1 oathtool --totp -b xxxxx  # 配置获取动态密码的命令（明文）
-      #!! CtrlExpectSendEncOtp1 77b4ce85d0...  # 或者配置 tssh --enc-secret 得到的密文串
+      #!! CtrlExpectSendEncOtp1 77b4ce85d0...  # 或者配置 ssh05 --enc-secret 得到的密文串
   ```
 
 ### 个性配置
@@ -775,20 +617,20 @@ trzsz-ssh ( tssh ) 与 [tsshd](https://github.com/trzsz/tsshd) 一起，适用�
   # trzsz 进度条将从第一种颜色渐变到第二种颜色。注意不要带 `#`。
   ProgressColorPair = B14FFF 00FFA3
 
-  # tssh 搜索和选择服务器时，配置主题风格和自定义颜色
+  # ssh05 搜索和选择服务器时，配置主题风格和自定义颜色
   PromptThemeLayout = simple
   PromptThemeColors = {"active_host": "magenta|bold", "inactive_host": "magenta"}
 
-  # tssh 搜索和选择服务器时，每页显示的记录数，默认为 10
+  # ssh05 搜索和选择服务器时，每页显示的记录数，默认为 10
   PromptPageSize = 10
 
-  # tssh 搜索和选择服务器时，默认是类似 vim 的 normal 模式，想默认进入搜索模式可如下配置：
+  # ssh05 搜索和选择服务器时，默认是类似 vim 的 normal 模式，想默认进入搜索模式可如下配置：
   PromptDefaultMode = search
 
-  # tssh 搜索和选择服务器时，详情中显示的配置列表，默认如下：
+  # ssh05 搜索和选择服务器时，详情中显示的配置列表，默认如下：
   PromptDetailItems = Alias Host Port User GroupLabels IdentityFile ProxyCommand ProxyJump RemoteCommand UdpMode TsshdPath
 
-  # tssh 搜索和选择服务器时，可以自定义光标和选中的图标：
+  # ssh05 搜索和选择服务器时，可以自定义光标和选中的图标：
   PromptCursorIcon = 🧨
   PromptSelectedIcon = 🍺
 
@@ -801,18 +643,18 @@ trzsz-ssh ( tssh ) 与 [tsshd](https://github.com/trzsz/tsshd) 一起，适用�
 
 ### 配置注释
 
-- `tssh` 配置中的注释基本与 `openssh` 一致，额外做了一些扩展支持，详见下表：
+- `ssh05` 配置中的注释基本与 `openssh` 一致，额外做了一些扩展支持，详见下表：
 
-  | 注释                  | openssh |  tssh  |
+  | 注释                  | openssh |  ssh05  |
   | :-------------------- | :-----: | :----: |
   | `#` 开头的配置行      | 是注释  | 是注释 |
   | `#!!` 开头的配置行    | 是注释  | 非注释 |
   | `Key Value # Comment` | 看情况  | 是注释 |
   | `Key=Value # Comment` | 看情况  | 非注释 |
 
-- `#` 开头的配置行，`openssh` 一律认为是注释；`tssh` 认为 `#!!` 开头的配置行不是注释，其他以 `#` 开头的配置行是注释。
-- `Key Value # Comment` 配置（没有 `=` 号），`openssh` 有些情况认为 `#` 后的内容是注释，有些情况认为不是注释；`tssh` 一律认为 `#` 后的内容是注释。
-- `Key=Value # Comment` 配置（有 `=` 号），`openssh` 有些情况认为 `#` 后的内容是注释，有些情况认为不是注释；`tssh` 一律认为 `#` 后的内容不是注释。
+- `#` 开头的配置行，`openssh` 一律认为是注释；`ssh05` 认为 `#!!` 开头的配置行不是注释，其他以 `#` 开头的配置行是注释。
+- `Key Value # Comment` 配置（没有 `=` 号），`openssh` 有些情况认为 `#` 后的内容是注释，有些情况认为不是注释；`ssh05` 一律认为 `#` 后的内容是注释。
+- `Key=Value # Comment` 配置（有 `=` 号），`openssh` 有些情况认为 `#` 后的内容是注释，有些情况认为不是注释；`ssh05` 一律认为 `#` 后的内容不是注释。
 
 ### Wayland 集成
 
@@ -824,7 +666,7 @@ trzsz-ssh ( tssh ) 与 [tsshd](https://github.com/trzsz/tsshd) 一起，适用�
     EnableWaypipe yes
   ```
 
-- 启用 Wayland (waypipe) 集成功能后，无需再显式使用 waypipe 程序，tssh 将在后台自动运行 waypipe 程序。
+- 启用 Wayland (waypipe) 集成功能后，无需再显式使用 waypipe 程序，ssh05 将在后台自动运行 waypipe 程序。
 
 - 如果客户端 waypipe 程序在 PATH 路径下找不到，可以通过 `WaypipeClientPath` 配置指定 waypipe 程序的路径。
 
@@ -857,11 +699,11 @@ trzsz-ssh ( tssh ) 与 [tsshd](https://github.com/trzsz/tsshd) 一起，适用�
 
 ### SSH 控制台
 
-- `tssh` 控制台是类似 OpenSSH escape sequences 的功能，计划提供更友好、更强大的 SSH 控制功能。目前已支持的功能有：
+- `ssh05` 控制台是类似 OpenSSH escape sequences 的功能，计划提供更友好、更强大的 SSH 控制功能。目前已支持的功能有：
 
   - 发送转义字符 '~' ( ~ : 相当于输入 `~`，可作为控制台误触发后的补救措施 )。
-  - 暂停当前 SSH 进程 ( ^Z : 相当于 `Ctrl + Z`，不是作用于远程服务器上的进程，而是作用于 `tssh` 自身 )。
-  - 退出当前 SSH 会话 ( . : 相当于 Exit / Kill，当因为网络等原因导致 `tssh` 卡死时，可通过此功能退出 )。
+  - 暂停当前 SSH 进程 ( ^Z : 相当于 `Ctrl + Z`，不是作用于远程服务器上的进程，而是作用于 `ssh05` 自身 )。
+  - 退出当前 SSH 会话 ( . : 相当于 Exit / Kill，当因为网络等原因导致 `ssh05` 卡死时，可通过此功能退出 )。
 
 - 上面 `(` 与 ``:` 之间的字符是快捷键，兼容 OpenSSH escape sequences，例如回车后 `~.` 可以快速退出当前 SSH 会话。
 
@@ -877,7 +719,7 @@ trzsz-ssh ( tssh ) 与 [tsshd](https://github.com/trzsz/tsshd) 一起，适用�
 
 ### 其他功能
 
-- 运行 `tssh --enc-secret`，输入密码或答案，可得到用于配置的密文（ 相同密码每次运行结果不同 ）。
+- 运行 `ssh05 --enc-secret`，输入密码或答案，可得到用于配置的密文（ 相同密码每次运行结果不同 ）。
 
   - 上文说的`记住密码`和`记住答案`等，在配置项前面加上 `enc` 则可以配置成密文，防止被人窥屏。
   - 如果密码中含有 `#` 等特殊字符，直接配置密码明文可能会导致登录失败，此时则必须使用密文配置。
@@ -889,9 +731,9 @@ trzsz-ssh ( tssh ) 与 [tsshd](https://github.com/trzsz/tsshd) 一起，适用�
     encQuestionAnswer1 93956f6e7e9f2aef3af7d6a61f7046dddf14aa4bbd9845dbb836fe3782b62ac0d89f
   ```
 
-- 运行 `tssh --new-host` 可以在 TUI 界面轻松添加 SSH 配置，并且完成后可以立即登录。
+- 运行 `ssh05 --new-host` 可以在 TUI 界面轻松添加 SSH 配置，并且完成后可以立即登录。
 
-- 运行 `tssh --install-trzsz` 可以将 [trzsz](https://github.com/trzsz/trzsz-go) ( `trz` / `tsz` ) 安装到服务器上。
+- 运行 `ssh05 --install-trzsz` 可以将 [trzsz](https://github.com/trzsz/trzsz-go) ( `trz` / `tsz` ) 安装到服务器上。
 
   - 默认安装到 `~/.local/bin/` 目录，可以通过 `--install-path /path/to/install` 指定安装目录。
   - 若 `--install-path` 安装目录含有 `~/`，则必须加上单引号，如`--install-path '~/path'`。
@@ -899,7 +741,7 @@ trzsz-ssh ( tssh ) 与 [tsshd](https://github.com/trzsz/tsshd) 一起，适用�
   - 若下载 `trzsz` 的安装包失败，可以自行下载并通过 `--trzsz-bin-path /path/to/trzsz.tar.gz` 参数指定。
   - 注意：`--install-trzsz` 不支持 Windows 服务器，不支持跳板机（ 除非以 `ProxyJump` 跳过 ）。
 
-- 运行 `tssh --install-tsshd` 可以将 [tsshd](https://github.com/trzsz/tsshd) 安装到服务器上。
+- 运行 `ssh05 --install-tsshd` 可以将 [tsshd](https://github.com/trzsz/tsshd) 安装到服务器上。
 
   - 默认安装到 `~/.local/bin/` 目录，可以通过 `--install-path /path/to/install` 指定安装目录。
   - 若 `--install-path` 安装目录含有 `~/`，则必须加上单引号，如`--install-path '~/path'`。
@@ -907,7 +749,7 @@ trzsz-ssh ( tssh ) 与 [tsshd](https://github.com/trzsz/tsshd) 一起，适用�
   - 若下载 `tsshd` 的安装包失败，可以自行下载并通过 `--tsshd-bin-path /path/to/tsshd.tar.gz` 参数指定。
   - 注意：`--install-tsshd` 不支持 Windows 服务器，不支持跳板机（ 除非以 `ProxyJump` 跳过 ）。
 
-- 关于修改终端标题，其实无需 `tssh` 就能实现，只要在服务器的 shell 配置文件中（如`~/.bashrc`）配置：
+- 关于修改终端标题，其实无需 `ssh05` 就能实现，只要在服务器的 shell 配置文件中（如`~/.bashrc`）配置：
 
   ```sh
   # 设置固定的服务器标题
@@ -917,8 +759,8 @@ trzsz-ssh ( tssh ) 与 [tsshd](https://github.com/trzsz/tsshd) 一起，适用�
   PROMPT_COMMAND='echo -ne "\033]0;${USER}@${HOSTNAME}: ${PWD}\007"'
   ```
 
-  - 如果在 `$XDG_CONFIG_HOME/tssh/tssh.conf` ( 或 `~/.tssh.conf` ) 中设置了 `SetTerminalTitle = yes`，则会在登录后自动设置终端标题，但是服务器上的 `PROMPT_COMMAND` 会覆盖 `tssh` 设置的标题。
-  - 在 `tssh` 退出后不会重置为原来的标题，你需要在本地 shell 中设置 `PROMPT_COMMAND`，让它覆盖 `tssh` 设置的标题。
+  - 如果在 `$XDG_CONFIG_HOME/tssh/tssh.conf` ( 或 `~/.tssh.conf` ) 中设置了 `SetTerminalTitle = yes`，则会在登录后自动设置终端标题，但是服务器上的 `PROMPT_COMMAND` 会覆盖 `ssh05` 设置的标题。
+  - 在 `ssh05` 退出后不会重置为原来的标题，你需要在本地 shell 中设置 `PROMPT_COMMAND`，让它覆盖 `ssh05` 设置的标题。
 
 - 支持 DNS SRV，假设你家里有多台主机，但你只有一个公网 IP，你可以像下面这样设置 SRV 记录，并在 `~/.ssh/config` 中类似配置：
 
@@ -934,26 +776,26 @@ trzsz-ssh ( tssh ) 与 [tsshd](https://github.com/trzsz/tsshd) 一起，适用�
 
 ### 重连模式
 
-- 在前台模式（未用 `-f`）下，使用 `--reconnect` 会在程序退出后询问重启 tssh 进程并重新登录到远程服务器。
+- 在前台模式（未用 `-f`）下，使用 `--reconnect` 会在程序退出后询问重启 ssh05 进程并重新登录到远程服务器。
 
-- 在后台模式（使用 `-f`）下，使用 `--reconnect` 会在程序退出后自动重启 tssh 进程并重新登录到远程服务器。
+- 在后台模式（使用 `-f`）下，使用 `--reconnect` 会在程序退出后自动重启 ssh05 进程并重新登录到远程服务器。
 
-- **注意：** `--reconnect` 仅会重启 tssh 进程并重登录；**不会恢复之前的 SSH 会话**。如需恢复已有的 SSH 会话，请使用下面的 UDP 模式。
+- **注意：** `--reconnect` 仅会重启 ssh05 进程并重登录；**不会恢复之前的 SSH 会话**。如需恢复已有的 SSH 会话，请使用下面的 UDP 模式。
 
 ### UDP 模式
 
-- 在服务器上安装 [tsshd](https://github.com/trzsz/tsshd?tab=readme-ov-file#installation)，使用 `tssh --udp xxx` 登录服务器（对延迟敏感可指定 `--kcp` 选项），或者在 `~/.ssh/config` 中如下配置以省略 `--udp` 或 `--kcp` 选项：
+- 在服务器上安装 [tsshd](https://github.com/trzsz/tsshd?tab=readme-ov-file#installation)，使用 `ssh05 --udp xxx` 登录服务器（对延迟敏感可指定 `--kcp` 选项），或者在 `~/.ssh/config` 中如下配置以省略 `--udp` 或 `--kcp` 选项：
 
   ```
   Host xxx
       #!! UdpMode  ( yes | QUIC | KCP )
   ```
 
-- `tssh` 在客户端扮演 `ssh` 的角色，`tsshd` 在服务端扮演 `sshd` 的角色。
+- `ssh05` 在客户端扮演 `ssh` 的角色，`tsshd` 在服务端扮演 `sshd` 的角色。
 
-- `tssh` 会先作为一个 ssh 客户端正常登录到服务器上，然后在服务器上启动一个 `tsshd` 进程（每次登录都是一个独立的 `tsshd` 进程）。
+- `ssh05` 会先作为一个 ssh 客户端正常登录到服务器上，然后在服务器上启动一个 `tsshd` 进程（每次登录都是一个独立的 `tsshd` 进程）。
 
-- `tsshd` 进程会随机侦听一个 61001 到 61999 之间的 UDP 端口（可通过 `TsshdPort` 配置自定义），并将其端口和几个密钥通过 ssh 通道发回给 `tssh` 进程。登录的 ssh 连接会被关闭，然后 `tssh` 进程通过 UDP 与 `tsshd` 进程通讯。
+- `tsshd` 进程会随机侦听一个 61001 到 61999 之间的 UDP 端口（可通过 `TsshdPort` 配置自定义），并将其端口和几个密钥通过 ssh 通道发回给 `ssh05` 进程。登录的 ssh 连接会被关闭，然后 `ssh05` 进程通过 UDP 与 `tsshd` 进程通讯。
 
 ![tsshd attach session](https://trzsz.github.io/images/tsshd_attach.gif)
 
@@ -976,17 +818,17 @@ Host xxx
     #!! UdpSessionName xxx
 ```
 
-- `UdpMode`: `no` (默认为`no`: tssh 工作在 TCP 模式), `yes` (默认协议: `QUIC`), `QUIC` ([QUIC](https://github.com/quic-go/quic-go) 协议：速度更快), `KCP` ([KCP](https://github.com/xtaci/kcp-go) 协议：延迟更低).
+- `UdpMode`: `no` (默认为`no`: ssh05 工作在 TCP 模式), `yes` (默认协议: `QUIC`), `QUIC` ([QUIC](https://github.com/quic-go/quic-go) 协议：速度更快), `KCP` ([KCP](https://github.com/xtaci/kcp-go) 协议：延迟更低).
 
 - `TsshdPort`: 指定 tsshd 监听的端口范围，默认值为 [61001, 61999]。支持指定离散的端口列表(如`6022,7022`)，也支持指定离散的端口范围(如`8010-8020,9020-9030,10080`)，tsshd 会随机监听其中一个空闲的端口。也可在命令行中使用 `--tsshd-port` 指定端口。
 
 - `TsshdPath`: 指定服务器上 tsshd 二进制程序的路径，如果未配置，则在 $PATH 中查找。也可在命令行中使用 `--tsshd-path` 指定路径。
 
-- `UdpAliveTimeout`: 如果断开连接的时间超过 `UdpAliveTimeout` 设置的时间，tssh 和 tsshd 都会退出，不再支持重连。支持的单位：`w` 周， `d` 天，`h` 时，`m` 分，`s` 秒。默认值为 `1w3d` (10天)。
+- `UdpAliveTimeout`: 如果断开连接的时间超过 `UdpAliveTimeout` 设置的时间，ssh05 和 tsshd 都会退出，不再支持重连。支持的单位：`w` 周， `d` 天，`h` 时，`m` 分，`s` 秒。默认值为 `1w3d` (10天)。
 
-- `UdpHeartbeatTimeout`: 如果断开连接的时间超过 `UdpHeartbeatTimeout` 设置的时间，tssh 将会尝试换条路重新连到服务器。默认值为 3 秒。
+- `UdpHeartbeatTimeout`: 如果断开连接的时间超过 `UdpHeartbeatTimeout` 设置的时间，ssh05 将会尝试换条路重新连到服务器。默认值为 3 秒。
 
-- `UdpReconnectTimeout`: 如果断开连接的时间超过 `UdpReconnectTimeout` 设置的时间，tssh 将会显示失去连接的通知公告。默认值为 15 秒。
+- `UdpReconnectTimeout`: 如果断开连接的时间超过 `UdpReconnectTimeout` 设置的时间，ssh05 将会显示失去连接的通知公告。默认值为 15 秒。
 
 - `UdpReconnectExitKey`: 指定在断开连接并尝试重连时，用于退出（或脱离）等待状态的快捷键。支持的值包括 `none`、`ctrl+<字母>` 和 `^<字母>`。默认值为 `^d`（即 Ctrl+D）。
 
@@ -1038,18 +880,18 @@ Host xxx
 
 ### 故障排除
 
-- 在旧版本 Warp 终端，分块 Blocks 的功能需要将 `tssh` 重命名为 `ssh`，推荐建个软链接（ 对更新友好 ）：
+- 在旧版本 Warp 终端，分块 Blocks 的功能需要将 `ssh05` 重命名为 `ssh`，推荐建个软链接（ 对更新友好 ）：
 
   ```
-  sudo ln -sv $(which tssh) /usr/local/bin/ssh
+  sudo ln -sv $(which ssh05) /usr/local/bin/ssh
   ```
 
   - 软链后，`ssh -V` 应输出 `trzsz ssh` 加版本号，如果不是，说明软链不成功，或者在 `PATH` 中 `openssh` 的优先级更高，你要软链到另一个地方或者调整 `PATH` 的优先级。
 
-  - 为了让 `tssh` 搜索登录也支持分块 Blocks 功能，需要在 `~/.bash_profile` ( bash ) 或 `~/.zshrc` ( zsh ) 中建一个 `tssh` 函数：
+  - 为了让 `ssh05` 搜索登录也支持分块 Blocks 功能，需要在 `~/.bash_profile` ( bash ) 或 `~/.zshrc` ( zsh ) 中建一个 `ssh05` 函数：
 
     ```sh
-    tssh() {
+    ssh05() {
         if [ $# -eq 0 ]; then
             ssh FAKE_DEST_IN_WARP
         else
@@ -1064,17 +906,17 @@ Host xxx
 
 - 如果你在使用 Windows7 或者旧版本的 Windows10 等，遇到 `enable virtual terminal failed` 的错误。
 
-  - 可以尝试在 [Cygwin](https://www.cygwin.com/)、[MSYS2](https://www.msys2.org/) 或 [Git Bash](https://www.atlassian.com/git/tutorials/git-bash) 内使用 `tssh`。
+  - 可以尝试在 [Cygwin](https://www.cygwin.com/)、[MSYS2](https://www.msys2.org/) 或 [Git Bash](https://www.atlassian.com/git/tutorials/git-bash) 内使用 `ssh05`。
 
-  - 从 `v0.1.21` 起，默认的 Windows 版本不再支持 Windows7，需要在 [Releases](https://github.com/trzsz/trzsz-ssh/releases) 中下载带有 `win7` 关键字的版本来使用。
+  - 从 `v0.1.21` 起，默认的 Windows 版本不再支持 Windows7，需要在 [Releases](https://github.com/lordpietre/ssh05/releases) 中下载带有 `win7` 关键字的版本来使用。
 
-- 如果在 `~/.ssh/config` 中配置了 `tssh` 特有的配置项后，标准 `ssh` 报错 `Bad configuration option`。
+- 如果在 `~/.ssh/config` 中配置了 `ssh05` 特有的配置项后，标准 `ssh` 报错 `Bad configuration option`。
 
-  - 可以在出错配置项中加上前缀 `#!!`，标准 `ssh` 会将它当作注释，而 `tssh` 则会认为它是有效配置之一。
+  - 可以在出错配置项中加上前缀 `#!!`，标准 `ssh` 会将它当作注释，而 `ssh05` 则会认为它是有效配置之一。
 
 ### 联系方式
 
-有什么问题可以发邮件给作者 <lonnywong@qq.com>，也可以提 [Issues](https://github.com/trzsz/trzsz-ssh/issues) 。欢迎加入 QQ 群：318578930。
+有什么问题可以发邮件给作者 <pietrelinux@gmail.com>，也可以提 [Issues](https://github.com/lordpietre/ssh05/issues) 。
 
 ### 赞助打赏
 

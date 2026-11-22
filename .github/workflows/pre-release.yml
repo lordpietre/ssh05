@@ -1,4 +1,4 @@
-name: Auto Deploy Dev Build
+name: Auto Deploy ssh05 Dev Build
 
 on:
   push:
@@ -11,7 +11,7 @@ jobs:
   build-pre-release:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout trzsz-ssh
+      - name: Checkout ssh05
         uses: actions/checkout@v6
         with:
           fetch-depth: 0

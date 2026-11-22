@@ -85,7 +85,7 @@ Host trss-ui-1 trss-ui-2 trss-ui-3
 EOF
 
 rm -f "$SOCKET" "$LOG"
-TRSS_HOST_OVERRIDES="$SOCKET_DIR/hosts.json" \
+TSSH_DISABLE_DOCKER=1 TRSS_HOST_OVERRIDES="$SOCKET_DIR/hosts.json" \
   "$TRSSD" --socket "$SOCKET" --ssh-config "$CONFIG" --audit-log "$SOCKET_DIR/audit.log" 2>>"$LOG" &
 TRSSD_PID=$!
 for _ in $(seq 1 50); do
@@ -338,7 +338,7 @@ done
 echo "== concurrent SSH logins =="
 if command -v "$GO" >/dev/null; then
   (cd "$ROOT" && TRSS_TEST_SSH_ALIAS=trss-ui-1 TRSS_TEST_SSH_CONFIG="$CONFIG" \
-    CGO_ENABLED=0 "$GO" test -count=1 -run TestSshLoginConcurrent ./tssh) \
+    CGO_ENABLED=0 "$GO" test -count=1 -run TestSshLoginConcurrent ./ssh05) \
     || fail "concurrent SSH logins"
   echo "PASS: concurrent SSH logins"
 else

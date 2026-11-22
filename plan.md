@@ -13,8 +13,8 @@
 ### Context menu (← sobre host)
 - **Edit** — formulario inline: Alias, HostName, Port, User, Password, PasswordCommand, PassphraseCommand, IdentityFile, ProxyJump, RemoteCommand, Group
 - **Tunnels** — gestor de túneles SSH (manual/auto, scan, Docker, persistencia) con soporte L/R/D
-- **Download** — formulario: paths remotos + ruta local, ejecuta `tssh -t --client --download-path ...`
-- **Upload** — formulario: paths locales + ruta remota, ejecuta `tssh --upload-file ...`
+- **Download** — formulario: paths remotos + ruta local, ejecuta `ssh05 -t --client --download-path ...`
+- **Upload** — formulario: paths locales + ruta remota, ejecuta `ssh05 --upload-file ...`
 - **Install trzsz** — instala trzsz en el host remoto
 - **Install tsshd** — instala tsshd en el host remoto
 - **Delete** — confirmación y eliminación del host
@@ -135,27 +135,27 @@ Falta editor para:
 
 | Archivo | Rol |
 |---|---|
-| `tssh/host_model.go` | TUI principal (~3077 lines) |
-| `tssh/args.go` | CLI flags (180 lines) |
-| `tssh/config.go` | Config system (~931 lines) |
-| `tssh/tools.go` | Tools: enc-secret, list-hosts |
-| `tssh/tools_new_host.go` | New host CLI flow |
-| `tssh/tools_upload.go` | trz upload exec |
-| `tssh/trzsz.go` | trzsz/zmodem filter |
-| `tssh/udp.go` | UDP/KCP connection |
-| `tssh/dns.go` | Custom DNS |
-| `tssh/waypipe.go` | Wayland integration |
-| `tssh/console.go` | SSH escape console |
-| `tssh/expect.go` | Expect automation |
-| `tssh/otp.go` | TOTP/OTP auth |
-| `tssh/forward*.go` | Port forwarding |
-| `tssh/agent.go` | SSH agent |
-| `tssh/krb5.go` | Kerberos auth |
-| `tssh/algos.go` | Algorithm config |
-| `tssh/auth_method.go` | Auth methods |
-| `tssh/known_hosts.go` | Known hosts |
-| `tssh/lang.go` | i18n |
-| `tssh/login.go` | SSH login logic |
+| `ssh05/host_model.go` | TUI principal (~3077 lines) |
+| `ssh05/args.go` | CLI flags (180 lines) |
+| `ssh05/config.go` | Config system (~931 lines) |
+| `ssh05/tools.go` | Tools: enc-secret, list-hosts |
+| `ssh05/tools_new_host.go` | New host CLI flow |
+| `ssh05/tools_upload.go` | trz upload exec |
+| `ssh05/trzsz.go` | trzsz/zmodem filter |
+| `ssh05/udp.go` | UDP/KCP connection |
+| `ssh05/dns.go` | Custom DNS |
+| `ssh05/waypipe.go` | Wayland integration |
+| `ssh05/console.go` | SSH escape console |
+| `ssh05/expect.go` | Expect automation |
+| `ssh05/otp.go` | TOTP/OTP auth |
+| `ssh05/forward*.go` | Port forwarding |
+| `ssh05/agent.go` | SSH agent |
+| `ssh05/krb5.go` | Kerberos auth |
+| `ssh05/algos.go` | Algorithm config |
+| `ssh05/auth_method.go` | Auth methods |
+| `ssh05/known_hosts.go` | Known hosts |
+| `ssh05/lang.go` | i18n |
+| `ssh05/login.go` | SSH login logic |
 
 ---
 

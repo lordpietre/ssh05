@@ -9,7 +9,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/trzsz/trzsz-ssh/contracts"
+	"github.com/lordpietre/ssh05/contracts"
 )
 
 // Client is a local control-channel client with one reader goroutine and

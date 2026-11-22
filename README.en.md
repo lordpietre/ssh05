@@ -1,215 +1,56 @@
-## trzsz-ssh(tssh): Highly OpenSSH-compatible SSH client with extended features
+## ssh05: Highly OpenSSH-compatible SSH client with extended features
 
 [![MIT License](https://img.shields.io/badge/license-MIT-green.svg?style=flat)](https://choosealicense.com/licenses/mit/)
-[![GitHub Release](https://img.shields.io/github/v/release/trzsz/trzsz-ssh)](https://github.com/trzsz/trzsz-ssh/releases)
-[![WebSite](https://img.shields.io/badge/WebSite-https%3A%2F%2Ftrzsz.github.io%2Ftssh-blue?style=flat)](https://trzsz.github.io/tssh)
-[![中文文档](https://img.shields.io/badge/%E4%B8%AD%E6%96%87%E6%96%87%E6%A1%A3-https%3A%2F%2Ftrzsz.github.io%2Fcn%2Ftssh-blue?style=flat)](https://trzsz.github.io/cn/tssh)
+[![GitHub Release](https://img.shields.io/github/v/release/lordpietre/ssh05)](https://github.com/lordpietre/ssh05/releases)
+[![Repository](https://img.shields.io/badge/Repository-github.com%2Flordpietre%2Fssh05-blue?style=flat)](https://github.com/lordpietre/ssh05)
 
-trzsz-ssh ( tssh ) is an ssh client designed as a drop-in replacement for the openssh client. It aims to provide complete compatibility with openssh, mirroring all its features, while also offering additional useful features not found in the openssh client.
 
-trzsz-ssh ( tssh ) with [tsshd](https://github.com/trzsz/tsshd) also supports intermittent connectivity, allows roaming, and can be used on high-latency links such as cellular data connections, unstable Wi-Fi, etc.
+ssh05 is an ssh client designed as a drop-in replacement for the openssh client. It aims to provide complete compatibility with openssh, mirroring all its features, while also offering additional useful features not found in the openssh client.
+
+ssh05 with [tsshd](https://github.com/trzsz/tsshd) also supports intermittent connectivity, allows roaming, and can be used on high-latency links such as cellular data connections, unstable Wi-Fi, etc.
 
 ### Why to do
 
-- `tssh` login prompt supports searching and selecting the servers to log in to, if you can't remember them.
+- `ssh05` login prompt supports searching and selecting the servers to log in to, if you can't remember them.
 
-- `tssh` has built-in support for [trzsz](https://trzsz.github.io/) ( trz / tsz ), no longer need to open a new session to transfer files.
+- `ssh05` has built-in support for [trzsz](https://trzsz.github.io/) ( trz / tsz ), no longer need to open a new session to transfer files.
 
-- `tssh` supports multiple selection and batch login, and supports executing the preset remote command.
+- `ssh05` supports multiple selection and batch login, and supports executing the preset remote command.
 
-- `tssh` supports remember password, supports automated interaction, improving your login efficiency.
+- `ssh05` supports remember password, supports automated interaction, improving your login efficiency.
 
-- `tssh` instead of `trzsz ssh` on Windows, solves the issue of slow upload speed of `trz` on Windows.
+- `ssh05` instead of `trzsz ssh` on Windows, solves the issue of slow upload speed of `trz` on Windows.
 
-- `tssh` with [tsshd](https://github.com/trzsz/tsshd) are similar to mosh, solved some of mosh's issues, such as SSH forwarding and ProxyJump.
+- `ssh05` with [tsshd](https://github.com/trzsz/tsshd) are similar to mosh, solved some of mosh's issues, such as SSH forwarding and ProxyJump.
 
 ### Installation
 
-> 💡 **Note**: The package is named `trzsz-ssh` in Homebrew, while it’s usually named `tssh` elsewhere.
+> 💡 **Note**: Homebrew, scoop, winget, choco, apt PPA, dnf/copr, conda and Arch packages refer to the upstream `trzsz-ssh` project. This fork ships `.deb` packages and source builds.
 
-- Install with scoop / winget / choco on Windows
+#### Debian / Ubuntu
 
-  <details><summary><code>scoop install tssh</code> / <code>winget install tssh</code> / <code>choco install tssh</code></summary>
+Download `ssh05_<version>_<debian|ubuntu>_<arch>.deb` from the GitHub Actions artifacts or Releases, then install it:
 
-  ```sh
-  scoop install tssh
-  ```
+```sh
+sudo apt install ./ssh05_*.deb
+```
 
-  ```sh
-  winget install tssh
-  ```
+Build both package labels locally with `make deb`; artifacts are written to `dist/`.
 
-  ```sh
-  choco install tssh
-  ```
+#### Go
 
-  </details>
+```sh
+go install github.com/lordpietre/ssh05/cmd/ssh05@latest
+```
 
-- Install with Homebrew on MacOS
+#### Build from source
 
-  <details><summary><code>brew install trzsz-ssh</code></summary>
-
-  ```sh
-  brew update
-  brew install trzsz-ssh
-  ```
-
-  </details>
-
-- Install with apt on Ubuntu
-
-  <details><summary><code>sudo apt install tssh</code></summary>
-
-  ```sh
-  sudo apt update && sudo apt install software-properties-common
-  sudo add-apt-repository ppa:trzsz/ppa && sudo apt update
-
-  sudo apt install tssh
-  ```
-
-  </details>
-
-- Install with apt on Debian
-
-  <details><summary><code>sudo apt install tssh</code></summary>
-
-  ```sh
-  sudo apt install curl gpg
-  curl -s 'https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x7074ce75da7cc691c1ae1a7c7e51d1ad956055ca' \
-    | gpg --dearmor -o /usr/share/keyrings/trzsz.gpg
-  echo 'deb [signed-by=/usr/share/keyrings/trzsz.gpg] https://ppa.launchpadcontent.net/trzsz/ppa/ubuntu jammy main' \
-    | sudo tee /etc/apt/sources.list.d/trzsz.list
-  sudo apt update
-
-  sudo apt install tssh
-  ```
-
-  </details>
-
-- Install with dnf on Fedora / CentOS / RHEL
-
-  <details><summary><code>sudo dnf install tssh</code></summary>
-
-  ```sh
-  sudo dnf copr enable @trzsz/trzsz
-  sudo dnf install tssh
-  ```
-
-  </details>
-
-- Install with yum on Legacy CentOS / RHEL
-
-  <details><summary><code>sudo yum install tssh</code></summary>
-
-  - Install with [gemfury](https://gemfury.com/) repository.
-
-    ```sh
-    echo '[trzsz]
-    name=Trzsz Repo
-    baseurl=https://yum.fury.io/trzsz/
-    enabled=1
-    gpgcheck=0' | sudo tee /etc/yum.repos.d/trzsz.repo
-
-    sudo yum install tssh
-    ```
-
-  - Install with [wlnmp](https://www.wlnmp.com/install) repository. It's not necessary to configure the epel repository for tssh.
-
-    ```sh
-    curl -fsSL "https://sh.wlnmp.com/wlnmp.sh" | bash
-
-    sudo yum install tssh
-    ```
-
-  </details>
-
-- Install with yay on ArchLinux
-
-  <details><summary><code>yay -S tssh</code></summary>
-
-  ```sh
-  yay -Syu
-  yay -S tssh
-  ```
-
-  </details>
-
-- Install with Chromebrew on ChromeOS
-
-  <details><summary><code>crew install tssh</code></summary>
-
-  ```sh
-  crew install tssh
-  ```
-
-  </details>
-
-- Install with pixi / conda / mamba from [conda-forge](https://github.com/conda-forge/tssh-feedstock)
-
-  <details><summary><code>pixi global install tssh</code> / <code>conda install tssh</code> / <code>mamba install tssh</code></summary>
-
-  ```sh
-  pixi global install tssh
-  ```
-
-  ```sh
-  conda install -c conda-forge tssh
-  ```
-
-  ```sh
-  mamba install -c conda-forge tssh
-  ```
-
-  </details>
-
-- Install with Go ( Requires go 1.25 or later )
-
-  <details><summary><code>go install github.com/trzsz/trzsz-ssh/cmd/tssh@latest</code></summary>
-
-  ```sh
-  # latest release
-  go install github.com/trzsz/trzsz-ssh/cmd/tssh@latest
-
-  # latest development version (main branch)
-  go install github.com/trzsz/trzsz-ssh/cmd/tssh@main
-  ```
-
-  The binaries are usually located in ~/go/bin/ ( C:\Users\your_name\go\bin\ on Windows ).
-
-  </details>
-
-- Build from source ( Requires go 1.25 or later )
-
-  <details><summary><code>sudo make install</code></summary>
-
-  ```sh
-  git clone --depth 1 https://github.com/trzsz/trzsz-ssh.git
-  cd trzsz-ssh
-  make
-  sudo make install
-  ```
-
-  </details>
-
-- Download from the [GitHub Releases](https://github.com/trzsz/trzsz-ssh/releases) (or [Pre-Release](https://github.com/trzsz/trzsz-ssh/releases/tag/dev)) and install locally
-
-  <details><summary><code>download and install locally</code></summary>
-
-  ```sh
-  sudo apt install /tmp/tssh_*.deb
-
-  sudo dpkg -i /tmp/tssh_*.deb
-
-  sudo dnf install /tmp/tssh_*.rpm
-
-  sudo yum install /tmp/tssh_*.rpm
-
-  sudo rpm -i /tmp/tssh_*.rpm
-
-  tar zxvf tssh_*.tar.gz && sudo cp tssh_*/tssh /usr/bin/
-  ```
-
-  </details>
+```sh
+git clone --depth 1 https://github.com/lordpietre/ssh05.git
+cd ssh05
+make
+sudo make install
+```
 
 ### Login Prompt
 
@@ -217,13 +58,13 @@ trzsz-ssh ( tssh ) with [tsshd](https://github.com/trzsz/tsshd) also supports in
 
 - For how to configure `~/.ssh/config`, please refer to the documentation of [openssh](https://manpages.debian.org/bookworm/openssh-client/ssh_config.5.en.html). `Match exec` is supported only when `UseOpenSSHConfig` is enabled (see configuration below).
 
-- Running `tssh` without arguments will open the login prompt. If there are arguments except destination will also open the login prompt.
+- Running `ssh05` without arguments will open the login prompt. If there are arguments except destination will also open the login prompt.
 
 - If the destination is part of the aliases in `~/.ssh/config`, and can't completely match an alias, the login prompt will also be opened.
 
 - If `#!! HideHost yes` is configured, or the alias contains `*` or `?` wildcard characters, it will not be displayed in the login prompt.
 
-- `tssh` supports shortcuts, supports search, and supports multi-selection when used in `tmux`, `iTerm2`, and `Windows Terminal`, etc.
+- `ssh05` supports shortcuts, supports search, and supports multi-selection when used in `tmux`, `iTerm2`, and `Windows Terminal`, etc.
 
   | Action    | Global shortcuts                | Non search shortcuts | Shortcuts description      |
   | --------- | ------------------------------- | -------------------- | -------------------------- |
@@ -247,16 +88,16 @@ trzsz-ssh ( tssh ) with [tsshd](https://github.com/trzsz/tsshd) also supports in
 
 ### Custom Theme
 
-- `tssh` supports a few themes. Choose one by setting `PromptThemeLayout` in `$XDG_CONFIG_HOME/tssh/tssh.conf` ( or `~/.tssh.conf` ). Welcome to create more and better themes together.
+- `ssh05` supports a few themes. Choose one by setting `PromptThemeLayout` in `$XDG_CONFIG_HOME/tssh/tssh.conf` ( or `~/.tssh.conf` ). Welcome to create more and better themes together.
 
 - Each theme supports custom colors. Just configure the `PromptThemeColors` in `$XDG_CONFIG_HOME/tssh/tssh.conf` ( or `~/.tssh.conf` ) to override the default colors as you prefer.
 
-- Please [❤️vote❤️](https://github.com/trzsz/trzsz-ssh/issues/75) for your favorite theme. The theme with the highest number of votes will be set as the default theme in the next version.
+- Please [❤️vote❤️](https://github.com/lordpietre/ssh05/issues/75) for your favorite theme. The theme with the highest number of votes will be set as the default theme in the next version.
 
 #### tiny theme
 
 - Configure `PromptThemeLayout = tiny` in `$XDG_CONFIG_HOME/tssh/tssh.conf` ( or `~/.tssh.conf` ) to choose `tiny theme`.
-  ![tssh tiny](https://trzsz.github.io/images/tssh_tiny.gif)
+  ![ssh05 tiny](https://trzsz.github.io/images/tssh_tiny.gif)
 
 - Configure `PromptThemeColors` in `$XDG_CONFIG_HOME/tssh/tssh.conf` ( or `~/.tssh.conf` ) and configure it in one line. `tiny theme` supports the following color items:
 
@@ -316,14 +157,14 @@ trzsz-ssh ( tssh ) with [tsshd](https://github.com/trzsz/tsshd) also supports in
 #### simple theme
 
 - Configure `PromptThemeLayout = simple` in `$XDG_CONFIG_HOME/tssh/tssh.conf` ( or `~/.tssh.conf` ) to choose `simple theme`.
-  ![tssh simple](https://trzsz.github.io/images/tssh_simple.gif)
+  ![ssh05 simple](https://trzsz.github.io/images/tssh_simple.gif)
 
 - The custom colors and default values of `simple theme` are exactly the same as the `tiny theme`.
 
 #### table theme
 
 - Configure `PromptThemeLayout = table` in `$XDG_CONFIG_HOME/tssh/tssh.conf` ( or `~/.tssh.conf` ) to choose `table theme`.
-  ![tssh table](https://trzsz.github.io/images/tssh_table.gif)
+  ![ssh05 table](https://trzsz.github.io/images/tssh_table.gif)
 
 - Configure `PromptThemeColors` in `$XDG_CONFIG_HOME/tssh/tssh.conf` ( or `~/.tssh.conf` ) and configure it in one line. `table theme` supports the following color items:
 
@@ -373,7 +214,7 @@ trzsz-ssh ( tssh ) with [tsshd](https://github.com/trzsz/tsshd) also supports in
     DragFileUploadCommand trz -y
   ```
 
-- If you want to temporarily enable the drag and drop to upload feature, use `tssh --dragfile` to log in.
+- If you want to temporarily enable the drag and drop to upload feature, use `ssh05 --dragfile` to log in.
 
 - In the `~/.ssh/config` or `ExConfigPath` configuration file, configure `EnableTrzsz` to `no` to disable the trzsz and zmodem feature.
 
@@ -386,16 +227,16 @@ trzsz-ssh ( tssh ) with [tsshd](https://github.com/trzsz/tsshd) also supports in
 - You can use the `--upload-file` argument to specify file or directory to upload directly in the command line, and you can specify the `trz` upload command arguments and save path after the server, such as:
 
   ```sh
-  tssh --upload-file /path/to/file1 --upload-file /path/to/dir2 xxx_server '~/.local/bin/trz -d /tmp/'
+  ssh05 --upload-file /path/to/file1 --upload-file /path/to/dir2 xxx_server '~/.local/bin/trz -d /tmp/'
   ```
 
 - You can use `tsz` in the command line to directly download files and directories to your local computer. You can also use the `--download-path` argument to specify the path for local saving, such as:
 
   ```sh
-  tssh -t --client --download-path /tmp/ xxx_server 'tsz -d /path/to/file1 /path/to/dir2'
+  ssh05 -t --client --download-path /tmp/ xxx_server 'tsz -d /path/to/file1 /path/to/dir2'
   ```
 
-![tssh trzsz](https://trzsz.github.io/images/tssh_trzsz.gif)
+![ssh05 trzsz](https://trzsz.github.io/images/tssh_trzsz.gif)
 
 ### Support zmodem
 
@@ -422,40 +263,40 @@ trzsz-ssh ( tssh ) with [tsshd](https://github.com/trzsz/tsshd) also supports in
   scoop install lrzsz / choco install lrzsz / winget install lrzsz
   ```
 
-- If you want to temporarily enable the zmodem ( rz / sz ) feature, use `tssh --zmodem` to log in.
+- If you want to temporarily enable the zmodem ( rz / sz ) feature, use `ssh05 --zmodem` to log in.
 
 - About the progress, the transferred and speed are not precise. It just indicating that the transfer is in progress.
 
 - You can use the `--upload-file` argument to specify file to upload directly in the command line, and `cd` to the save path and specify the `rz` command with arguments after the server, such as:
 
   ```sh
-  tssh --upload-file /path/to/file1 --upload-file /path/to/file2 xxx_server 'cd /tmp/ && rz -yeb'
+  ssh05 --upload-file /path/to/file1 --upload-file /path/to/file2 xxx_server 'cd /tmp/ && rz -yeb'
   ```
 
 - You can use `sz` in the command line to directly download files to your local computer. You can also use the `--download-path` argument to specify the path for local saving, such as:
 
   ```sh
-  tssh -t --client --zmodem --download-path /tmp/ xxx_server 'sz /path/to/file1 /path/to/file2'
+  ssh05 -t --client --zmodem --download-path /tmp/ xxx_server 'sz /path/to/file1 /path/to/file2'
   ```
 
 ### Support scp sftp
 
-- Using the `Remember Password` feature of `tssh`, you no longer need to manually enter your password. The same applies to `scp` and `sftp`.
+- Using the `Remember Password` feature of `ssh05`, you no longer need to manually enter your password. The same applies to `scp` and `sftp`.
 
-- Using the `UDP Mode` feature of `tssh`, the SSH session uses an encrypted UDP channel for communication. The same applies to `scp` and `sftp`.
+- Using the `UDP Mode` feature of `ssh05`, the SSH session uses an encrypted UDP channel for communication. The same applies to `scp` and `sftp`.
 
-- As long as `scp` and `sftp` use the `-S` option to specify `tssh`, or configure an alias, you can use some of the features provided by `tssh`, such as:
+- As long as `scp` and `sftp` use the `-S` option to specify `ssh05`, or configure an alias, you can use some of the features provided by `ssh05`, such as:
 
   ```sh
-  sftp -S tssh xxx
-  scp -S tssh xxx @xxx:/tmp/
-  alias tscp='scp -S tssh'
-  alias tsftp='sftp -S tssh'
+  sftp -S ssh05 xxx
+  scp -S ssh05 xxx @xxx:/tmp/
+  alias tscp='scp -S ssh05'
+  alias tsftp='sftp -S ssh05'
   ```
 
 ### Batch Login
 
-- tssh supports selecting multiple servers in `iTerm2`( Requires [Python API](https://iterm2.com/python-api-auth.html), no need to `Allow all apps to connect` ),`tmux` and `Windows Terminal`, logging in to them in batches, and executing pre-specified commands in batches.
+- ssh05 supports selecting multiple servers in `iTerm2`( Requires [Python API](https://iterm2.com/python-api-auth.html), no need to `Allow all apps to connect` ),`tmux` and `Windows Terminal`, logging in to them in batches, and executing pre-specified commands in batches.
 
 - Press `Space`, `x` or `Ctrl+X` to toggle select the current host. If it cann't be selected, it means that the current terminal is not supported yet. Please run `tmux` first.
 
@@ -463,14 +304,14 @@ trzsz-ssh ( tssh ) with [tsshd](https://github.com/trzsz/tsshd) also supports in
 
 - Press `p` or `Ctrl+P` will split panes for batch login, `w` or `Ctrl+W` will open new windows for batch login, `t` or `Ctrl+T` will open new tabs for batch login.
 
-- Execute the `tssh` command without arguments, you can log in to servers in batches. And you can specify the commands to be executed in batches by `-o RemoteCommand`. And you can switch to an interactive shell after executing the specified command. `Windows Terminal` does not support semicolon `;`, you can use `|cat&&` instead. For example:
+- Execute the `ssh05` command without arguments, you can log in to servers in batches. And you can specify the commands to be executed in batches by `-o RemoteCommand`. And you can switch to an interactive shell after executing the specified command. `Windows Terminal` does not support semicolon `;`, you can use `|cat&&` instead. For example:
 
   ```sh
-  tssh -t -o RemoteCommand='ping -c3 trzsz.github.io ; bash -l'
-  tssh -t -o RemoteCommand="ping -c3 trzsz.github.io |cat&& bash -l"
+  ssh05 -t -o RemoteCommand='ping -c3 trzsz.github.io ; bash -l'
+  ssh05 -t -o RemoteCommand="ping -c3 trzsz.github.io |cat&& bash -l"
   ```
 
-![tssh batch](https://trzsz.github.io/images/tssh_batch.gif)
+![ssh05 batch](https://trzsz.github.io/images/tssh_batch.gif)
 
 ### Group Labels
 
@@ -482,7 +323,7 @@ trzsz-ssh ( tssh ) with [tsshd](https://github.com/trzsz/tsshd) also supports in
 
 - Supports configuring multiple group labels separated by spaces in one `GroupLabels`. Supports configuring multiple `GroupLabels`.
 
-- Supports configuring group labels on multiple Host nodes in the form of wildcard \*, and `tssh` will summarize all the group labels.
+- Supports configuring group labels on multiple Host nodes in the form of wildcard \*, and `ssh05` will summarize all the group labels.
 
   ```
   # The following testAA has group labels group1 group2 label3 label4 group5. Add `#!!` prefix to be compatible with openssh.
@@ -502,10 +343,10 @@ trzsz-ssh ( tssh ) with [tsshd](https://github.com/trzsz/tsshd) also supports in
       #!! ExpectCount 2  # Configures the number of automated interactions, default is 0 which means no automated interaction
       #!! ExpectTimeout 30  # Configures the timeout for automated interaction (in seconds), default is 30 seconds
       #!! ExpectPattern1 *assword  # Configures the first automated interaction match expression
-      # Configures the first automated input (encrypted). It was encoded by `tssh --enc-secret`, `tssh` will send \r (enter) automatically
+      # Configures the first automated input (encrypted). It was encoded by `ssh05 --enc-secret`, `ssh05` will send \r (enter) automatically
       #!! ExpectSendPass1 d7983b4a8ac204bd073ed04741913befd4fbf813ad405d7404cb7d779536f8b87e71106d7780b2
       #!! ExpectPattern2 hostname*$  # Configures the second automated interaction match expression
-      #!! ExpectSendText2 echo tssh expect\r  # Configures the second automated input (plaintext), specify \r to send enter
+      #!! ExpectSendText2 echo ssh05 expect\r  # Configures the second automated input (plaintext), specify \r to send enter
       # Choose either ExpectSendPass? or ExpectSendText? for each interaction; if both are configured, ExpectSendPass? has higher priority
   ```
 
@@ -529,7 +370,7 @@ trzsz-ssh ( tssh ) with [tsshd](https://github.com/trzsz/tsshd) also supports in
       #!! ExpectPattern1 token:  # Configures the first automated interaction match expression
       #!! ExpectSendTotp1 xxxxx  # Configure the secret (plain text) of totp, generally obtained by scanning the QR code
       #!! ExpectPattern2 token:  # Configures the second automated interaction match expression
-      # The following ciphertext was generated by encoding the secret of totp with `tssh --enc-secret`.
+      # The following ciphertext was generated by encoding the secret of totp with `ssh05 --enc-secret`.
       #!! ExpectSendEncTotp2 821fe830270201c36cd1a869876a24453014ac2f1d2d3b056f3601ce9cc9a87023
   ```
 
@@ -541,7 +382,7 @@ trzsz-ssh ( tssh ) with [tsshd](https://github.com/trzsz/tsshd) also supports in
       #!! ExpectPattern1 token:  # Configures the first automated interaction match expression
       #!! ExpectSendOtp1 oathtool --totp -b xxxxx  # Configure the command line to obtain the one-time password
       #!! ExpectPattern2 token:  # Configures the second automated interaction match expression
-      # The following ciphertext was generated by encoding `oathtool --totp -b xxxxx` with `tssh --enc-secret`.
+      # The following ciphertext was generated by encoding `oathtool --totp -b xxxxx` with `ssh05 --enc-secret`.
       #!! ExpectSendEncOtp2 77b4ce85d087b39909e563efb165659b22b9ea700a537f1258bdf56ce6fdd6ea70bc7591ea5c01918537a65433133bc0bd5ed3e4
   ```
 
@@ -562,7 +403,7 @@ trzsz-ssh ( tssh ) with [tsshd](https://github.com/trzsz/tsshd) also supports in
   - Configuring `ExpectPassSleep each` will sleep for a short period of time for each character send, the default is 100 milliseconds, and you can configure `ExpectSleepMS` to adjust it.
   - Configuring `ExpectPassSleep enter` will only sleep for a short period of time before `\r` send, the default is 100 milliseconds, and you can configure `ExpectSleepMS` to adjust it.
 
-- If you don’t know how to configure `ExpectPattern2`, you can first configure `ExpectCount` to `2`, then use `tssh --debug` to log in, you will see the output captured by `expect`, and you can directly copy the last part of the output to configure `ExpectPattern2`. Replacing `2` with any other number will also work.
+- If you don’t know how to configure `ExpectPattern2`, you can first configure `ExpectCount` to `2`, then use `ssh05 --debug` to log in, you will see the output captured by `expect`, and you can directly copy the last part of the output to configure `ExpectPattern2`. Replacing `2` with any other number will also work.
 
 ### Remember Password
 
@@ -579,26 +420,26 @@ trzsz-ssh ( tssh ) with [tsshd](https://github.com/trzsz/tsshd) also supports in
   ```
   # If configured in ~/.ssh/config, you can add `#!!` prefix to be compatible with openssh.
   Host test1
-      # The following ciphertext was generated by encoding `123456` with `tssh --enc-secret`.
+      # The following ciphertext was generated by encoding `123456` with `ssh05 --enc-secret`.
       #!! encPassword 756b17766f45bdc44c37f811db9990b0880318d5f00f6531b15e068ef1fde2666550
 
   # If configured in ~/.ssh/password, there is no need to consider whether it's compatible with openssh.
   Host test2
-      # The following ciphertext was generated by encoding `123456` with `tssh --enc-secret`.
+      # The following ciphertext was generated by encoding `123456` with `ssh05 --enc-secret`.
       encPassword 051a2f0fdc7d0d40794b845967df4c2d05b5eb0f25339021dc4e02a9d7620070654b
 
-  # ~/.ssh/config and ~/.ssh/password support wildcards, and tssh will use the first matched value.
+  # ~/.ssh/config and ~/.ssh/password support wildcards, and ssh05 will use the first matched value.
   # Here we want test2 to use a different password from other test*, so we put test* behind test2.
 
   Host test*
-      Password 111111  # supports plain text, but it is recommended to encrypt with `tssh --enc-secret`.
+      Password 111111  # supports plain text, but it is recommended to encrypt with `ssh05 --enc-secret`.
   ```
 
 - If you are still prompted to enter password after remembering password, it may be need to [remember answers](#remember-answers). Try configuring `encQuestionAnswer1`:
 
   ```
   Host test1
-      # The following ciphertext was generated by encoding `123456` with `tssh --enc-secret`.
+      # The following ciphertext was generated by encoding `123456` with `ssh05 --enc-secret`.
       #!! encQuestionAnswer1 756b17766f45bdc44c37f811db9990b0880318d5f00f6531b15e068ef1fde2666550
   ```
 
@@ -608,7 +449,7 @@ trzsz-ssh ( tssh ) with [tsshd](https://github.com/trzsz/tsshd) also supports in
   Host ctrl
       #!! CtrlExpectCount 1  # Configure the number of automated interactions, typically only requires entering the password once
       #!! CtrlExpectPattern1 *assword    # Configure the matching expression for the password prompt
-      #!! CtrlExpectSendPass1 d7983b...  # Configure the password encoded by `tssh --enc-secret`
+      #!! CtrlExpectSendPass1 d7983b...  # Configure the password encoded by `ssh05 --enc-secret`
   ```
 
 - Support remember `Passphrase` for private keys ( It's recommended to use `ssh-agent` ). Support configuring `Passphrase` together with `IdentityFile`. Support configuring `Passphrase` using private key filename instead of host alias. For example:
@@ -617,18 +458,18 @@ trzsz-ssh ( tssh ) with [tsshd](https://github.com/trzsz/tsshd) also supports in
   # Configuring Passphrase together with IdentityFile. Add `#!!` prefix to be compatible with openssh.
   Host test1
       IdentityFile /path/to/id_rsa
-      # The following ciphertext was generated by encoding `123456` with `tssh --enc-secret`.
+      # The following ciphertext was generated by encoding `123456` with `ssh05 --enc-secret`.
       #!! encPassphrase 6f419911555b0cdc84549ae791ef69f654118d734bb4351de7e83163726ef46d176a
 
   # Configure the Passphrase corresponding to the private key ~/.ssh/id_ed25519 in ~/.ssh/config
-  # The wildcard * can be added to prevent the filename from appearing in the tssh server list.
+  # The wildcard * can be added to prevent the filename from appearing in the ssh05 server list.
   Host id_ed25519*
-      # The following ciphertext was generated by encoding `111111` with `tssh --enc-secret`.
+      # The following ciphertext was generated by encoding `111111` with `ssh05 --enc-secret`.
       #!! encPassphrase 3a929328f2ab1be0ba3fccf29e8125f8e2dac6dab73c946605cf0bb8060b05f02a68
 
   # If configured in ~/.ssh/password, the wildcard * is not required and will not appear in the server list.
   Host id_rsa
-      Passphrase 111111  # supports plain text, but it is recommended to encrypt with `tssh --enc-secret`.
+      Passphrase 111111  # supports plain text, but it is recommended to encrypt with `ssh05 --enc-secret`.
   ```
 
 - Still ask for password after `Remember Password`? Maybe it's `keyboard interactive authentication`, please refer to `Remember Answers` below.
@@ -688,21 +529,21 @@ trzsz-ssh ( tssh ) with [tsshd](https://github.com/trzsz/tsshd) also supports in
 
 - For those with one question and a fixed answer, just configure `QuestionAnswer1`. For those with multiple questions, the answer to each question can be configured by serial number, or by the hex code of the question.
 
-- Login with `tssh --debug`, the hex code of the questions will be output, so that you will know how to configure with the hex code. For example:
+- Login with `ssh05 --debug`, the hex code of the questions will be output, so that you will know how to configure with the hex code. For example:
 
   ```
   # If configured in ~/.ssh/config, add `#!!` prefix to be compatible with openssh.
   Host test1
-      # The following ciphertext was generated by encoding `TheAnswer1` with `tssh --enc-secret`.
+      # The following ciphertext was generated by encoding `TheAnswer1` with `ssh05 --enc-secret`.
       encQuestionAnswer1 4f6b79d0e4e48fc56ee29c61bd19559a322cd07f7d27f2a7f33978671be1b522d549252b22ee
   Host test2
-      # The following ciphertext was generated by encoding `TheAnswer1` with `tssh --enc-secret`.
+      # The following ciphertext was generated by encoding `TheAnswer1` with `ssh05 --enc-secret`.
       encQuestionAnswer1 09d6936c104f7bbd62e3b4dc43d746496a368776b85d37b1ce8cecc2ace1b920af0ca5a1812b
-      QuestionAnswer2 TheAnswer2  # supports plain text, but it is recommended to encrypt with `tssh --enc-secret`.
+      QuestionAnswer2 TheAnswer2  # supports plain text, but it is recommended to encrypt with `ssh05 --enc-secret`.
       QuestionAnswer3 TheAnswer3
   Host test3
       # The `6e616d653a20` is the hex code of `name: `, the `enc` prefix indicates that it's ciphertext.
-      # The following ciphertext was generated by encoding `my_name` with `tssh --enc-secret`.
+      # The following ciphertext was generated by encoding `my_name` with `ssh05 --enc-secret`.
       enc6e616d653a20 775f2523ab747384e1661aba7779011cb754b73f2e947672c7fd109607b801d70902d1
       636f64653a20 my_code  # The `636f64653a20` is the hex code of `code: `, `my_code` is plain answer.
   ```
@@ -713,7 +554,7 @@ trzsz-ssh ( tssh ) with [tsshd](https://github.com/trzsz/tsshd) also supports in
   Host totp
       TotpSecret1 xxxxx  # Configure the secret (plain text) of totp by serial number
       totp636f64653a20 xxxxx  # Configure the secret of totp by the hex code of the question `code: ` that is `636f64653a20`
-      # The following ciphertext was generated by encoding the secret of totp with `tssh --enc-secret`. Add the `enc` prefix for configuration.
+      # The following ciphertext was generated by encoding the secret of totp with `ssh05 --enc-secret`. Add the `enc` prefix for configuration.
       encTotpSecret2 8ba828bd54ff694bc8c4619f802b5bed73232e60a680bbac05ba5626269a81a00b
       enctotp636f64653a20 8ba828bd54ff694bc8c4619f802b5bed73232e60a680bbac05ba5626269a81a00b
   ```
@@ -724,12 +565,12 @@ trzsz-ssh ( tssh ) with [tsshd](https://github.com/trzsz/tsshd) also supports in
   Host otp
       OtpCommand1 oathtool --totp -b xxxxx  # Configure the command line to obtain the one-time password by serial number
       otp636f64653a20 oathtool --totp -b xxxxx  # Configure the command line by the hex code of the question `code: ` that is `636f64653a20`
-      # The following ciphertext was generated by encoding `oathtool --totp -b xxxxx` with `tssh --enc-secret`. Add the `enc` prefix for configuration.
+      # The following ciphertext was generated by encoding `oathtool --totp -b xxxxx` with `ssh05 --enc-secret`. Add the `enc` prefix for configuration.
       encOtpCommand2 77b4ce85d087b39909e563efb165659b22b9ea700a537f1258bdf56ce6fdd6ea70bc7591ea5c01918537a65433133bc0bd5ed3e4
       encotp636f64653a20 77b4ce85d087b39909e563efb165659b22b9ea700a537f1258bdf56ce6fdd6ea70bc7591ea5c01918537a65433133bc0bd5ed3e4
   ```
 
-- You can write a program to obtain the one-time password. Specify the `%q` argument if you want to get the question. Just output the one-time password to stdout and exit with 0, and the debugging information can be output to stderr (you can see it when running `tssh --debug`). Configuration example (the serial number represents the number of questions, generally there is only one question, just configure `OtpCommand1`):
+- You can write a program to obtain the one-time password. Specify the `%q` argument if you want to get the question. Just output the one-time password to stdout and exit with 0, and the debugging information can be output to stderr (you can see it when running `ssh05 --debug`). Configuration example (the serial number represents the number of questions, generally there is only one question, just configure `OtpCommand1`):
 
   ```
   Host custom_otp_command
@@ -744,13 +585,13 @@ trzsz-ssh ( tssh ) with [tsshd](https://github.com/trzsz/tsshd) also supports in
       #!! CtrlExpectCount 1  # Configure the number of automated interactions
       #!! CtrlExpectPattern1 code:  # Configure the matching expression for the password prompt (totp 2FA)
       #!! CtrlExpectSendTotp1 xxxxx  # Configure the secret (plain text) of totp, generally obtained by scanning the QR code
-      #!! CtrlExpectSendEncTotp1 622ada31cf...  # Or configure the encrypted secret of totp encoded using `tssh --enc-secret`
+      #!! CtrlExpectSendEncTotp1 622ada31cf...  # Or configure the encrypted secret of totp encoded using `ssh05 --enc-secret`
 
   Host ctrl_otp
       #!! CtrlExpectCount 1  # Configure the number of automated interactions
       #!! CtrlExpectPattern1 token:  # Configure the matching expression for the password prompt (one-time password)
       #!! CtrlExpectSendOtp1 oathtool --totp -b xxxxx  # Configure the command line to obtain the one-time password
-      #!! CtrlExpectSendEncOtp1 77b4ce85d0...  # Or configure the encrypted command line encoded using `tssh --enc-secret`
+      #!! CtrlExpectSendEncOtp1 77b4ce85d0...  # Or configure the encrypted command line encoded using `ssh05 --enc-secret`
   ```
 
 ### Custom Configuration
@@ -776,20 +617,20 @@ trzsz-ssh ( tssh ) with [tsshd](https://github.com/trzsz/tsshd) also supports in
   # The trzsz progress bar will gradient from the first color to the second color. Don't include `#`.
   ProgressColorPair = B14FFF 00FFA3
 
-  # When searching and selecting servers with tssh, the theme and colors.
+  # When searching and selecting servers with ssh05, the theme and colors.
   PromptThemeLayout = simple
   PromptThemeColors = {"active_host": "magenta|bold", "inactive_host": "magenta"}
 
-  # When searching and selecting servers with tssh, the number of records displayed on each page, the default is 10.
+  # When searching and selecting servers with ssh05, the number of records displayed on each page, the default is 10.
   PromptPageSize = 10
 
-  # When searching and selecting servers with tssh, default is normal mode similar to vim. Configure to search mode as follows:
+  # When searching and selecting servers with ssh05, default is normal mode similar to vim. Configure to search mode as follows:
   PromptDefaultMode = search
 
-  # When searching and selecting servers with tssh, the items displayed in details. The default is as follows:
+  # When searching and selecting servers with ssh05, the items displayed in details. The default is as follows:
   PromptDetailItems = Alias Host Port User GroupLabels IdentityFile ProxyCommand ProxyJump RemoteCommand UdpMode TsshdPath
 
-  # When searching and selecting servers with tssh, you can customize the cursor and selected icon:
+  # When searching and selecting servers with ssh05, you can customize the cursor and selected icon:
   PromptCursorIcon = 🧨
   PromptSelectedIcon = 🍺
 
@@ -802,20 +643,20 @@ trzsz-ssh ( tssh ) with [tsshd](https://github.com/trzsz/tsshd) also supports in
 
 ### Comments of Config
 
-- The comments in the `tssh` configuration are basically the same as `openssh`, with some additional extended support, see the following table for details:
+- The comments in the `ssh05` configuration are basically the same as `openssh`, with some additional extended support, see the following table for details:
 
-  | Comments              |   openssh    |     tssh      |
+  | Comments              |   openssh    |     ssh05      |
   | :-------------------- | :----------: | :-----------: |
   | Starting with `#`     | Is a comment | Is a comment  |
   | Starting with `#!!`   | Is a comment | Not a comment |
   | `Key Value # Comment` |  It depends  | Is a comment  |
   | `Key=Value # Comment` |  It depends  | Not a comment |
 
-- Configuration starting with `#` are always considered by `openssh` to be a comment; `tssh` considers configuration starting with `#!!` not to be a comment, and other configurations starting with `#` are comments.
+- Configuration starting with `#` are always considered by `openssh` to be a comment; `ssh05` considers configuration starting with `#!!` not to be a comment, and other configurations starting with `#` are comments.
 
-- `Key Value # Comment` configuration (without `=` sign), `openssh` considers the content after `#` to be a comment in some cases, and considers it not to be a comment in some other cases; `tssh` always considers the content after `#` to be a comment.
+- `Key Value # Comment` configuration (without `=` sign), `openssh` considers the content after `#` to be a comment in some cases, and considers it not to be a comment in some other cases; `ssh05` always considers the content after `#` to be a comment.
 
-- `Key=Value # Comment` configuration (with `=` sign), `openssh` considers the content after `#` to be a comment in some cases, and considers it not to be a comment in some other cases; `tssh` always considers the content after `#` not to be a comment.
+- `Key=Value # Comment` configuration (with `=` sign), `openssh` considers the content after `#` to be a comment in some cases, and considers it not to be a comment in some other cases; `ssh05` always considers the content after `#` not to be a comment.
 
 ### Wayland Integration
 
@@ -827,7 +668,7 @@ trzsz-ssh ( tssh ) with [tsshd](https://github.com/trzsz/tsshd) also supports in
     EnableWaypipe yes
   ```
 
-- Once Wayland (waypipe) integration is enabled, there is no need to explicitly use the waypipe program any more, tssh will automatically run the waypipe program in the background.
+- Once Wayland (waypipe) integration is enabled, there is no need to explicitly use the waypipe program any more, ssh05 will automatically run the waypipe program in the background.
 
 - If the waypipe program cannot be found in the PATH on the client-side, you can specify the path to the waypipe program using the `WaypipeClientPath` configuration.
 
@@ -860,11 +701,11 @@ trzsz-ssh ( tssh ) with [tsshd](https://github.com/trzsz/tsshd) also supports in
 
 ### SSH Console
 
-- The `tssh` console is similar to OpenSSH escape sequences, and is planned to provide more user-friendly and powerful SSH control features. Currently supported features include:
+- The `ssh05` console is similar to OpenSSH escape sequences, and is planned to provide more user-friendly and powerful SSH control features. Currently supported features include:
 
   - Send the escape character '~' ( ~ : equivalent to typing `~`, can be used as a remedy after accidentally triggering the console).
-  - Suspend the current SSH process ( ^Z : equivalent to `Ctrl + Z`, but it applies to `tssh` itself, not the process on the remote server).
-  - Terminate the current SSH session ( . : equivalent to Exit / Kill, can be used to kill the `tssh` process when it freezes due to network issues or other reasons).
+  - Suspend the current SSH process ( ^Z : equivalent to `Ctrl + Z`, but it applies to `ssh05` itself, not the process on the remote server).
+  - Terminate the current SSH session ( . : equivalent to Exit / Kill, can be used to kill the `ssh05` process when it freezes due to network issues or other reasons).
 
 - The character between `(` and `:` are shortcuts, compatible with OpenSSH escape sequences. For example, typing `~.` quickly after a newline will quickly terminate the current SSH session.
 
@@ -879,7 +720,7 @@ trzsz-ssh ( tssh ) with [tsshd](https://github.com/trzsz/tsshd) also supports in
 
 ### Other Features
 
-- Run `tssh --enc-secret`, enter the password or answer, and you can get the ciphertext for configuration (the encryption result for the same password is different each time):
+- Run `ssh05 --enc-secret`, enter the password or answer, and you can get the ciphertext for configuration (the encryption result for the same password is different each time):
 
   - The `remember password` and `remember answer` mentioned above can be configured as ciphertext by adding `enc` prefix to prevent screen snooping.
   - If the password contains special characters such as `#`, you have to configure it with ciphertext.
@@ -891,9 +732,9 @@ trzsz-ssh ( tssh ) with [tsshd](https://github.com/trzsz/tsshd) also supports in
     encQuestionAnswer1 93956f6e7e9f2aef3af7d6a61f7046dddf14aa4bbd9845dbb836fe3782b62ac0d89f
   ```
 
-- Run `tssh --new-host` to easily add SSH configuration in the TUI interface, and you can log in immediately after completion.
+- Run `ssh05 --new-host` to easily add SSH configuration in the TUI interface, and you can log in immediately after completion.
 
-- Run `tssh --install-trzsz` to install [trzsz](https://github.com/trzsz/trzsz-go) to the server automatically.
+- Run `ssh05 --install-trzsz` to install [trzsz](https://github.com/trzsz/trzsz-go) to the server automatically.
 
   - It is installed to the `~/.local/bin/` directory by default. You can specify the installation directory through `--install-path /path/to/install`.
   - If the `--install-path` installation directory contains `~/`, single quotes must be added, such as `--install-path '~/path'`.
@@ -901,7 +742,7 @@ trzsz-ssh ( tssh ) with [tsshd](https://github.com/trzsz/tsshd) also supports in
   - If downloading the `trzsz` installation package fails, you can download and specify it through `--trzsz-bin-path /path/to/trzsz.tar.gz`.
   - Note: `--install-trzsz` does not support Windows server, and does not support jump server (unless using `ProxyJump`).
 
-- Run `tssh --install-tsshd` to install [tsshd](https://github.com/trzsz/tsshd) to the server automatically.
+- Run `ssh05 --install-tsshd` to install [tsshd](https://github.com/trzsz/tsshd) to the server automatically.
 
   - It is installed to the `~/.local/bin/` directory by default. You can specify the installation directory through `--install-path /path/to/install`.
   - If the `--install-path` installation directory contains `~/`, single quotes must be added, such as `--install-path '~/path'`.
@@ -909,7 +750,7 @@ trzsz-ssh ( tssh ) with [tsshd](https://github.com/trzsz/tsshd) also supports in
   - If downloading the `tsshd` installation package fails, you can download and specify it through `--tsshd-bin-path /path/to/tsshd.tar.gz`.
   - Note: `--install-tsshd` does not support Windows server, and does not support jump server (unless using `ProxyJump`).
 
-- About changing the terminal title, it can be achieved without `tssh`. It only needs to be configured in the server's shell configuration file (such as `~/.bashrc`):
+- About changing the terminal title, it can be achieved without `ssh05`. It only needs to be configured in the server's shell configuration file (such as `~/.bashrc`):
 
   ```sh
   # Set fixed server title
@@ -919,8 +760,8 @@ trzsz-ssh ( tssh ) with [tsshd](https://github.com/trzsz/tsshd) also supports in
   PROMPT_COMMAND='echo -ne "\033]0;${USER}@${HOSTNAME}: ${PWD}\007"'
   ```
 
-  - If `SetTerminalTitle = yes` is set in `$XDG_CONFIG_HOME/tssh/tssh.conf` ( or `~/.tssh.conf` ), the terminal title is automatically set after login, but `PROMPT_COMMAND` on the server overrides the title set by `tssh`.
-  - `tssh` does not reset to the original title after exiting, you need to set `PROMPT_COMMAND` in the local shell so that it overrides the title set by `tssh`.
+  - If `SetTerminalTitle = yes` is set in `$XDG_CONFIG_HOME/tssh/tssh.conf` ( or `~/.tssh.conf` ), the terminal title is automatically set after login, but `PROMPT_COMMAND` on the server overrides the title set by `ssh05`.
+  - `ssh05` does not reset to the original title after exiting, you need to set `PROMPT_COMMAND` in the local shell so that it overrides the title set by `ssh05`.
 
 - DNS SRV: Say you have a home network with multiple hosts, but you only have one external IP address. Set up SRV records as follows, and make similar configurations in `~/.ssh/config`:
 
@@ -936,26 +777,26 @@ trzsz-ssh ( tssh ) with [tsshd](https://github.com/trzsz/tsshd) also supports in
 
 ### Reconnect Mode
 
-- In foreground mode (not `-f`), use `--reconnect` to be prompted to restart the tssh process and log in to the remote server when it exits.
+- In foreground mode (not `-f`), use `--reconnect` to be prompted to restart the ssh05 process and log in to the remote server when it exits.
 
-- In background mode (use `-f`), use `--reconnect` to automatically restart the tssh process and log in to the remote server when it exits.
+- In background mode (use `-f`), use `--reconnect` to automatically restart the ssh05 process and log in to the remote server when it exits.
 
-- **Note:** `--reconnect` only restarts the tssh process and logs in; it does **not** resume the previous SSH session. To resume an existing session, please use UDP mode described below.
+- **Note:** `--reconnect` only restarts the ssh05 process and logs in; it does **not** resume the previous SSH session. To resume an existing session, please use UDP mode described below.
 
 ### UDP Mode
 
-- Install [tsshd](https://github.com/trzsz/tsshd?tab=readme-ov-file#installation) on the server, use `tssh --udp xxx` to log in (latency-sensitive users can specify `--kcp` option), or configure as follows in `~/.ssh/config` to omit `--udp` or `--kcp` option:
+- Install [tsshd](https://github.com/trzsz/tsshd?tab=readme-ov-file#installation) on the server, use `ssh05 --udp xxx` to log in (latency-sensitive users can specify `--kcp` option), or configure as follows in `~/.ssh/config` to omit `--udp` or `--kcp` option:
 
   ```
   Host xxx
       #!! UdpMode  ( yes | QUIC | KCP )
   ```
 
-- The `tssh` plays the role of `ssh` on the client side, while the `tsshd` acts as `sshd` on the server side.
+- The `ssh05` plays the role of `ssh` on the client side, while the `tsshd` acts as `sshd` on the server side.
 
-- The `tssh` first logs in to the server normally as an ssh client, and then starts a new `tsshd` process on the server, where each session has its own `tsshd` process.
+- The `ssh05` first logs in to the server normally as an ssh client, and then starts a new `tsshd` process on the server, where each session has its own `tsshd` process.
 
-- The `tsshd` process listens on a random UDP port in the range 61001–61999 (configurable via `TsshdPort`), and sends the port number and session secret keys back to the `tssh` process through the SSH channel. The SSH connection is then closed, and `tssh` communicates with `tsshd` over UDP.
+- The `tsshd` process listens on a random UDP port in the range 61001–61999 (configurable via `TsshdPort`), and sends the port number and session secret keys back to the `ssh05` process through the SSH channel. The SSH connection is then closed, and `ssh05` communicates with `tsshd` over UDP.
 
 ![tsshd attach session](https://trzsz.github.io/images/tsshd_attach.gif)
 
@@ -978,17 +819,17 @@ Host xxx
     #!! UdpSessionName xxx
 ```
 
-- `UdpMode`: `no` (the default: tssh works in TCP mode), `yes` (default protocol: `QUIC`), `QUIC` ([QUIC](https://github.com/quic-go/quic-go) protocol: faster speed), `KCP` ([KCP](https://github.com/xtaci/kcp-go) protocol: lower latency).
+- `UdpMode`: `no` (the default: ssh05 works in TCP mode), `yes` (default protocol: `QUIC`), `QUIC` ([QUIC](https://github.com/quic-go/quic-go) protocol: faster speed), `KCP` ([KCP](https://github.com/xtaci/kcp-go) protocol: lower latency).
 
 - `TsshdPort`: Specifies the port range that tsshd listens on, default is [61001, 61999]. You can specify multiple discrete ports (e.g., `6022,7022`) or multiple discrete ranges (e.g., `8010-8020,9020-9030,10080`); tsshd will randomly choose an available port. You can also specify the port on the command line using `--tsshd-port`.
 
 - `TsshdPath`: Specifies the path to the tsshd binary on the server, lookup in $PATH if not configured. You can also specify the path on the command line using `--tsshd-path`.
 
-- `UdpAliveTimeout`: If the disconnection lasts longer than the time specified by `UdpAliveTimeout`, tssh and tsshd will both exit, and no longer support reconnection. Supported units: `w` for weeks, `d` for days, `h` for hours, `m` for minutes, `s` for seconds. The default is `1w3d` (10 days).
+- `UdpAliveTimeout`: If the disconnection lasts longer than the time specified by `UdpAliveTimeout`, ssh05 and tsshd will both exit, and no longer support reconnection. Supported units: `w` for weeks, `d` for days, `h` for hours, `m` for minutes, `s` for seconds. The default is `1w3d` (10 days).
 
-- `UdpHeartbeatTimeout`: If the disconnection lasts longer than the time specified by `UdpHeartbeatTimeout`, tssh will try to reconnect to the server by a new path. The default is 3 seconds.
+- `UdpHeartbeatTimeout`: If the disconnection lasts longer than the time specified by `UdpHeartbeatTimeout`, ssh05 will try to reconnect to the server by a new path. The default is 3 seconds.
 
-- `UdpReconnectTimeout`: If the disconnection lasts longer than the time specified by `UdpReconnectTimeout`, tssh will display a notification indicating that the connection has been lost. The default is 15 seconds.
+- `UdpReconnectTimeout`: If the disconnection lasts longer than the time specified by `UdpReconnectTimeout`, ssh05 will display a notification indicating that the connection has been lost. The default is 15 seconds.
 
 - `UdpReconnectExitKey`: Specifies the shortcut key to exit (or detach) while waiting for reconnection. It accepts `none`, `ctrl+<letter>`, and `^<letter>`. The default is `^d` (Ctrl+D).
 
@@ -1040,18 +881,18 @@ When running in UDP mode, UDP port forwarding is supported.
 
 ### Trouble shooting
 
-- In older versions of the Warp terminal, the features like blocks requires renaming `tssh` to `ssh`. It is recommended to create a soft link (friendly for updates):
+- In older versions of the Warp terminal, the features like blocks requires renaming `ssh05` to `ssh`. It is recommended to create a soft link (friendly for updates):
 
   ```
-  sudo ln -sv $(which tssh) /usr/local/bin/ssh
+  sudo ln -sv $(which ssh05) /usr/local/bin/ssh
   ```
 
   - After the soft link, `ssh -V` should output `trzsz ssh` plus the version number. If not, it means that the soft link is unsuccessful, or `openssh` has a higher priority in `PATH`, and you need to soft link to another path or adjust the priority of `PATH`.
 
-  - In order to make `tssh` search login also support the blocks feature, you need to create a `tssh` function in `~/.bash_profile` ( bash ) or `~/.zshrc` ( zsh ):
+  - In order to make `ssh05` search login also support the blocks feature, you need to create a `ssh05` function in `~/.bash_profile` ( bash ) or `~/.zshrc` ( zsh ):
 
     ```sh
-    tssh() {
+    ssh05() {
         if [ $# -eq 0 ]; then
             ssh FAKE_DEST_IN_WARP
         else
@@ -1066,17 +907,17 @@ When running in UDP mode, UDP port forwarding is supported.
 
 - If you are using Windows7 or an older version of Windows10, and getting an error `enable virtual terminal failed`.
 
-  - Try using `tssh` in [Cygwin](https://www.cygwin.com/), [MSYS2](https://www.msys2.org/) or [Git Bash](https://www.atlassian.com/git/tutorials/git-bash).
+  - Try using `ssh05` in [Cygwin](https://www.cygwin.com/), [MSYS2](https://www.msys2.org/) or [Git Bash](https://www.atlassian.com/git/tutorials/git-bash).
 
-  - Since `v0.1.21`, the default Windows version no longer supports Windows7, you need to download the version with the `win7` keyword in [Releases](https://github.com/trzsz/trzsz-ssh/releases) to use.
+  - Since `v0.1.21`, the default Windows version no longer supports Windows7, you need to download the version with the `win7` keyword in [Releases](https://github.com/lordpietre/ssh05/releases) to use.
 
-- If the `tssh` specific configuration items are configured in `~/.ssh/config`, and openssh report an error `Bad configuration option`.
+- If the `ssh05` specific configuration items are configured in `~/.ssh/config`, and openssh report an error `Bad configuration option`.
 
-  - You can add `#!!` prefix to the items, openssh will treat it as a comment, while `tssh` will treat it as one of the valid configurations.
+  - You can add `#!!` prefix to the items, openssh will treat it as a comment, while `ssh05` will treat it as one of the valid configurations.
 
 ### Contact
 
-Feel free to email the author <lonnywong@qq.com>, or create an [issue](https://github.com/trzsz/trzsz-ssh/issues). Welcome to join the QQ group: 318578930.
+Feel free to email the author <pietrelinux@gmail.com>, or create an [issue](https://github.com/lordpietre/ssh05/issues).
 
 ### Sponsor
 

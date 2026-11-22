@@ -10,8 +10,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/trzsz/trzsz-ssh/contracts"
-	"github.com/trzsz/trzsz-ssh/tssh"
+	"github.com/lordpietre/ssh05/contracts"
+	"github.com/lordpietre/ssh05/ssh05"
 )
 
 // InventoryConfig configures the canonical, non-secret host inventory.
@@ -84,7 +84,7 @@ func (i *Inventory) enforceIdleLock() {
 }
 
 func (i *Inventory) reloadLocked(ctx context.Context) {
-	sshHosts, err := tssh.ListHostEntries(i.config.SSHConfigPath)
+	sshHosts, err := ssh05.ListHostEntries(i.config.SSHConfigPath)
 	if err != nil {
 		i.lastErr = err
 	} else {
@@ -301,7 +301,7 @@ func targetLabel(target contracts.HostTarget) string {
 	return fmt.Sprintf("%s%s:%d", user, target.Hostname, target.Port)
 }
 
-func sshProfile(entry tssh.HostEntry) contracts.HostProfile {
+func sshProfile(entry ssh05.HostEntry) contracts.HostProfile {
 	port := 22
 	if parsed, err := strconv.Atoi(entry.Port); err == nil && parsed > 0 && parsed <= 65535 {
 		port = parsed

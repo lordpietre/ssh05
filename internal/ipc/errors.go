@@ -3,7 +3,7 @@ package ipc
 import (
 	"errors"
 
-	"github.com/trzsz/trzsz-ssh/contracts"
+	"github.com/lordpietre/ssh05/contracts"
 )
 
 // JSON-RPC 2.0 plus TRSS application codes.

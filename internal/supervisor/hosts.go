@@ -3,8 +3,8 @@ package supervisor
 import (
 	"context"
 
-	"github.com/trzsz/trzsz-ssh/contracts"
-	"github.com/trzsz/trzsz-ssh/tssh"
+	"github.com/lordpietre/ssh05/contracts"
+	"github.com/lordpietre/ssh05/ssh05"
 )
 
 // SSHHosts exposes the read-only host inventory from ssh_config.
@@ -17,7 +17,7 @@ func (h SSHHosts) List(ctx context.Context) ([]contracts.HostProfile, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
-	entries, err := tssh.ListHostEntries(h.ConfigPath)
+	entries, err := ssh05.ListHostEntries(h.ConfigPath)
 	if err != nil {
 		return nil, err
 	}

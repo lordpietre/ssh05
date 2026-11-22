@@ -51,6 +51,6 @@ posterior muestra diferencias y permite separar entradas fusionadas.
 
 ## Evidencia
 
-- `tssh/config.go`, `tssh/effective_config.go`.
+- `ssh05/config.go`, `ssh05/effective_config.go`.
 - SDD §6, INV-01…05.
 - Auditoría §3.

@@ -8,7 +8,7 @@ import (
 	"net"
 	"sync"
 
-	"github.com/trzsz/trzsz-ssh/contracts"
+	"github.com/lordpietre/ssh05/contracts"
 )
 
 // Server serves the authenticated local control channel.

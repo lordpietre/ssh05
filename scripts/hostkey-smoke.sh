@@ -4,7 +4,7 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 ROOT="$(pwd)"
-TSSH="${TSSH:-$ROOT/bin/tssh}"
+SSH05="${SSH05:-$ROOT/bin/ssh05}"
 DIR="$(mktemp -d "${TMPDIR:-/tmp}/trss-hostkey-smoke.XXXXXX")"
 chmod 700 "$DIR"
 cleanup() {
@@ -13,7 +13,7 @@ cleanup() {
 }
 trap cleanup EXIT
 
-[[ -x "$TSSH" ]] || { echo "missing $TSSH; run make all" >&2; exit 1; }
+[[ -x "$SSH05" ]] || { echo "missing $SSH05; run make all" >&2; exit 1; }
 command -v ssh-keyscan >/dev/null || { echo "ssh-keyscan required" >&2; exit 1; }
 command -v ssh-keygen >/dev/null || { echo "ssh-keygen required" >&2; exit 1; }
 
@@ -38,7 +38,7 @@ EOF
 ssh-keyscan -p 2222 127.0.0.1 2>/dev/null > "$DIR/known_hosts"
 chmod 600 "$DIR/known_hosts"
 
-if ! "$TSSH" -F "$DIR/ssh_config" trss-hostkey true >"$DIR/correct.out" 2>&1; then
+if ! "$SSH05" -F "$DIR/ssh_config" trss-hostkey true >"$DIR/correct.out" 2>&1; then
   echo "FAIL: correct host key was rejected" >&2
   cat "$DIR/correct.out" >&2
   exit 1
@@ -51,7 +51,7 @@ printf '[127.0.0.1]:2222 %s\n' "$WRONG_PUB" > "$DIR/known_hosts"
 chmod 600 "$DIR/known_hosts"
 
 set +e
-"$TSSH" -F "$DIR/ssh_config" trss-hostkey true >"$DIR/changed.out" 2>&1
+"$SSH05" -F "$DIR/ssh_config" trss-hostkey true >"$DIR/changed.out" 2>&1
 STATUS=$?
 set -e
 if [[ $STATUS -eq 0 ]]; then

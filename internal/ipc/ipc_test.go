@@ -13,7 +13,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/trzsz/trzsz-ssh/contracts"
+	"github.com/lordpietre/ssh05/contracts"
 )
 
 func startTestServer(t *testing.T, handler Handler) string {

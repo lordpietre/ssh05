@@ -1,15 +1,15 @@
-Source: tssh
+Source: ssh05
 Section: net
 Priority: optional
-Maintainer: Lonny Wong <lonnywong@qq.com>
+Maintainer: lordpietre <pietrelinux@gmail.com>
 Build-Depends: debhelper (>=9),
                golang-1.25-go
 Standards-Version: 3.9.6
-Homepage: https://trzsz.github.io/tssh
-Vcs-Browser: https://github.com/trzsz/trzsz-ssh
-Vcs-Git: https://github.com/trzsz/trzsz-ssh.git
+Homepage: https://github.com/lordpietre/ssh05
+Vcs-Browser: https://github.com/lordpietre/ssh05
+Vcs-Git: https://github.com/lordpietre/ssh05.git
 
-Package: tssh
+Package: ssh05
 Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends}
-Description: tssh is a highly OpenSSH-compatible client with extended features.
+Description: ssh05 is a highly OpenSSH-compatible client with extended features.

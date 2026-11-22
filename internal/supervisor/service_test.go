@@ -14,11 +14,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/trzsz/trzsz-ssh/contracts"
-	"github.com/trzsz/trzsz-ssh/internal/audit"
-	frpmanager "github.com/trzsz/trzsz-ssh/internal/frp"
-	"github.com/trzsz/trzsz-ssh/internal/ipc"
-	transfermanager "github.com/trzsz/trzsz-ssh/internal/transfer"
+	"github.com/lordpietre/ssh05/contracts"
+	"github.com/lordpietre/ssh05/internal/audit"
+	frpmanager "github.com/lordpietre/ssh05/internal/frp"
+	"github.com/lordpietre/ssh05/internal/ipc"
+	transfermanager "github.com/lordpietre/ssh05/internal/transfer"
 )
 
 func startServiceServer(t *testing.T, service *Service) string {

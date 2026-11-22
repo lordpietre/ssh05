@@ -63,7 +63,7 @@ ruta visitor para SSH. Con `--frps-listen` el supervisor arranca y para un
 
 ## Evidencia
 
-- `tssh/frp_proxy.go` (`frpStartLocal`, `frpStopProcess`,
+- `ssh05/frp_proxy.go` (`frpStartLocal`, `frpStopProcess`,
   `frpCleanupLocalProcesses`).
 - SDD §8.2 y FRP-08.
 - Auditoría H-01…H-05.

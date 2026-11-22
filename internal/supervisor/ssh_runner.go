@@ -6,9 +6,9 @@ import (
 	"io"
 	"sync"
 
+	"github.com/lordpietre/ssh05/contracts"
+	"github.com/lordpietre/ssh05/ssh05"
 	"github.com/trzsz/shellescape"
-	"github.com/trzsz/trzsz-ssh/contracts"
-	"github.com/trzsz/trzsz-ssh/tssh"
 	"golang.org/x/crypto/ssh"
 )
 
@@ -26,7 +26,7 @@ func tmuxAttachCommand(sessionName string) string {
 	return "tmux attach-session -t " + shellescape.Quote(sessionName)
 }
 
-func tmuxSessionExists(client tssh.SshClient, sessionName string) bool {
+func tmuxSessionExists(client ssh05.SshClient, sessionName string) bool {
 	probe, err := client.NewSession()
 	if err != nil {
 		return false
@@ -51,7 +51,7 @@ func (r *SSHRunner) Start(ctx context.Context, profileID string, cols, rows int,
 		destination = profileID
 	}
 
-	client, err := tssh.SshLogin(&tssh.SshArgs{
+	client, err := ssh05.SshLogin(&ssh05.SshArgs{
 		Destination: destination,
 		ConfigFile:  r.Config.ConfigPath,
 	})
@@ -137,8 +137,8 @@ func (r *SSHRunner) Start(ctx context.Context, profileID string, cols, rows int,
 }
 
 type sshRun struct {
-	client  tssh.SshClient
-	session tssh.SshSession
+	client  ssh05.SshClient
+	session ssh05.SshSession
 	stdin   io.WriteCloser
 	stdout  io.Reader
 	tmux    string
@@ -195,7 +195,7 @@ func (r *sshRun) Signal(signal string) error {
 	if r.closed {
 		return ErrSessionClosed
 	}
-	sender, ok := r.session.(tssh.SshSignalSender)
+	sender, ok := r.session.(ssh05.SshSignalSender)
 	if !ok {
 		return fmt.Errorf("supervisor: transport does not support signals")
 	}

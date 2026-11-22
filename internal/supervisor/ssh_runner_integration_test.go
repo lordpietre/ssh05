@@ -2,7 +2,7 @@ package supervisor
 
 import (
 	"context"
-	"github.com/trzsz/trzsz-ssh/contracts"
+	"github.com/lordpietre/ssh05/contracts"
 	"os"
 	"strings"
 	"testing"

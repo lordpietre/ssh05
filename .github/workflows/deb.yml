@@ -1,0 +1,68 @@
+name: Build .deb packages
+
+on:
+  push:
+    branches: ["main"]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deb:
+    name: ${{ matrix.distro }} ${{ matrix.arch }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        distro: [ubuntu, debian]
+        arch: [amd64, arm64]
+    steps:
+      - name: Checkout ssh05
+        uses: actions/checkout@v6
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: "1.25"
+      - name: Build .deb
+        env:
+          DISTRO: ${{ matrix.distro }}
+          ARCH: ${{ matrix.arch }}
+        run: |
+          if [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
+            export VERSION="${GITHUB_REF_NAME#v}"
+          else
+            export VERSION="0.3.13+git${GITHUB_SHA::12}"
+          fi
+          ./scripts/build-deb.sh "$DISTRO" "$ARCH"
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ssh05-deb-${{ matrix.distro }}-${{ matrix.arch }}
+          path: |
+            dist/*.deb
+            dist/*.sha256
+          if-no-files-found: error
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: deb
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download .deb artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: ssh05-deb-*
+          merge-multiple: true
+          path: dist
+      - name: Attach .deb to release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/*.deb
+            dist/*.sha256
+          generate_release_notes: true

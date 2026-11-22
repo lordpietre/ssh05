@@ -10,7 +10,7 @@ lang: es-ES
 
 | Campo | Valor |
 |---|---|
-| Proyecto | TRSS, evolución conceptual de `lordpietre/trzsz-ssh` |
+| Proyecto | TRSS, evolución conceptual de `lordpietre/ssh05` |
 | Versión | 0.2 — revisión de arquitectura y UX |
 | Fecha | 20/11/2026 |
 | Estado | Borrador ampliado; integra investigación técnica de OpenTUI y diseño UX, pendiente de pruebas end-to-end |
@@ -385,7 +385,7 @@ Envío de bytes PTY mediante canal separado o encuadre binario; no serializar gr
 
 # Anexo E. Dependencias, licencias y atribución
 
-TRSS parte de las ideas y del repositorio de referencia `https://github.com/lordpietre/trzsz-ssh`. Si se reutilizan fuentes de terceros, conservar los avisos originales y verificar la licencia de cada componente y dependencia; el nombre nuevo no elimina deberes de atribución. El código original de `trzsz-ssh` se distribuye bajo MIT; FRP bajo Apache 2.0; las condiciones de KeePassXC, bibliotecas KDBX y datos GeoIP requieren revisión específica para distribución. No se ha efectuado cambio ni publicación de repositorio en este documento.
+TRSS parte de las ideas y del repositorio de referencia `https://github.com/lordpietre/ssh05`. Si se reutilizan fuentes de terceros, conservar los avisos originales y verificar la licencia de cada componente y dependencia; el nombre nuevo no elimina deberes de atribución. El código original de `trzsz-ssh` se distribuye bajo MIT; FRP bajo Apache 2.0; las condiciones de KeePassXC, bibliotecas KDBX y datos GeoIP requieren revisión específica para distribución. No se ha efectuado cambio ni publicación de repositorio en este documento.
 
 # Anexo F. Glosario y fuentes de referencia
 
@@ -393,7 +393,7 @@ TRSS parte de las ideas y del repositorio de referencia `https://github.com/lord
 
 Referencias primarias (consultar revisión y fecha al implementar):
 
-1. Proyecto de referencia TRSS: https://github.com/lordpietre/trzsz-ssh
+1. Proyecto de referencia TRSS: https://github.com/lordpietre/ssh05
 2. Proyecto upstream: https://github.com/trzsz/trzsz-ssh
 3. OpenTUI: https://github.com/anomalyco/opentui
 4. FRP, versiones y documentación: https://github.com/fatedier/frp/releases ; https://gofrp.org/

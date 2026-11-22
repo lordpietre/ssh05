@@ -11,7 +11,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/trzsz/trzsz-ssh/contracts"
+	"github.com/lordpietre/ssh05/contracts"
 )
 
 func TestParseASNRecord(t *testing.T) {

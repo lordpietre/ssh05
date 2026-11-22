@@ -33,7 +33,7 @@ Criterios para retomarlo:
 ## Consecuencias
 
 - La Fase 1 no depende de UDP.
-- El código existente (`tssh/udp.go`) se conserva como referencia, no como
+- El código existente (`ssh05/udp.go`) se conserva como referencia, no como
   requisito de arquitectura.
 - La documentación debe evitar presentar UDP como persistencia remota.
 
@@ -46,5 +46,5 @@ Criterios para retomarlo:
 
 ## Evidencia
 
-- `tssh/udp.go`, `tssh/attach.go`.
+- `ssh05/udp.go`, `ssh05/attach.go`.
 - SDD §5 y ADR-01.

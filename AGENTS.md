@@ -1,16 +1,17 @@
-# trzsz-ssh (tssh) — Agent Guide
+# ssh05 — Agent Guide
 
 ## Project
-Drop-in OpenSSH client replacement with TUI login prompt, trzsz/zmodem file transfer, UDP mode (QUIC/KCP), and batch login. Go module `github.com/trzsz/trzsz-ssh`.
+Drop-in OpenSSH client replacement with TUI login prompt, trzsz/zmodem file transfer, UDP mode (QUIC/KCP), and batch login. Go module `github.com/lordpietre/ssh05`.
 
 ## Key commands
 ```
-go build -o ./bin/ ./cmd/tssh
-go test -v -count=1 ./tssh    # must run from repo root
+go build -o ./bin/ ./cmd/ssh05
+go test -v -count=1 ./ssh05    # must run from repo root
 make test                      # same as above (prefers `gotest` on unix)
 make bench                     # benchmarks de IPC, backend y FRP
 make verify                    # tests, contratos y smoke completo P1/P2
-make install                   # copies ./bin/tssh to /usr/bin/tssh
+make deb                       # .deb para Ubuntu y Debian (amd64/arm64) en dist/
+make install                   # copies ./bin/ssh05 to /usr/bin/ssh05
 ```
 
 ## Toolchain
@@ -20,20 +21,22 @@ make install                   # copies ./bin/tssh to /usr/bin/tssh
 - All forked dependencies live under `github.com/trzsz/` (go-arg, ssh_config, promptui, quic-go, kcp-go, smux, etc.)
 
 ## Entrypoints
-- **Binary**: `cmd/tssh/main.go` → `tssh.TsshMain(argv)` in `tssh/main.go`
-- **Library**: `tssh.SshLogin(args)` in `tssh/ssh.go`
+- **Binary**: `cmd/ssh05/main.go` → `ssh05.Ssh05Main(argv)` in `ssh05/main.go`
+- **Library**: `ssh05.SshLogin(args)` in `ssh05/ssh.go`
 - **Internal packages**: `internal/table/`, `internal/krb5/`, `internal/ssh/`
 
 ## Architecture notes
-- All business logic lives in `tssh/` (70 `.go` files). Main package is thin.
-- Version constant `kTsshVersion` in `tssh/version.go:36`
-- Exit codes defined in `tssh/comm.go:50-70` (e.g. `kExitCodeLoginFailed=16`)
-- `#!!` prefix enables tssh-specific options in `~/.ssh/config` (standard ssh treats it as comment)
-- `enc` prefix on config values means encrypted with `tssh --enc-secret`
-- Android/Termux quirk: `cmd/tssh/main.go` adjusts `os.Args` when `TERMUX_EXEC__PROC_SELF_EXE` is set
+- All business logic lives in `ssh05/` (70 `.go` files). Main package is thin.
+- Version constant `kSSH05Version` in `ssh05/version.go:36`
+- Exit codes defined in `ssh05/comm.go:50-70` (e.g. `kExitCodeLoginFailed=16`)
+- `#!!` prefix enables ssh05-specific options in `~/.ssh/config` (standard ssh treats it as comment)
+- `enc` prefix on config values means encrypted with `ssh05 --enc-secret`
+- Android/Termux quirk: `cmd/ssh05/main.go` adjusts `os.Args` when `TERMUX_EXEC__PROC_SELF_EXE` is set
 - Keepalive defaults: `ServerAliveInterval=30` (was 0), configurable via `~/.tssh.conf` `defaultServerAliveInterval`. Set `#!! ServerAliveInterval 0` in `~/.ssh/config` to disable.
 - tmux en restauración/reconexión es solo `attach`; si la sesión no existe se abre
   una shell y se elimina el binding (nunca se recrea en silencio).
+- `TSSH_DISABLE_DOCKER=1` o `SSH05_DISABLE_DOCKER=1` evita descubrir contenedores Docker.
+- Compatibilidad: se mantienen `~/.tssh.conf`, `TSSH_*` y `~/.tssh/` aunque el binario sea `ssh05`.
 - `SshLogin` comparte config: init serializado, conexiones de la misma config en paralelo
   (`acquireConfigRead`); los defaults de `ssh_config` y UDP tienen mutex propio.
 - `~/.tssh.conf` settings: `promptThemeLayout=tiny|simple|table`, `promptDefaultMode=search`, `promptPageSize=N`, `promptDetailItems=...`, `defaultServerAliveInterval=N`
@@ -48,10 +51,10 @@ make install                   # copies ./bin/tssh to /usr/bin/tssh
 | `publish.yml` | GitHub Release published (full multi-platform release) |
 
 ## Testing
-- 13 test files in `tssh/`, 1 in `internal/table/`
+- 13 test files in `ssh05/`, 1 in `internal/table/`
 - `-count=1` disables test caching; always run from repo root
 - Integration-level tests depend on SSH server fixtures within the repo
-- Run single test: `go test -v -count=1 -run TestName ./tssh`
+- Run single test: `go test -v -count=1 -run TestName ./ssh05`
 - Run single package: `go test -v -count=1 ./internal/table`
 - Known baseline failure: `TestTableExample` in `internal/table` fails on a
   color-capable environment (pre-existing, unrelated to Phase 0 changes)
@@ -128,7 +131,7 @@ make install                   # copies ./bin/tssh to /usr/bin/tssh
   o `--keepass-password-command 'pass show keepass'` (askpass; el secreto
   no se persiste). `--vault-idle-timeout 15m` bloquea el vault tras
   inactividad y exige reimportar; `vault.unlockRequest` lo reabre.
-- H-01 is resolved (`generateToken` fails closed; see `tssh/frp_proxy_test.go`).
+- H-01 is resolved (`generateToken` fails closed; see `ssh05/frp_proxy_test.go`).
 - H-02 is resolved (`ensurePrivateDir` forces FRP config/log dirs to `0700`).
 - H-03 is resolved: FRP tokens are AES-GCM encrypted at rest with a local
   `~/.tssh/frp.key` (`0600`); remote TOML files are copied with `0600`.
@@ -136,7 +139,7 @@ make install                   # copies ./bin/tssh to /usr/bin/tssh
   version gating, `frpc verify` for all four types and real TCP/STCP/XTCP/UDP
   tunnels.
 - H-05 is resolved (remote FRP copy uses quoted `sh -c` arguments and tests).
-- Phase 0 does **not** change runtime behavior of `tssh`; the runtime changes so
+- Phase 0 does **not** change runtime behavior of `ssh05`; the runtime changes so
   far are the H-01 token fix, H-02 private FRP directories, H-03 encrypted FRP
   tokens, H-04 proxy types and H-05 remote-copy quoting. Respect the status in
   each ADR: ADR-01, ADR-02 (prototype) and ADR-03 are accepted; the rest remain

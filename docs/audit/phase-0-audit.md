@@ -1,4 +1,4 @@
-# Auditoría de Fase 0 — de `tssh` a TRSS
+# Auditoría de Fase 0 — de `ssh05` a TRSS
 
 | Campo | Valor |
 |---|---|
@@ -29,17 +29,17 @@
 
 | Área | Archivos principales | Líneas aprox. | ¿Reutilizable? |
 |---|---|---:|---|
-| Entrada CLI | `cmd/tssh/main.go`, `tssh/main.go`, `tssh/args.go` | 700 | Aprovechable con adaptación: semántica OpenSSH, no la TUI |
-| Login SSH | `tssh/ssh.go`, `tssh/login.go`, `tssh/auth_method.go` | 1.800 | **Sí**: motor `golang.org/x/crypto/ssh`, PTY, señales, ProxyJump |
-| Inventario | `tssh/config.go`, `tssh/effective_config.go`, `tssh/prompt.go` | 2.000 | **Sí**: parser `~/.ssh/config`, `ssh -G`, hosts |
-| Known hosts | `tssh/known_hosts.go` | 240 | **Sí**: verificación y aviso de clave cambiada |
-| Auth extra | `tssh/agent.go`, `tssh/keys.go`, `tssh/otp.go`, `tssh/krb5.go` | 1.400 | **Sí**: agent, claves, TOTP/OTP, GSSAPI |
-| TUI actual | `tssh/host_model.go`, `tssh/theme.go`, `tssh/lang.go` | 5.100 | No para OpenTUI; sí ideas de UX y datos |
-| FRP | `tssh/frp_proxy.go`, `tssh/frp_download.go` | 1.800 | Aprovechable con adaptación: flujo completo, carencias corregidas después |
-| Túneles SSH | `tssh/forward*.go`, `tssh/tunnel*` dentro de `host_model.go` | 1.500 | **Sí** como base del supervisor |
-| Terminal/tmux | `tssh/tmgr*.go`, `tssh/tmuxcc.go`, `tssh/attach.go` | 1.100 | Aprovechable con adaptación: tmux local y attach de tsshd |
-| UDP/QUIC/KCP | `tssh/udp.go` (tsshd) | 900 | Evaluar en Fase 4, no P0 |
-| Transferencia | `tssh/trzsz.go`, `tssh/tools_upload.go` | 900 | **Sí** como adaptador P2 |
+| Entrada CLI | `cmd/ssh05/main.go`, `ssh05/main.go`, `ssh05/args.go` | 700 | Aprovechable con adaptación: semántica OpenSSH, no la TUI |
+| Login SSH | `ssh05/ssh.go`, `ssh05/login.go`, `ssh05/auth_method.go` | 1.800 | **Sí**: motor `golang.org/x/crypto/ssh`, PTY, señales, ProxyJump |
+| Inventario | `ssh05/config.go`, `ssh05/effective_config.go`, `ssh05/prompt.go` | 2.000 | **Sí**: parser `~/.ssh/config`, `ssh -G`, hosts |
+| Known hosts | `ssh05/known_hosts.go` | 240 | **Sí**: verificación y aviso de clave cambiada |
+| Auth extra | `ssh05/agent.go`, `ssh05/keys.go`, `ssh05/otp.go`, `ssh05/krb5.go` | 1.400 | **Sí**: agent, claves, TOTP/OTP, GSSAPI |
+| TUI actual | `ssh05/host_model.go`, `ssh05/theme.go`, `ssh05/lang.go` | 5.100 | No para OpenTUI; sí ideas de UX y datos |
+| FRP | `ssh05/frp_proxy.go`, `ssh05/frp_download.go` | 1.800 | Aprovechable con adaptación: flujo completo, carencias corregidas después |
+| Túneles SSH | `ssh05/forward*.go`, `ssh05/tunnel*` dentro de `host_model.go` | 1.500 | **Sí** como base del supervisor |
+| Terminal/tmux | `ssh05/tmgr*.go`, `ssh05/tmuxcc.go`, `ssh05/attach.go` | 1.100 | Aprovechable con adaptación: tmux local y attach de tsshd |
+| UDP/QUIC/KCP | `ssh05/udp.go` (tsshd) | 900 | Evaluar en Fase 4, no P0 |
+| Transferencia | `ssh05/trzsz.go`, `ssh05/tools_upload.go` | 900 | **Sí** como adaptador P2 |
 | Tablas internas | `internal/table`, `internal/krb5`, `internal/ssh` | 2.700 | Sí, con revisión de licencia |
 
 Total: 78 archivos Go, ~26.500 líneas; 14 archivos de prueba.
@@ -67,9 +67,9 @@ Total: 78 archivos Go, ~26.500 líneas; 14 archivos de prueba.
 ## 4. Activos reutilizables para el supervisor
 
 1. **Motor SSH**: `SshLogin` devuelve una interfaz `SshClient` con sesiones, PTY,
-   `WindowChange`, canales y forwarding (`tssh/ssh.go:208`).
+   `WindowChange`, canales y forwarding (`ssh05/ssh.go:208`).
 2. **Autenticación**: agent, claves, certificados, keyboard-interactive, OTP,
-   GSSAPI y `ProxyJump` ya resueltos (`tssh/auth_method.go`, `tssh/login.go`).
+   GSSAPI y `ProxyJump` ya resueltos (`ssh05/auth_method.go`, `ssh05/login.go`).
 3. **Identidad**: `known_hosts.go` usa `skeema/knownhosts`, bloquea cambios de
    clave y conserva `HostKeyAlgorithms`.
 4. **Configuración**: parser de `~/.ssh/config`, `Include`, `Match` y `ssh -G`
@@ -82,18 +82,18 @@ Total: 78 archivos Go, ~26.500 líneas; 14 archivos de prueba.
 
 | ID | Hallazgo | Ubicación | Impacto | Acción propuesta |
 |---|---|---|---|---|
-| H-01 | `generateToken()` devolvía un token fijo si falla `crypto/rand` | `tssh/frp_proxy.go:179-185` | Viola FRP-03; token predecible | **Resuelto:** ahora devuelve `(string, error)`, falla cerrado ante error/short read y hay tests en `tssh/frp_proxy_test.go` |
-| H-02 | Directorio `~/.tssh` creado con `0755` | `tssh/frp_proxy.go` | Viola FRP-04; otros usuarios pueden listar | **Resuelto:** `ensurePrivateDir` crea/endurece a `0700`; test incluido |
+| H-01 | `generateToken()` devolvía un token fijo si falla `crypto/rand` | `ssh05/frp_proxy.go:179-185` | Viola FRP-03; token predecible | **Resuelto:** ahora devuelve `(string, error)`, falla cerrado ante error/short read y hay tests en `ssh05/frp_proxy_test.go` |
+| H-02 | Directorio `~/.ssh05` creado con `0755` | `ssh05/frp_proxy.go` | Viola FRP-04; otros usuarios pueden listar | **Resuelto:** `ensurePrivateDir` crea/endurece a `0700`; test incluido |
 | H-03 | Token FRP persistido en `~/.tssh_frp` (JSON) y TOML | `frpSaveConfig`, `writeFrpcConfig` | Secreto en claro fuera de un proveedor | **Resuelto:** `Token` no se serializa; se cifra AES-GCM con `~/.tssh/frp.key` (`0600`) y los TOML remotos se copian con `0600`. Riesgo residual: un atacante con la misma UID puede leer la clave, igual que un keyring desbloqueado |
-| H-04 | Solo proxies `type = "tcp"` | `tssh/frp_proxy.go` | No cubre UDP/STCP/XTCP (FRP-02) | **Resuelto:** UI/config admiten los 4 tipos; `frpc verify` los acepta y los túneles reales TCP/STCP/XTCP/UDP funcionan |
-| H-05 | `frpCopyToRemote` construye `mkdir -p … && cat > …` sin citar rutas | `tssh/frp_proxy.go` | Inyección de comandos si la ruta es controlable | **Resuelto:** `sh -c` con argumentos citados, expansión de `~/` en el script y tests de inyección/rutas con espacios |
-| H-06 | Claves nuevas se aceptan automáticamente con `accept-new`/`no` | `tssh/known_hosts.go:199-216` | Comportamiento OpenSSH esperado, pero el SDD pide flujo explícito | No cambiar el default; añadir UX explícita en TRSS |
-| H-07 | Sin bloqueo de secretos por inactividad | `tssh/config.go` (cifrado AES-GCM) | AUT-05 pendiente | Diseñar vault y temporalidad |
+| H-04 | Solo proxies `type = "tcp"` | `ssh05/frp_proxy.go` | No cubre UDP/STCP/XTCP (FRP-02) | **Resuelto:** UI/config admiten los 4 tipos; `frpc verify` los acepta y los túneles reales TCP/STCP/XTCP/UDP funcionan |
+| H-05 | `frpCopyToRemote` construye `mkdir -p … && cat > …` sin citar rutas | `ssh05/frp_proxy.go` | Inyección de comandos si la ruta es controlable | **Resuelto:** `sh -c` con argumentos citados, expansión de `~/` en el script y tests de inyección/rutas con espacios |
+| H-06 | Claves nuevas se aceptan automáticamente con `accept-new`/`no` | `ssh05/known_hosts.go:199-216` | Comportamiento OpenSSH esperado, pero el SDD pide flujo explícito | No cambiar el default; añadir UX explícita en TRSS |
+| H-07 | Sin bloqueo de secretos por inactividad | `ssh05/config.go` (cifrado AES-GCM) | AUT-05 pendiente | Diseñar vault y temporalidad |
 | H-08 | Prueba `TestTableExample` falla por color en el entorno | `internal/table/table_test.go` | Línea base ruidosa | Arreglar aparte; no relacionado con Fase 0 |
 
 ## 6. Licencias y atribución
 
-- Repositorio y código propio: MIT (cabeceras en `tssh/*.go`).
+- Repositorio y código propio: MIT (cabeceras en `ssh05/*.go`).
 - `internal/table`: MIT, Copyright Charmbracelet.
 - `internal/krb5/gssapi.go`: Copyright 2022-2025 `wencaiwulue`; revisar términos.
 - `internal/ssh/bcrypt_pbkdf.go`: Copyright The Go Authors (BSD).
@@ -106,13 +106,13 @@ Total: 78 archivos Go, ~26.500 líneas; 14 archivos de prueba.
 
 ```text
 Go 1.25.0, CGO_ENABLED=0
-go build -o /tmp/opencode/tssh ./cmd/tssh   -> OK
-go test -count=1 ./tssh                     -> ok (1.0 s)
+go build -o /tmp/opencode/ssh05 ./cmd/ssh05   -> OK
+go test -count=1 ./ssh05                     -> ok (1.0 s)
 go test -count=1 ./internal/table           -> FAIL preexistente (TestTableExample, color)
 ```
 
 El fallo de `internal/table` no lo introduce la Fase 0; se documenta para no
-confundirlo con una regresión. `go test ./tssh` pasa.
+confundirlo con una regresión. `go test ./ssh05` pasa.
 
 ## 8. Conclusión
 

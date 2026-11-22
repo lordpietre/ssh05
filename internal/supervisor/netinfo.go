@@ -13,9 +13,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/trzsz/trzsz-ssh/contracts"
-	"github.com/trzsz/trzsz-ssh/internal/audit"
-	"github.com/trzsz/trzsz-ssh/internal/ipc"
+	"github.com/lordpietre/ssh05/contracts"
+	"github.com/lordpietre/ssh05/internal/audit"
+	"github.com/lordpietre/ssh05/internal/ipc"
 )
 
 type nmapRun struct {
