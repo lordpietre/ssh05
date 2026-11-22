@@ -69,7 +69,8 @@ en esta compilación.
 Nmap es optativo (`--nmap`), exige `confirm` y `authorized`, solo acepta hosts
 del inventario y listas de puertos validadas. La información de red usa ASN de
 Team Cymru por DNS y RDAP de `rdap.org`; el país es orientativo y se muestra su
-procedencia y precisión limitada.
+procedencia y precisión limitada. Las direcciones privadas/locales no se
+envían a servicios externos.
 
 ## Extra posterior: preferencias de UI
 

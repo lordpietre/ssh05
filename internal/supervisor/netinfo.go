@@ -138,6 +138,13 @@ func (s *Service) networkInfo(ctx context.Context, req contracts.RPCRequest) (js
 		result.RDAP = contracts.RDAPInfo{Error: "unparseable IP"}
 		return marshal(result)
 	}
+	if !isPublicAddress(ip) {
+		message := "dirección privada o local; no se consulta el registro público"
+		result.ASN = contracts.ASNInfo{Error: message}
+		result.RDAP = contracts.RDAPInfo{Error: message}
+		s.log(audit.Event{Action: "diagnostics.network", HostProfileID: params.HostProfileID, Result: "ok"})
+		return marshal(result)
+	}
 	result.ASN = lookupASN(ctx, ip)
 	result.RDAP = lookupRDAP(ctx, ip)
 	if result.RDAP.Country != "" {
@@ -147,6 +154,10 @@ func (s *Service) networkInfo(ctx context.Context, req contracts.RPCRequest) (js
 	}
 	s.log(audit.Event{Action: "diagnostics.network", HostProfileID: params.HostProfileID, Result: "ok"})
 	return marshal(result)
+}
+
+func isPublicAddress(ip net.IP) bool {
+	return ip != nil && ip.IsGlobalUnicast() && !ip.IsPrivate() && !ip.IsLoopback()
 }
 
 func selectRoute(routes []contracts.ConnectionRoute, id string) (contracts.ConnectionRoute, bool) {

@@ -21,6 +21,17 @@ func TestParseASNRecord(t *testing.T) {
 	}
 }
 
+func TestPublicAddressPolicy(t *testing.T) {
+	for _, value := range []string{"127.0.0.1", "10.0.0.1", "192.168.1.1", "::1", "fe80::1"} {
+		if isPublicAddress(net.ParseIP(value)) {
+			t.Fatalf("%s must not be considered public", value)
+		}
+	}
+	if !isPublicAddress(net.ParseIP("1.1.1.1")) {
+		t.Fatal("1.1.1.1 must be public")
+	}
+}
+
 func TestASNQueryIPv6(t *testing.T) {
 	query := asnQuery(net.ParseIP("2001:db8::1"))
 	prefix := strings.TrimSuffix(query, ".origin6.asn.cymru.com")

@@ -183,7 +183,8 @@ preferencias. Solo trzsz/Zmodem queda condicionado a compatibilidad remota.
 
 La paleta incluye «Escanear con Nmap» (optativo, con confirmación y solo en
 hosts del inventario) e «Información de red» (ASN por Team Cymru, RDAP y país
-orientativo con procedencia y precisión limitada).
+orientativo con procedencia y precisión limitada). Las direcciones privadas o
+locales no se envían a registros públicos.
 
 La paleta «Transferencias» permite subir/descargar con SCP o SFTP usando el
 mismo `ssh_config` y agente que las sesiones. Requiere autenticación no
