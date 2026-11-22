@@ -1,4 +1,4 @@
-# Revisión funcional completa — ssh05 0.3.14
+# Revisión funcional completa — ssh05 0.3.15
 
 | Campo | Valor |
 |---|---|
@@ -56,6 +56,7 @@ generados incluyen `ssh05` y `trssd`.
 | INV-03 | Cumple | Importación KDBX por `keepassxc-cli` |
 | INV-04 | Cumple | Deduplicación, procedencia y conflictos sin sobrescritura |
 | INV-05 | Cumple | `#!!` + overrides persistentes `F2/F3/F4`; `TestInventoryHostOverridesPersist` |
+| Alta de hosts | Cumple | `hosts.create`, formulario `Ctrl+N`, guarda en `ssh_config` |
 | AUT-02 | Cumple | `SSH_AUTH_SOCK` + `ssh-add -l`; solo huellas, sin claves privadas |
 | AUT-03 | Cumple | `AuthRef` estable por UUID, sin secreto |
 | AUT-04 | Cumple | Sin secretos en perfiles/eventos; auditoría saneada |
