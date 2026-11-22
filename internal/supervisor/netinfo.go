@@ -145,6 +145,7 @@ func (s *Service) networkInfo(ctx context.Context, req contracts.RPCRequest) (js
 	} else if result.ASN.Country != "" {
 		result.GeoCountry = result.ASN.Country
 	}
+	s.log(audit.Event{Action: "diagnostics.network", HostProfileID: params.HostProfileID, Result: "ok"})
 	return marshal(result)
 }
 

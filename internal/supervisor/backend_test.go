@@ -442,12 +442,16 @@ func TestBackendReconnectsWithBackoff(t *testing.T) {
 		return len(runner.runs) == 2
 	})
 
+	sawDisconnected := false
 	sawReconnecting := false
 	sawConnected := false
 	deadline := time.After(2 * time.Second)
-	for !sawReconnecting || !sawConnected {
+	for !sawDisconnected || !sawReconnecting || !sawConnected {
 		select {
 		case status := <-statuses:
+			if status.Phase == contracts.PhaseDisconnected {
+				sawDisconnected = true
+			}
 			if status.Phase == contracts.PhaseReconnecting {
 				sawReconnecting = true
 			}
@@ -455,7 +459,7 @@ func TestBackendReconnectsWithBackoff(t *testing.T) {
 				sawConnected = true
 			}
 		case <-deadline:
-			t.Fatalf("reconnect statuses not observed: reconnecting=%v connected=%v", sawReconnecting, sawConnected)
+			t.Fatalf("reconnect statuses not observed: disconnected=%v reconnecting=%v connected=%v", sawDisconnected, sawReconnecting, sawConnected)
 		}
 	}
 

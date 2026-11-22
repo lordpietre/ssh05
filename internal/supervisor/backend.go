@@ -158,6 +158,7 @@ func (b *Backend) readSession(s *session, run RunSession) {
 	b.mu.Unlock()
 
 	if !userClosed && code != 0 {
+		b.emitStatus(s, contracts.PhaseDisconnected, "transport_lost", fmt.Sprintf("exit code %d", code))
 		if b.tryReconnect(s) {
 			return
 		}
