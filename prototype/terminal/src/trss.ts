@@ -535,7 +535,10 @@ function renderHosts(): void {
   const all = filteredHosts()
   hostTitle.content = ` Hosts (${all.length}${query ? `/${hosts.length}` : ""})${conflicts > 0 ? ` !${conflicts}` : ""}`
   hostQuery.content = query ? ` /${truncate(query, 24)}` : " ↑↓ seleccionar"
-  hostHint.content = hosts.length === 0 ? " Ctrl+I KeePass · revisa trssd" : " Enter conectar · Ctrl+I KeePass"
+  hostHint.content =
+    hosts.length === 0
+      ? " Ctrl+N nuevo host · Ctrl+I KeePass"
+      : " Enter conectar · Ctrl+N nuevo · Ctrl+I KeePass"
 
   if (hosts.length === 0) {
     hostList.content =
