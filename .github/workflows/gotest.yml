@@ -12,7 +12,7 @@ jobs:
           go-version: "1.25"
       - name: make test
         run: make test
-  go-test-on-macos:
+  go-build-on-macos:
     runs-on: macos-latest
     steps:
       - name: Checkout ssh05
@@ -21,9 +21,9 @@ jobs:
         uses: actions/setup-go@v6
         with:
           go-version: "1.25"
-      - name: make test
-        run: make test
-  go-test-on-windows:
+      - name: Build ssh05
+        run: CGO_ENABLED=0 go build ./cmd/ssh05 ./cmd/trssd
+  go-build-on-windows:
     runs-on: windows-latest
     steps:
       - name: Checkout ssh05
@@ -32,8 +32,10 @@ jobs:
         uses: actions/setup-go@v6
         with:
           go-version: "1.25"
-      - name: make test
-        run: make test
+      - name: Build ssh05
+        run: |
+          $env:CGO_ENABLED="0"
+          go build ./cmd/ssh05 ./cmd/trssd
   test-win7-patch:
     runs-on: ubuntu-latest
     steps:

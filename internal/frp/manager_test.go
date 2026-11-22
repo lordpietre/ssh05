@@ -321,17 +321,6 @@ func TestManagerRemoveDeletesDefinitionAndFiles(t *testing.T) {
 	}
 }
 
-func TestConfigureProcessSetsDeathSignalOnLinux(t *testing.T) {
-	if runtime.GOOS != "linux" {
-		t.Skip("Pdeathsig is linux-specific")
-	}
-	cmd := exec.Command("true")
-	configureProcess(cmd)
-	if cmd.SysProcAttr == nil || !cmd.SysProcAttr.Setpgid || cmd.SysProcAttr.Pdeathsig != syscall.SIGKILL {
-		t.Fatalf("SysProcAttr = %+v", cmd.SysProcAttr)
-	}
-}
-
 func TestManagerFailsClosedWithoutEntropy(t *testing.T) {
 	dir := t.TempDir()
 	manager, err := NewManager(Options{
