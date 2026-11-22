@@ -51,6 +51,7 @@ func TestMethods(t *testing.T) {
 		MethodFrpServerStart, MethodFrpServerStop,
 		MethodTransfersStart, MethodTransfersList, MethodTransfersCancel, MethodVaultStatus,
 		MethodVaultUnlock, MethodDiagnosticsReport, MethodDiagnosticsHost,
+		MethodDiagnosticsNmap, MethodDiagnosticsNetwork,
 		MethodWorkspacesSave, MethodWorkspacesRestore,
 	}
 	seen := make(map[Method]struct{}, len(methods))

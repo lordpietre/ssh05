@@ -319,6 +319,22 @@ const transferOverlay = new TextRenderable(renderer, {
 
 renderer.root.add(transferOverlay)
 
+const nmapOverlay = new TextRenderable(renderer, {
+  id: "nmap-overlay",
+  position: "absolute",
+  top: 0,
+  left: 0,
+  width: "100%",
+  height: "100%",
+  visible: false,
+  zIndex: 108,
+  content: "",
+  fg: RGBA.fromInts(255, 210, 160),
+  bg: RGBA.fromInts(30, 20, 14),
+})
+
+renderer.root.add(nmapOverlay)
+
 const pendingPlaceholder = new TextRenderable(renderer, {
   id: "pending-view",
   position: "absolute",
@@ -371,6 +387,8 @@ let paletteVisible = false
 let paletteCursor = 0
 let closeDialogVisible = false
 let closeDialogCursor = 0
+let nmapConfirmVisible = false
+let nmapPorts = "22,80,443"
 let transferVisible = false
 let transferForm: {
   direction: "upload" | "download"
@@ -413,6 +431,8 @@ const paletteCommands = [
   "Cambiar workspace",
   "Probar ruta del host",
   "Diagnosticar host",
+  "Escanear con Nmap",
+  "Información de red",
   "Exportar diagnóstico saneado",
   "Preferencias",
   "Transferencias",
@@ -562,6 +582,7 @@ function uiDirty(): void {
   renderDiagnostics()
   renderPreferences()
   renderTransfers()
+  renderNmapConfirm()
   renderer.requestRender()
 }
 
@@ -692,18 +713,24 @@ function executePalette(index: number): void {
       void diagnoseCurrentHost()
       break
     case 7:
-      void exportDiagnosticsReport()
+      openNmapConfirm()
       break
     case 8:
-      preferencesVisible = true
+      void showNetworkInfo()
       break
     case 9:
-      void openTransfers()
+      void exportDiagnosticsReport()
       break
     case 10:
-      void openFRP()
+      preferencesVisible = true
       break
     case 11:
+      void openTransfers()
+      break
+    case 12:
+      void openFRP()
+      break
+    case 13:
       void quit()
       break
   }
@@ -1246,6 +1273,21 @@ function handleHostKey(key: KeyEvent): void {
 
 renderer.keyInput.on("keypress", (key) => {
   const name = key.name.toLowerCase()
+  if (nmapConfirmVisible) {
+    key.stopPropagation()
+    if (name === "escape") {
+      nmapConfirmVisible = false
+    } else if (name === "return" || name === "enter") {
+      void runNmapScan()
+    } else if (name === "backspace" || name === "delete") {
+      nmapPorts = name === "delete" ? "" : nmapPorts.slice(0, -1)
+    } else if (!key.ctrl && !key.meta && key.sequence) {
+      const chars = Array.from(key.sequence)
+      if (chars.length === 1 && /[0-9,-]/.test(chars[0])) nmapPorts += chars[0]
+    }
+    uiDirty()
+    return
+  }
   if (transferVisible) {
     key.stopPropagation()
     void handleTransferKey(key)
@@ -1601,6 +1643,119 @@ function handleWorkspaceKey(key: KeyEvent): void {
   uiDirty()
 }
 
+
+function renderNmapConfirm(): void {
+  if (!nmapConfirmVisible) {
+    nmapOverlay.visible = false
+    return
+  }
+  nmapOverlay.visible = true
+  const host = currentFormHost()
+  nmapOverlay.content = [
+    "",
+    "  Escaneo Nmap optativo",
+    "",
+    `  Host: ${host?.alias ?? "(ninguno)"}`,
+    `  Puertos: ${nmapPorts}▌`,
+    "",
+    "  Solo úsalo en redes autorizadas. Se ejecutará nmap -sT -Pn.",
+    "  Enter escanear · Esc cancelar · edita los puertos",
+  ].join("\n")
+}
+
+function openNmapConfirm(): void {
+  const host = currentFormHost()
+  if (!host) {
+    transientText = "Nmap: no hay host seleccionado"
+    uiDirty()
+    return
+  }
+  nmapConfirmVisible = true
+  uiDirty()
+}
+
+async function runNmapScan(): Promise<void> {
+  if (!client) return
+  const host = currentFormHost()
+  if (!host) return
+  nmapConfirmVisible = false
+  try {
+    transientText = `Nmap: escaneando ${host.alias}…`
+    uiDirty()
+    const plan = await client.call("routes.plan", { hostProfileId: host.id }, { timeoutMs: 3000 })
+    const result = await client.call(
+      "diagnostics.nmap",
+      {
+        hostProfileId: host.id,
+        routeId: plan.selected,
+        ports: nmapPorts,
+        confirm: true,
+        authorized: true,
+      },
+      { timeoutMs: 70_000 },
+    )
+    const lines = ["", `  Nmap · ${host.alias}`, "", `  Destino: ${result.target}`, ""]
+    if (result.ports.length === 0) lines.push("  Sin puertos devueltos")
+    for (const port of result.ports) {
+      const service = [port.service, port.product, port.version].filter(Boolean).join(" ")
+      lines.push(`  ${port.port}/${port.protocol} ${port.state} ${service}`)
+    }
+    lines.push("", "  Esc/Enter cerrar")
+    diagContent = lines.join("\n")
+    diagVisible = true
+    transientText = ""
+  } catch (error) {
+    transientText = `Nmap: ${String(error)}`
+  }
+  uiDirty()
+}
+
+async function showNetworkInfo(): Promise<void> {
+  if (!client) return
+  const host = currentFormHost()
+  if (!host) {
+    transientText = "Red: no hay host seleccionado"
+    uiDirty()
+    return
+  }
+  try {
+    transientText = `Red: consultando ${host.alias}…`
+    uiDirty()
+    const plan = await client.call("routes.plan", { hostProfileId: host.id }, { timeoutMs: 3000 })
+    const result = await client.call(
+      "diagnostics.network",
+      { hostProfileId: host.id, routeId: plan.selected },
+      { timeoutMs: 15_000 },
+    )
+    const asn = result.asn.error
+      ? `error: ${result.asn.error}`
+      : `${result.asn.asn ?? "?"} · ${result.asn.prefix ?? "?"} · ${result.asn.country ?? "?"} · ${result.asn.registry ?? "?"}`
+    const rdap = result.rdap.error
+      ? `error: ${result.rdap.error}`
+      : `${result.rdap.name ?? "?"} (${result.rdap.handle ?? "?"}) · ${result.rdap.startAddress ?? "?"}–${result.rdap.endAddress ?? "?"}`
+    diagContent = [
+      "",
+      `  Red · ${host.alias}`,
+      "",
+      `  Host: ${result.host}`,
+      `  Direcciones: ${result.addresses.join(", ") || "sin resolver"}`,
+      `  ASN: ${asn}`,
+      `  RDAP: ${rdap}`,
+      `  País orientativo: ${result.geoCountry ?? "desconocido"}`,
+      `  Precisión: ${result.geoPrecision}`,
+      "",
+      "  Procedencia:",
+      ...result.provenance.map((item) => `   · ${item}`),
+      "",
+      "  Esc/Enter cerrar",
+    ].join("\n")
+    diagVisible = true
+    transientText = ""
+  } catch (error) {
+    transientText = `Red: ${String(error)}`
+  }
+  uiDirty()
+}
 
 function renderTransfers(): void {
   if (!transferVisible) {

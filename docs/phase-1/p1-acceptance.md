@@ -64,6 +64,13 @@ rutas SCP remotas se restringen a caracteres seguros; SFTP admite espacios.
 La confirmación no se delega a la shell remota. Trzsz/Zmodem no está habilitado
 en esta compilación.
 
+## Extra posterior: DIA-02/DIA-03
+
+Nmap es optativo (`--nmap`), exige `confirm` y `authorized`, solo acepta hosts
+del inventario y listas de puertos validadas. La información de red usa ASN de
+Team Cymru por DNS y RDAP de `rdap.org`; el país es orientativo y se muestra su
+procedencia y precisión limitada.
+
 ## Extra posterior: preferencias de UI
 
 `~/.config/trss/preferences.json` (`TRSS_PREFERENCES`) guarda ancho del panel,

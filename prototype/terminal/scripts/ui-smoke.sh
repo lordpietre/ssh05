@@ -112,6 +112,8 @@ assert_contains "Exportar diagnóstico saneado" "diagnostics export command list
 assert_contains "Diagnosticar host" "host diagnostics command listed"
 assert_contains "Preferencias" "preferences command listed"
 assert_contains "Transferencias" "transfers command listed"
+assert_contains "Escanear con Nmap" "nmap command listed"
+assert_contains "Información de red" "network info command listed"
 send Escape
 sleep 0.3
 send C-f

@@ -58,6 +58,7 @@ func main() {
 	frpConfig := flag.String("frp-config", "", "FRP manager config path")
 	scpBin := flag.String("scp", "scp", "scp binary for file transfers")
 	sftpBin := flag.String("sftp", "sftp", "sftp binary for file transfers")
+	nmapBin := flag.String("nmap", "nmap", "opt-in nmap binary for diagnostics")
 	flag.Parse()
 
 	logger, err := audit.NewRotating(*auditPath, *auditMaxBytes, *auditMaxFiles)
@@ -112,7 +113,7 @@ func main() {
 	defer transferManager.Close()
 	service := supervisor.NewService(backend, inventory,
 		supervisor.WithAudit(logger), supervisor.WithFRP(frpManager),
-		supervisor.WithTransfers(transferManager))
+		supervisor.WithTransfers(transferManager), supervisor.WithNmap(*nmapBin))
 	server, err := ipc.Listen(*socket, service)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "trssd: %v\n", err)

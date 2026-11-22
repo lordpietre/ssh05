@@ -42,6 +42,7 @@ type Service struct {
 	audit     *audit.Logger
 	frp       *frpmanager.Manager
 	transfers *transfermanager.Manager
+	nmapPath  string
 }
 
 // ServiceOption configures optional service integrations.
@@ -60,6 +61,11 @@ func WithFRP(manager *frpmanager.Manager) ServiceOption {
 // WithTransfers enables typed SCP/SFTP transfers.
 func WithTransfers(manager *transfermanager.Manager) ServiceOption {
 	return func(service *Service) { service.transfers = manager }
+}
+
+// WithNmap enables the explicit, opt-in Nmap diagnostic binary.
+func WithNmap(path string) ServiceOption {
+	return func(service *Service) { service.nmapPath = path }
 }
 
 // NewService creates the IPC handler for a supervisor backend.
@@ -141,6 +147,10 @@ func (s *Service) Handle(ctx context.Context, conn *ipc.Conn, req contracts.RPCR
 		return s.diagnosticsReport(ctx)
 	case contracts.MethodDiagnosticsHost:
 		return s.diagnosticsHost(ctx, req)
+	case contracts.MethodDiagnosticsNmap:
+		return s.nmapScan(ctx, req)
+	case contracts.MethodDiagnosticsNetwork:
+		return s.networkInfo(ctx, req)
 	default:
 		return nil, notImplemented()
 	}

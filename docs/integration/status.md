@@ -69,6 +69,8 @@
 | Informe de diagnóstico saneado | **Hecho** | `diagnostics.report`, `src/diagnostics/export.ts` |
 | Retención de auditoría y buffers | **Hecho** | `--audit-max-files`, `--max-pending-bytes` |
 | DIA-01 DNS, puerto, banner y latencia | **Hecho** | `diagnostics.host` + paleta y smoke real |
+| DIA-02 Nmap optativo y confirmado | **Hecho** | `diagnostics.nmap`, doble confirmación |
+| DIA-03 ASN/RDAP y país orientativo | **Hecho** | Team Cymru DNS + rdap.org con procedencia |
 | Línea base de rendimiento | **Hecho** | `make bench`, `docs/performance.md` |
 | DAT-01 SCP/SFTP tipado | **Hecho** | `transfers.start/list/cancel`, UI y smoke real |
 | Preferencias de UI persistentes | **Hecho** | ancho, densidad, posición y reordenado |
@@ -81,7 +83,7 @@
 
 | Prioridad | Trabajo | Criterio de cierre |
 |---|---|---|
-| — | DIA-02/DIA-03: Nmap, GeoIP/ASN/RDAP | Fuera del alcance acordado |
+| — | GeoIP de ciudad/precisión | No incluido; solo país de registro |
 | — | DAT-01: trzsz/Zmodem | Pendiente de compatibilidad remota |
 
 ## Invariantes que no se negocian

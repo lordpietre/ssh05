@@ -530,6 +530,64 @@ export interface HostDiagnosticsResult {
   tls: TLSCheck
 }
 
+export interface NmapParams {
+  hostProfileId: string
+  routeId?: string
+  ports?: string
+  confirm: boolean
+  authorized: boolean
+}
+
+export interface NmapPort {
+  port: number
+  protocol: string
+  state: string
+  service?: string
+  product?: string
+  version?: string
+}
+
+export interface NmapResult {
+  target: string
+  ports: NmapPort[]
+  generatedAt: string
+}
+
+export interface NetworkParams {
+  hostProfileId: string
+  routeId?: string
+}
+
+export interface ASNInfo {
+  asn?: string
+  prefix?: string
+  country?: string
+  registry?: string
+  allocated?: string
+  error?: string
+}
+
+export interface RDAPInfo {
+  name?: string
+  handle?: string
+  country?: string
+  startAddress?: string
+  endAddress?: string
+  type?: string
+  error?: string
+}
+
+export interface NetworkInfoResult {
+  host: string
+  addresses: string[]
+  asn: ASNInfo
+  rdap: RDAPInfo
+  geoCountry?: string
+  geoPrecision: string
+  provenance: string[]
+  generatedAt: string
+}
+
 export interface WorkspacesSaveParams {
   workspace: Workspace
 }
@@ -575,6 +633,8 @@ export interface MethodContracts {
   "vault.unlockRequest": { params: VaultUnlockParams; result: VaultStatusResult }
   "diagnostics.report": { params: Record<string, never>; result: DiagnosticsReport }
   "diagnostics.host": { params: HostDiagnosticsParams; result: HostDiagnosticsResult }
+  "diagnostics.nmap": { params: NmapParams; result: NmapResult }
+  "diagnostics.network": { params: NetworkParams; result: NetworkInfoResult }
   "workspaces.save": { params: WorkspacesSaveParams; result: void }
   "workspaces.restore": { params: WorkspacesRestoreParams; result: WorkspacesRestoreResult }
 }
@@ -614,6 +674,8 @@ export const IPC_METHODS = [
   "vault.unlockRequest",
   "diagnostics.report",
   "diagnostics.host",
+  "diagnostics.nmap",
+  "diagnostics.network",
   "workspaces.save",
   "workspaces.restore",
 ] as const satisfies readonly Method[]

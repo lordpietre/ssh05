@@ -177,6 +177,10 @@ Línea base de rendimiento: `make bench` (ver `docs/performance.md`).
 El supervisor permite acotar `--max-sessions` y `--max-pending-bytes`, y la
 auditoría retiene `--audit-max-files` archivos rotados.
 
+La paleta incluye «Escanear con Nmap» (optativo, con confirmación y solo en
+hosts del inventario) e «Información de red» (ASN por Team Cymru, RDAP y país
+orientativo con procedencia y precisión limitada).
+
 La paleta «Transferencias» permite subir/descargar con SCP o SFTP usando el
 mismo `ssh_config` y agente que las sesiones. Requiere autenticación no
 interactiva (`BatchMode`); no se ejecuta ninguna shell. Trzsz/Zmodem queda

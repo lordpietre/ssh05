@@ -47,6 +47,8 @@ const (
 	MethodVaultUnlock        Method = "vault.unlockRequest"
 	MethodDiagnosticsReport  Method = "diagnostics.report"
 	MethodDiagnosticsHost    Method = "diagnostics.host"
+	MethodDiagnosticsNmap    Method = "diagnostics.nmap"
+	MethodDiagnosticsNetwork Method = "diagnostics.network"
 	MethodWorkspacesSave     Method = "workspaces.save"
 	MethodWorkspacesRestore  Method = "workspaces.restore"
 )
@@ -82,6 +84,8 @@ var validMethods = map[Method]struct{}{
 	MethodVaultUnlock:        {},
 	MethodDiagnosticsReport:  {},
 	MethodDiagnosticsHost:    {},
+	MethodDiagnosticsNmap:    {},
+	MethodDiagnosticsNetwork: {},
 	MethodWorkspacesSave:     {},
 	MethodWorkspacesRestore:  {},
 }
@@ -397,6 +401,64 @@ type HostDiagnosticsResult struct {
 	TCP           TCPCheck    `json:"tcp"`
 	Banner        BannerCheck `json:"banner"`
 	TLS           TLSCheck    `json:"tls"`
+}
+
+type NmapParams struct {
+	HostProfileID string `json:"hostProfileId"`
+	RouteID       string `json:"routeId,omitempty"`
+	Ports         string `json:"ports,omitempty"`
+	Confirm       bool   `json:"confirm"`
+	Authorized    bool   `json:"authorized"`
+}
+
+type NmapPort struct {
+	Port     int    `json:"port"`
+	Protocol string `json:"protocol"`
+	State    string `json:"state"`
+	Service  string `json:"service,omitempty"`
+	Product  string `json:"product,omitempty"`
+	Version  string `json:"version,omitempty"`
+}
+
+type NmapResult struct {
+	Target      string     `json:"target"`
+	Ports       []NmapPort `json:"ports"`
+	GeneratedAt string     `json:"generatedAt"`
+}
+
+type NetworkParams struct {
+	HostProfileID string `json:"hostProfileId"`
+	RouteID       string `json:"routeId,omitempty"`
+}
+
+type ASNInfo struct {
+	ASN       string `json:"asn,omitempty"`
+	Prefix    string `json:"prefix,omitempty"`
+	Country   string `json:"country,omitempty"`
+	Registry  string `json:"registry,omitempty"`
+	Allocated string `json:"allocated,omitempty"`
+	Error     string `json:"error,omitempty"`
+}
+
+type RDAPInfo struct {
+	Name         string `json:"name,omitempty"`
+	Handle       string `json:"handle,omitempty"`
+	Country      string `json:"country,omitempty"`
+	StartAddress string `json:"startAddress,omitempty"`
+	EndAddress   string `json:"endAddress,omitempty"`
+	Type         string `json:"type,omitempty"`
+	Error        string `json:"error,omitempty"`
+}
+
+type NetworkInfoResult struct {
+	Host         string   `json:"host"`
+	Addresses    []string `json:"addresses"`
+	ASN          ASNInfo  `json:"asn"`
+	RDAP         RDAPInfo `json:"rdap"`
+	GeoCountry   string   `json:"geoCountry,omitempty"`
+	GeoPrecision string   `json:"geoPrecision"`
+	Provenance   []string `json:"provenance"`
+	GeneratedAt  string   `json:"generatedAt"`
 }
 
 // --- workspaces ---
