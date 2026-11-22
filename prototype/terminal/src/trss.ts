@@ -2102,6 +2102,7 @@ function renderFRP(): void {
       `  Service port: ${form.servicePort}`,
       `  Remote port: ${form.remotePort}`,
       `  Bind port (visitor STCP/XTCP): ${form.bindPort}`,
+      `  Exposición: ${form.type === "tcp" || form.type === "udp" ? "PÚBLICA en frps" : "privada (visitor)"}`,
     ]
     const lines = ["", "  Nuevo proxy FRP", ""]
     fields.forEach((line, index) => lines.push(`  ${index === form.field ? ">" : " "}${line}`))
