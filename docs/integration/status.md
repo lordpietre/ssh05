@@ -3,7 +3,7 @@
 | Campo | Valor |
 |---|---|
 | Fecha | 22/11/2026 |
-| Commit base | `6e98b8d` |
+| Commit base | `c0aa511` |
 | Documento | `SSH05_SDD_v0.3.md` |
 | Fase actual | **P0 + P1 cerrados**; **P2 funcional cerrado** salvo trzsz/Zmodem condicional |
 
@@ -92,7 +92,7 @@
 |---|---|---|
 | — | DAT-01: trzsz/Zmodem | Condicionado a compatibilidad remota; SCP/SFTP ya operativos |
 | — | GeoIP de ciudad | No incluido; ASN/RDAP y país orientativo ya operativos |
-| P2 | Publicar release 0.3.18 | `.deb` generados en `dist/` e `installers/`; falta el release |
+| P2 | Publicar release 0.3.18 | Código y `.deb` listos (commit `c0aa511`); notas en `docs/releases/0.3.18.md`; falta subir `main` + tag `v0.3.18` y publicar el release |
 
 ## Invariantes que no se negocian
 
