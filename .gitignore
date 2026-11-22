@@ -31,7 +31,7 @@ agext.md
 # Embedded git repository (source for compiled frps/frpc)
 /frp/
 
-# TRSS Phase 0 prototype dependencies
+# ssh05 Phase 0 prototype dependencies
 prototype/**/node_modules/
 
 

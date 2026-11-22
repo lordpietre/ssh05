@@ -1,10 +1,10 @@
-# Estado de integración del SDD 0.2
+# Estado de integración del SDD 0.3
 
 | Campo | Valor |
 |---|---|
 | Fecha | 22/11/2026 |
 | Commit base | `6e98b8d` |
-| Documento | `TRSS_SDD_v0.2.md` |
+| Documento | `SSH05_SDD_v0.3.md` |
 | Fase actual | **P0 + P1 cerrados**; **P2 funcional cerrado** salvo trzsz/Zmodem condicional |
 
 ## Hecho
@@ -17,13 +17,13 @@
 | ADR-02 terminal embebido | Aceptada (prototipo) | `docs/adr/ADR-02-vt-emulator.md` |
 | H-01 token FRP con fallback estático | **Resuelto** | `ssh05/frp_proxy.go`, `ssh05/frp_proxy_test.go` |
 | H-02 permisos del directorio FRP | **Resuelto** | `ensurePrivateDir`, test |
-| H-03 token FRP en reposo | **Resuelto** | AES-GCM + `~/.tssh/frp.key` 0600; TOML remoto 0600 |
+| H-03 token FRP en reposo | **Resuelto** | AES-GCM + `~/.config/ssh05/frp.key` 0600; TOML remoto 0600 |
 | H-04 tipos de proxy FRP | **Resuelto** | 4 tipos validados; runtime TCP/STCP/XTCP/UDP |
 | H-05 inyección en copia remota FRP | **Resuelto** | `ssh05/frp_proxy.go`, `ssh05/frp_proxy_test.go` |
 | Contratos UI ↔ supervisor | **Definidos** | `contracts/`, `contracts/ts/` |
 | IPC local autenticado (transporte) | **Hecho** | `internal/ipc/`, tests |
 | Backend `SessionBackend` + runner SSH | **Hecho** | `internal/supervisor/` |
-| Servicio IPC de sesiones + daemon | **Hecho** | `internal/supervisor/service.go`, `cmd/trssd` |
+| Servicio IPC de sesiones + daemon | **Hecho** | `internal/supervisor/service.go`, `cmd/ssh05d` |
 | Inventario `hosts.list` desde `ssh_config` | **Hecho** | `ssh05/hosts_api.go`, `internal/supervisor/hosts.go` |
 | Importación KDBX con KeePassXC CLI | **Hecho** | `internal/supervisor/keepass.go` |
 | Deduplicación y provenance ssh_config+KDBX | **Hecho** | `internal/supervisor/inventory.go` |
@@ -35,11 +35,11 @@
 | Auditoría saneada con rotación | **Hecho** | `internal/audit/`, `--audit-log` |
 | Cliente TS/Bun del IPC | **Hecho** | `prototype/terminal/src/ipc/` |
 | `TabStore` renderer-independent | **Hecho** | `prototype/terminal/src/tabs/store.ts` |
-| UI OpenTUI conectada al supervisor | **Hecho** | `prototype/terminal/src/trss.ts` |
+| UI OpenTUI conectada al supervisor | **Hecho** | `prototype/terminal/src/ssh05.ts` |
 | Smoke UI: 3 SSH + resize + cierre independiente | **Hecho** | `make ui-smoke` |
 | tmux opcional + reattach al reabrir | **Hecho** | `Ctrl+G`, `SessionsOpenParams.tmuxSession` |
-| Workspace persistente (pestañas + tmux) | **Hecho** | `src/workspaces/`, `~/.config/trss/workspace.json` |
-| Múltiples workspaces con nombre y selector | **Hecho** | `Ctrl+P`, `--workspace`, `TRSS_WORKSPACE_DIR` |
+| Workspace persistente (pestañas + tmux) | **Hecho** | `src/workspaces/`, `~/.config/ssh05/workspace.json` |
+| Múltiples workspaces con nombre y selector | **Hecho** | `Ctrl+P`, `--workspace`, `SSH05_WORKSPACE_DIR` |
 | Paleta de comandos | **Hecho** | `Ctrl+K` en la UI |
 | Rutas directas/ProxyJump con motivo | **Hecho** | `routes.plan` + `ProxyJump` + estado en UI |
 | FRP supervisor local | **Hecho** | `internal/frp`, endpoints/proxies, procesos |
@@ -77,10 +77,12 @@
 | Preferencias de UI persistentes | **Hecho** | ancho, densidad, posición y reordenado |
 | Ayuda de atajos en la UI | **Hecho** | `F1` + comando en la paleta |
 | Barra de botones navegable | **Hecho** | `Menú`, acciones y ratón; `Tab`/flechas |
+| Identidad ssh05 reunificada | **Hecho** | `ssh05d`, `src/ssh05.ts`, rutas `~/.config/ssh05`, `SSH05_*` con respaldo `TRSS_*` |
+| Vendor y soporte en el producto | **Hecho** | `internal/identity/`, `--version` y ayuda; `Dinámicas Electrónicas` |
 | Alta de hosts desde la UI | **Hecho** | `hosts.create`, `Ctrl+N` |
-| Servicio de usuario y Docker opt-in | **Hecho** | `trssd.service`, `--docker` |
+| Servicio de usuario y Docker opt-in | **Hecho** | `ssh05d.service`, `--docker` |
 | tmux solo se reengancha si existe | **Hecho** | `TmuxCreate=false`, sonda `has-session`, prueba real |
-| FRP real de extremo a extremo | **Hecho** | `scripts/trssd-frp-smoke.sh`: TCP/UDP/STCP; XTCP condicional a STUN |
+| FRP real de extremo a extremo | **Hecho** | `scripts/ssh05d-frp-smoke.sh`: TCP/UDP/STCP; XTCP condicional a STUN |
 | `SessionBackend` y `TabStore` | Definidos | `contracts/session.go`, `contracts/ts/index.ts` |
 | Envelope IPC y métodos del Anexo B | Definidos | `contracts/ipc.go`, `contracts/ts/index.ts` |
 
@@ -90,6 +92,7 @@
 |---|---|---|
 | — | DAT-01: trzsz/Zmodem | Condicionado a compatibilidad remota; SCP/SFTP ya operativos |
 | — | GeoIP de ciudad | No incluido; ASN/RDAP y país orientativo ya operativos |
+| P2 | Publicar release 0.3.18 | `.deb` generados en `dist/` e `installers/`; falta el release |
 
 ## Invariantes que no se negocian
 

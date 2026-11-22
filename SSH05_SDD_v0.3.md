@@ -1,8 +1,8 @@
 ---
-title: "TRSS — Software Design Document"
-subtitle: "Arquitectura y especificación funcional · Versión 0.2"
-author: "Documento de diseño de producto"
-date: "20 de noviembre de 2026"
+title: "ssh05 — Software Design Document"
+subtitle: "Arquitectura y especificación funcional · Versión 0.3"
+author: "Dinámicas Electrónicas"
+date: "22 de noviembre de 2026"
 lang: es-ES
 ---
 
@@ -10,20 +10,21 @@ lang: es-ES
 
 | Campo | Valor |
 |---|---|
-| Proyecto | TRSS, evolución conceptual de `lordpietre/ssh05` |
-| Versión | 0.2 — revisión de arquitectura y UX |
-| Fecha | 20/11/2026 |
-| Estado | Borrador ampliado; integra investigación técnica de OpenTUI y diseño UX, pendiente de pruebas end-to-end |
+| Proyecto | ssh05, cliente SSH multipestaña y supervisor local de Dinámicas Electrónicas |
+| Versión | 0.3 — reunificación de identidad y avance de implementación |
+| Fecha | 22/11/2026 |
+| Estado | Aprobado para P0/P1/P2; la identidad pública es ssh05 (vendor Dinámicas Electrónicas) |
 | Plataforma inicial | Linux; portabilidad a macOS/Windows sujeta a validación |
+| Soporte | dinamicas.electronicas@gmail.com |
 | Principio rector | La experiencia de conexión multipestaña es el centro del producto |
 
-**Alcance documental.** Este SDD convierte decisiones expresadas durante la definición de TRSS en especificaciones comprobables. No acredita que se haya implementado o probado el software ni que se haya modificado el repositorio. Las versiones de dependencias deberán bloquearse y validarse al iniciar cada fase. Las afirmaciones sobre código preexistente son hipótesis de aprovechamiento, sujetas a auditoría de la revisión concreta.
+**Alcance documental.** Este SDD convierte decisiones expresadas durante la definición de ssh05 en especificaciones comprobables. No acredita que se haya implementado o probado el software ni que se haya modificado el repositorio. Las versiones de dependencias deberán bloquearse y validarse al iniciar cada fase. Las afirmaciones sobre código preexistente son hipótesis de aprovechamiento, sujetas a auditoría de la revisión concreta.
 
 # 1. Introducción y visión del producto
 
-TRSS es una consola de conexiones remotas centrada en abrir, mantener, cambiar, recuperar y cerrar múltiples sesiones SSH dentro de una sola interfaz de terminal, con una experiencia de pestañas inspirada en OpenCode. Unifica el descubrimiento de hosts, la autenticación mediante KeePass/KeePassXC, la persistencia opcional de terminales remotas con tmux y la administración integral de túneles FRP.
+ssh05 es una consola de conexiones remotas centrada en abrir, mantener, cambiar, recuperar y cerrar múltiples sesiones SSH dentro de una sola interfaz de terminal, con una experiencia de pestañas inspirada en OpenCode. Unifica el descubrimiento de hosts, la autenticación mediante KeePass/KeePassXC, la persistencia opcional de terminales remotas con tmux y la administración integral de túneles FRP.
 
-**Propuesta de valor.** El operador elige un host; TRSS presenta su identidad y estado, resuelve una ruta permitida —directa, ProxyJump o FRP—, obtiene autenticación a través de un proveedor autorizado y abre una pestaña independiente. Los túneles y las sesiones poseen ciclos de vida separados. La aplicación mantiene visible qué está conectado, qué se ha recuperado y qué requiere una acción del usuario.
+**Propuesta de valor.** El operador elige un host; ssh05 presenta su identidad y estado, resuelve una ruta permitida —directa, ProxyJump o FRP—, obtiene autenticación a través de un proveedor autorizado y abre una pestaña independiente. Los túneles y las sesiones poseen ciclos de vida separados. La aplicación mantiene visible qué está conectado, qué se ha recuperado y qué requiere una acción del usuario.
 
 ## 1.1 Objetivos medibles
 
@@ -36,7 +37,7 @@ TRSS es una consola de conexiones remotas centrada en abrir, mantener, cambiar, 
 
 ## 1.2 No objetivos de la primera entrega
 
-No se implementará un protocolo SSH o FRP propio; no se promete persistencia remota sin tmux u otro soporte del servidor; no se convierte TRSS en un escáner masivo de Internet; no se desarrollará un visor gráfico de imágenes, SIXEL ni Kitty Graphics. Las conexiones serie RS-232/RS-485/UART/USB quedan anotadas únicamente como **idea futura**, no como requisito ni *feature request* comprometida.
+No se implementará un protocolo SSH o FRP propio; no se promete persistencia remota sin tmux u otro soporte del servidor; no se convierte ssh05 en un escáner masivo de Internet; no se desarrollará un visor gráfico de imágenes, SIXEL ni Kitty Graphics. Las conexiones serie RS-232/RS-485/UART/USB quedan anotadas únicamente como **idea futura**, no como requisito ni *feature request* comprometida.
 
 # 2. Alcance, prioridades y requisitos
 
@@ -106,7 +107,7 @@ Se adopta **arquitectura hexagonal con adaptadores de transporte**. La interfaz 
 
 ```text
 ┌──────────────────────────────────────────────────────────────┐
-│ TRSS: OpenTUI + TypeScript + Bun                             │
+│ ssh05: OpenTUI + TypeScript + Bun                             │
 │ pestañas · hosts · rutas · perfiles · FRP · espacios trabajo  │
 └─────────────────────────┬────────────────────────────────────┘
                           │ IPC local tipado y versionado
@@ -150,9 +151,9 @@ La reconexión no puede prometer recuperar un shell convencional ya terminado. A
 
 # 5. Persistencia, tmux y redes inestables
 
-La persistencia real del trabajo remoto depende de procesos que permanezcan activos en el servidor, normalmente `tmux`. TRSS registra el nombre/identificador de la sesión tmux y la identidad del host, nunca asume que el shell siga existiendo. El modo tmux es opcional y requiere disponibilidad y autorización en el servidor.
+La persistencia real del trabajo remoto depende de procesos que permanezcan activos en el servidor, normalmente `tmux`. ssh05 registra el nombre/identificador de la sesión tmux y la identidad del host, nunca asume que el shell siga existiendo. El modo tmux es opcional y requiere disponibilidad y autorización en el servidor.
 
-**Flujo de recuperación:** comprobar host y clave pública → resolver ruta → autenticar → comprobar tmux remoto → reenganchar si coincide → avisar si no existe. Tras reiniciar TRSS, se restauran las pestañas **como vistas y perfiles**, no como conexiones de red mágicamente vivas.
+**Flujo de recuperación:** comprobar host y clave pública → resolver ruta → autenticar → comprobar tmux remoto → reenganchar si coincide → avisar si no existe. Tras reiniciar ssh05, se restauran las pestañas **como vistas y perfiles**, no como conexiones de red mágicamente vivas.
 
 El soporte UDP del proyecto preexistente, QUIC/KCP o Mosh son opciones de evaluación separadas; no se equiparan con tmux ni se introducen sin validar compatibilidad, requisitos del servidor y modelo de amenaza.
 
@@ -185,7 +186,7 @@ Ningún perfil contiene contraseñas o claves privadas. Un host importado figura
 
 # 7. Autenticación y compatibilidad KeePass/KeePassXC
 
-TRSS reconoce KDBX como fuente de perfiles y credenciales; KeePassXC es un proveedor posible, no un servicio de base de datos. Se prioriza la integración con SSH Agent cuando se usa autenticación por clave; para contraseñas se contempla una interfaz autorizada y desbloqueada que reduzca el tiempo de exposición en memoria. La lectura directa de KDBX necesita un parser fiable, política de desbloqueo y formato/versiones compatibles; se implementará solamente tras evaluación de biblioteca y amenazas.
+ssh05 reconoce KDBX como fuente de perfiles y credenciales; KeePassXC es un proveedor posible, no un servicio de base de datos. Se prioriza la integración con SSH Agent cuando se usa autenticación por clave; para contraseñas se contempla una interfaz autorizada y desbloqueada que reduzca el tiempo de exposición en memoria. La lectura directa de KDBX necesita un parser fiable, política de desbloqueo y formato/versiones compatibles; se implementará solamente tras evaluación de biblioteca y amenazas.
 
 **Detección automática:** buscar entradas con `URL`, `Host`, `Hostname`, `UserName`, `Port`, campos personalizados o convenciones documentadas; analizar esquemas `ssh://`; validar puerto 1–65535, IDNA/IPv6 y evitar interpretar cualquier dirección como un servidor SSH. Si el puerto está ausente, utilizar 22 como valor sugerido y señalar la inferencia. Importar perfiles sin iniciar conexiones y sin prometer validez de datos.
 
@@ -246,7 +247,7 @@ La vista de sesiones debe mostrar errores seguros y mensajes de reconexión sin 
 
 # 12. Espacios de trabajo
 
-Un `Workspace` conserva lista ordenada de pestañas previstas, host, preferencias visuales, política de ruta, identificador tmux opcional y referencias a túneles. No serializa bytes de la sesión SSH, credenciales, buffers de terminal con datos sensibles ni secretos. Al restaurar, TRSS resuelve cada ruta de nuevo y pide desbloqueo de secretos cuando corresponda.
+Un `Workspace` conserva lista ordenada de pestañas previstas, host, preferencias visuales, política de ruta, identificador tmux opcional y referencias a túneles. No serializa bytes de la sesión SSH, credenciales, buffers de terminal con datos sensibles ni secretos. Al restaurar, ssh05 resuelve cada ruta de nuevo y pide desbloqueo de secretos cuando corresponda.
 
 Se ofrecerán estrategias de apertura: manual, reconectar perfiles previamente activos o intentar recuperar tmux. El usuario podrá configurar confirmación para conectar automáticamente y para iniciar túneles, y siempre se respetará la verificación de host.
 
@@ -296,7 +297,7 @@ La configuración deberá evitar guardar credenciales en claro; el IPC no admiti
 | FRP token RNG falla | No se crea proxy ni token predeterminado |
 | FRP con secreto | Permisos restrictivos y logs sin valor secreto |
 | Ruta FRP ausente | Mostrar requisito y pedir acción, sin exposición silenciosa |
-| Reinicio de TRSS | Workspace restaurado como vistas; reconexión conforme a política |
+| Reinicio de ssh05 | Workspace restaurado como vistas; reconexión conforme a política |
 | Caída proceso SSH | Otras sesiones y supervisor FRP sobreviven |
 | Actualización FRP inválida | Bloqueo, error útil y conservación de versión anterior |
 
@@ -316,7 +317,7 @@ Emular latencia, pérdida de paquetes, DNS intermitente, cortes TCP, sustitució
 
 **Fase 3 — FRP vertical.** Adaptador oficial `frpc`/`frps`, tokens seguros, tipos de proxy, supervisión, asociación a perfiles, actualización verificada y resolución de rutas. Salida: conectar a un host privado por ruta FRP autorizada sin exponer secretos.
 
-**Fase 4 — Persistencia y espacios de trabajo.** tmux opcional, recuperación, política de reconexión y restauración de disposición. Salida: cerrar y abrir TRSS sin perder el trabajo remoto protegido por tmux.
+**Fase 4 — Persistencia y espacios de trabajo.** tmux opcional, recuperación, política de reconexión y restauración de disposición. Salida: cerrar y abrir ssh05 sin perder el trabajo remoto protegido por tmux.
 
 **Fase 5 — Diagnóstico, transferencias y endurecimiento.** Nmap optativo, GeoIP/ASN/RDAP, archivos y pruebas de seguridad/red. Salida: release candidate con criterios de aceptación y documentación.
 
@@ -328,7 +329,7 @@ Emular latencia, pérdida de paquetes, DNS intermitente, cortes TCP, sustitució
 | ADR-02 | Emulador VT embebido en OpenTUI | Prueba con herramientas interactivas y mouse/resize |
 | ADR-03 | IPC (JSON-RPC o protobuf) | Facilidad de depuración, backpressure y control de acceso |
 | ADR-04 | Gestor de secretos KDBX | Bibliotecas compatibles, validación y superficie de exposición |
-| ADR-05 | Ownership de procesos FRP al cerrar TRSS | Política de servicio persistente vs proceso hijo supervisado |
+| ADR-05 | Ownership de procesos FRP al cerrar ssh05 | Política de servicio persistente vs proceso hijo supervisado |
 | ADR-06 | Esquema de sincronización de hosts | Conflictos, provenance, cambios y borrados |
 | ADR-07 | Transportes UDP opcionales | Seguridad, interoperabilidad y coste de despliegue remoto |
 | ADR-08 | Política de autoarranque de túneles | Consentimiento, alcance y restricciones de acceso |
@@ -385,7 +386,7 @@ Envío de bytes PTY mediante canal separado o encuadre binario; no serializar gr
 
 # Anexo E. Dependencias, licencias y atribución
 
-TRSS parte de las ideas y del repositorio de referencia `https://github.com/lordpietre/ssh05`. Si se reutilizan fuentes de terceros, conservar los avisos originales y verificar la licencia de cada componente y dependencia; el nombre nuevo no elimina deberes de atribución. El código original de `trzsz-ssh` se distribuye bajo MIT; FRP bajo Apache 2.0; las condiciones de KeePassXC, bibliotecas KDBX y datos GeoIP requieren revisión específica para distribución. No se ha efectuado cambio ni publicación de repositorio en este documento.
+ssh05 parte de las ideas y del repositorio de referencia `https://github.com/lordpietre/ssh05`. Si se reutilizan fuentes de terceros, conservar los avisos originales y verificar la licencia de cada componente y dependencia; el nombre nuevo no elimina deberes de atribución. El código original de `trzsz-ssh` se distribuye bajo MIT; FRP bajo Apache 2.0; las condiciones de KeePassXC, bibliotecas KDBX y datos GeoIP requieren revisión específica para distribución. No se ha efectuado cambio ni publicación de repositorio en este documento.
 
 # Anexo F. Glosario y fuentes de referencia
 
@@ -393,7 +394,7 @@ TRSS parte de las ideas y del repositorio de referencia `https://github.com/lord
 
 Referencias primarias (consultar revisión y fecha al implementar):
 
-1. Proyecto de referencia TRSS: https://github.com/lordpietre/ssh05
+1. Proyecto de referencia ssh05: https://github.com/lordpietre/ssh05
 2. Proyecto upstream: https://github.com/trzsz/trzsz-ssh
 3. OpenTUI: https://github.com/anomalyco/opentui
 4. FRP, versiones y documentación: https://github.com/fatedier/frp/releases ; https://gofrp.org/
@@ -411,7 +412,7 @@ Referencias primarias (consultar revisión y fecha al implementar):
 
 ## 17.1 Origen y alcance de la revisión
 
-Este capítulo incorpora la investigación «TRSS — Investigación: TUI, pestañas y control de sesiones SSH» (20/11/2026, Dinámicas Electrónicas). El informe afirma haber probado `EmbeddedTerminalRenderable` de `@opentui/core` 0.8.2 con salida ANSI, cursor y buffer, y `Bun.spawn({ terminal })` en Bun 1.4.4 con resize y recepción de `SIGWINCH`. **Son resultados comunicados por la investigación aportada**, no una reproducción independiente de las pruebas en esta revisión del SDD. Antes de cerrar una ADR, repetirlos con las versiones fijadas en CI y con una sesión SSH real.
+Este capítulo incorpora la investigación «ssh05 — Investigación: TUI, pestañas y control de sesiones SSH» (20/11/2026, Dinámicas Electrónicas). El informe afirma haber probado `EmbeddedTerminalRenderable` de `@opentui/core` 0.8.2 con salida ANSI, cursor y buffer, y `Bun.spawn({ terminal })` en Bun 1.4.4 con resize y recepción de `SIGWINCH`. **Son resultados comunicados por la investigación aportada**, no una reproducción independiente de las pruebas en esta revisión del SDD. Antes de cerrar una ADR, repetirlos con las versiones fijadas en CI y con una sesión SSH real.
 
 ### Evidencia, decisión y límites
 
@@ -480,7 +481,7 @@ interface SessionBackend {
 ## 17.4 Flujo de teclado, ratón y resize
 
 - **Foco terminal:** las teclas no reservadas van al renderable. `Escape` se entrega al programa remoto; nunca cierra una conexión por sí solo.
-- **Atajos globales:** captura previa a la entrega al hijo; `stopPropagation` solo si se ejecuta una acción de TRSS. Teclas de control configurables y modo de escape/prefijo para resolver conflictos con aplicaciones remotas.
+- **Atajos globales:** captura previa a la entrega al hijo; `stopPropagation` solo si se ejecuta una acción de ssh05. Teclas de control configurables y modo de escape/prefijo para resolver conflictos con aplicaciones remotas.
 - **Pegado:** respetar bracketed paste cuando corresponda, limitar tamaño, advertir ante pegados multilinea potencialmente destructivos sin registrar su contenido.
 - **Resize:** calcular tamaño del panel de terminal, aplicar dimensiones al renderable y enviar `PTY.resize(cols,rows)` con coalescencia para evitar tormentas de eventos.
 - **Mouse:** los eventos pertenecen a la aplicación remota cuando esta habilita mouse reporting; en otro caso permiten selección/scroll local. Drag de pestañas solo en la barra, nunca en el viewport SSH.
@@ -492,7 +493,7 @@ El supervisor B deberá existir fuera del ciclo de vida del renderer. Se propone
 
 ---
 
-# 18. Sistema de diseño UX/UI de TRSS
+# 18. Sistema de diseño UX/UI de ssh05
 
 ## 18.1 Principios de producto
 
@@ -511,7 +512,7 @@ El supervisor B deberá existir fuera del ciclo de vida del renderer. Se propone
 ### Boceto A: sesión SSH principal (terminal 120×36)
 
 ```text
-┌ TRSS · Laboratorio ───────────────────────────────────────────────────────────┐
+┌ ssh05 · Laboratorio ───────────────────────────────────────────────────────────┐
 │ [1 ● lab-arm64] [2 ● vps-web] [3 ↻ backup] [4 ! prod-db]  ‹2   1›  [+]     │
 ├───────────────────────────────────────────────────────────────────────────────┤
 │ Hosts ▸                 │ root@lab-arm64:~#                                   │
@@ -638,7 +639,7 @@ Navegación completa por teclado, foco visible, mensajes legibles sin color, sop
 ## 19.1 Recorrido principal: host privado por FRP
 
 1. El usuario abre la paleta y busca «lab-arm64».
-2. TRSS muestra fuentes del perfil, ruta preferida y verificación de identidad conocida.
+2. ssh05 muestra fuentes del perfil, ruta preferida y verificación de identidad conocida.
 3. El motor comprueba si existe ruta directa/ProxyJump autorizada; si no, identifica el FRP asociado.
 4. Si el túnel está detenido, muestra «Se necesita iniciar túnel STCP» con alcance, servidor y confirmación.
 5. El motor arranca el túnel autorizado, comprueba el estado y solo entonces abre SSH.
@@ -647,7 +648,7 @@ Navegación completa por teclado, foco visible, mensajes legibles sin color, sop
 
 ## 19.2 Recorrido: recuperar trabajo
 
-1. El usuario reabre TRSS y elige el workspace «Laboratorio».
+1. El usuario reabre ssh05 y elige el workspace «Laboratorio».
 2. Aparecen pestañas guardadas con estado «pendiente de restaurar», sin afirmar conexión activa.
 3. El backend identifica sesiones persistentes y tmux remotos existentes.
 4. La UI distingue «reenganchar sesión del supervisor», «reconectar y adjuntar tmux» y «abrir sesión nueva».
@@ -684,6 +685,7 @@ Navegación completa por teclado, foco visible, mensajes legibles sin color, sop
 
 # 20. Registro de cambios de la revisión 0.2
 
+
 - Se incorporó la investigación aportada sobre `EmbeddedTerminalRenderable`, PTY nativo Bun, limitaciones de Solid y comportamiento de pestañas OpenCode.
 - Se precisó la transición de prototipo Bun local a supervisor Go persistente sin acoplar la interfaz a un motor SSH concreto.
 - Se separaron formalmente pestaña, vista, PTY, conexión SSH, tmux y túnel FRP.
@@ -691,3 +693,31 @@ Navegación completa por teclado, foco visible, mensajes legibles sin color, sop
 - Se introdujeron recorridos críticos y 14 criterios de aceptación UIX.
 - Se mantuvieron como prioridades del producto: SSH multipestaña, inventario unificado, KeePassXC, rutas seguras y FRP vertical; conexiones serie e imágenes permanecen fuera del alcance inicial.
 - **Pendiente:** reproducir las pruebas de investigación y ejecutar integración SSH real, no afirmar que el SDD sustituye pruebas de implementación.
+
+---
+
+# 21. Registro de cambios de la revisión 0.3
+
+- Se reunificó la identidad pública del producto bajo el nombre **ssh05**. El
+  binario cliente, la biblioteca, el supervisor y la UI comparten una sola
+  denominación; el antiguo nombre interno «trss» queda solo como compatibilidad.
+- El vendor es **Dinámicas Electrónicas** y el correo de soporte es
+  **dinamicas.electronicas@gmail.com**. Ambos aparecen en `--version`, en la
+  ayuda del cliente, en la UI y en los metadatos de los paquetes.
+- El supervisor pasa a llamarse **`ssh05d`** (`cmd/ssh05d`), con el servicio de
+  usuario `ssh05d.service` y el target `make ssh05d`; `make trssd` se conserva
+  como alias temporal.
+- La UI pasa de `src/trss.ts` a **`src/ssh05.ts`** y muestra «ssh05 ·
+  Dinámicas Electrónicas» en la barra de pestañas.
+- Rutas nuevas: `~/.config/ssh05`, `~/.local/state/ssh05` y
+  `$XDG_RUNTIME_DIR/ssh05/control.sock`. Un directorio `~/.config/trss` o
+  `~/.local/state/trss` preexistente se adopta una sola vez mediante renombrado.
+- Variables nuevas `SSH05_*`; `TRSS_*` sigue leyéndose como respaldo para no
+  romper scripts, servicios ni sesiones de desarrollo.
+- El informe de diagnóstico pasa a `ssh05-diagnostics-*.json` y los nombres de
+  sesión tmux generados usan el prefijo `ssh05-`.
+- Versión del cliente: **0.3.18**. Se mantiene la compatibilidad con
+  `~/.tssh.conf`, `TSSH_*` y `~/.tssh/` heredada de `trzsz-ssh`.
+- **Pendiente:** publicar el release 0.3.18. Los `.deb` de Ubuntu/Debian
+  (amd64/arm64) ya se generaron en `dist/` e `installers/` con la identidad
+  ssh05 y el servicio `ssh05d.service`.

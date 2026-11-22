@@ -1,13 +1,13 @@
 /**
- * DIA-01 check: DNS, TCP, banner and latency through trssd.
+ * DIA-01 check: DNS, TCP, banner and latency through ssh05d.
  * Used by ui-smoke with a real sshd.
  */
 import { IpcClient } from "../src/ipc/client.ts"
 
-const socket = process.env.TRSS_SOCKET
-const alias = process.env.TRSS_TEST_SSH_ALIAS
+const socket = process.env.SSH05_SOCKET
+const alias = process.env.SSH05_TEST_SSH_ALIAS
 if (!socket || !alias) {
-  console.error("TRSS_SOCKET and TRSS_TEST_SSH_ALIAS are required")
+  console.error("SSH05_SOCKET and SSH05_TEST_SSH_ALIAS are required")
   process.exit(2)
 }
 

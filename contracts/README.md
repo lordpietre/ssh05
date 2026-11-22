@@ -1,4 +1,4 @@
-# Contratos TRSS (UI ↔ supervisor)
+# Contratos ssh05 (UI ↔ supervisor)
 
 Este directorio es la fuente de verdad de los contratos compartidos entre la UI
 y el supervisor. No contiene implementación: describe vocabulario, envelopes y
@@ -36,7 +36,7 @@ capacidades.
 
 ## Transporte previsto
 
-- Unix domain socket local autenticado (`$XDG_RUNTIME_DIR/trss/control.sock`,
+- Unix domain socket local autenticado (`$XDG_RUNTIME_DIR/ssh05/control.sock`,
   `0600`, directorio `0700`), con verificación del par por credenciales del
   sistema.
 - JSON-RPC 2.0 para control y eventos; canal binario separado para PTY.

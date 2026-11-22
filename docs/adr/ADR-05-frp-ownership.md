@@ -34,7 +34,7 @@ El **supervisor es el propietario por defecto** de `frpc`/`frps`:
   marca como huérfanos; nunca asume que siguen sanos.
 - Cerrar una pestaña o la UI **no** detiene túneles; detenerlos requiere una
   acción explícita `frp.proxies.stop`.
-- Se ofrece un modo “servicio externo” por endpoint, en el que TRSS solo
+- Se ofrece un modo “servicio externo” por endpoint, en el que ssh05 solo
   supervisa y no escribe la configuración sin confirmación.
 - Los secretos se referencian, no se copian al argv.
 

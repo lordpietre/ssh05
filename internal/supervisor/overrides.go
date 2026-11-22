@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/lordpietre/ssh05/contracts"
+	"github.com/lordpietre/ssh05/internal/identity"
 )
 
 // hostOverride is the user's explicit metadata for a canonical host. It lives
@@ -24,11 +25,10 @@ type overrideFile struct {
 }
 
 func defaultOverridesPath() string {
-	if value := strings.TrimSpace(os.Getenv("TRSS_HOST_OVERRIDES")); value != "" {
+	if value := identity.Env("HOST_OVERRIDES"); value != "" {
 		return expandHome(value)
 	}
-	home, _ := os.UserHomeDir()
-	return filepath.Join(home, ".config", "trss", "hosts.json")
+	return filepath.Join(identity.UserConfigDir(), "hosts.json")
 }
 
 func (i *Inventory) loadOverridesLocked() {

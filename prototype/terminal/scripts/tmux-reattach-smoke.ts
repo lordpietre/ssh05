@@ -1,19 +1,19 @@
 /**
  * SES-08 check: restoring a tab must only attach an existing tmux session.
- * Used by ui-smoke with a real sshd and a running trssd.
+ * Used by ui-smoke with a real sshd and a running ssh05d.
  */
 import { IpcClient } from "../src/ipc/client.ts"
 
-const socket = process.env.TRSS_SOCKET
-const alias = process.env.TRSS_TEST_SSH_ALIAS
+const socket = process.env.SSH05_SOCKET
+const alias = process.env.SSH05_TEST_SSH_ALIAS
 if (!socket || !alias) {
-  console.error("TRSS_SOCKET and TRSS_TEST_SSH_ALIAS are required")
+  console.error("SSH05_SOCKET and SSH05_TEST_SSH_ALIAS are required")
   process.exit(2)
 }
 
 const client = await IpcClient.connect(socket)
-const missingName = `trss-missing-${Date.now()}`
-const createdName = `trss-created-${Date.now()}`
+const missingName = `ssh05-missing-${Date.now()}`
+const createdName = `ssh05-created-${Date.now()}`
 let createdID = ""
 
 try {

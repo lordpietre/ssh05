@@ -1,6 +1,12 @@
-## ssh05 — fork de trzsz-ssh v0.3.17
+## ssh05 — fork de trzsz-ssh v0.3.18
 
 Cliente SSH con interfaz TUI ncurses, reemplazo directo de OpenSSH. Fork de [trzsz-ssh](https://github.com/trzsz/trzsz-ssh) con gestión visual de hosts, túneles y edición inline.
+
+**Desarrollado por Dinámicas Electrónicas** · Soporte: `dinamicas.electronicas@gmail.com`
+
+> Identidad actual: cliente `ssh05`, supervisor `ssh05d` y UI `src/ssh05.ts`.
+> Los nombres heredados `TRSS_*`, `~/.config/trss`, `~/.local/state/trss` y
+> `make trssd` se aceptan como compatibilidad y se migran cuando es posible.
 
 ### Características principales
 
@@ -84,18 +90,18 @@ sudo apt install ./dist/ssh05_*_ubuntu_amd64.deb
 ```
 
 Cada push a `main` genera `.deb` para Ubuntu y Debian (amd64 y arm64)
-como artifacts de GitHub Actions. Los paquetes incluyen `ssh05` y `trssd`.
+como artifacts de GitHub Actions. Los paquetes incluyen `ssh05` y `ssh05d`.
 Las etiquetas `v*` también los adjuntan al release.
 
 La UI OpenTUI no se incluye en el `.deb`: requiere Bun y dependencias nativas.
 Se ejecuta desde `prototype/terminal` con `bun install && bun run ui` contra un
-`trssd` en marcha.
+`ssh05d` en marcha.
 
-El paquete instala `trssd.service` para systemd de usuario:
+El paquete instala `ssh05d.service` para systemd de usuario:
 
 ```sh
 systemctl --user daemon-reload
-systemctl --user enable --now trssd
+systemctl --user enable --now ssh05d
 ```
 
 ### Compilar
@@ -110,9 +116,9 @@ Ejecuta `ssh05 --help-config` para ver la referencia completa de opciones de `~/
 
 Para documentación detallada de todas las features (trzsz, zmodem, UDP, expect, scp/sftp, remember passwords, external password managers, Wayland, clipboard, themes, etc.), visita el [repositorio ssh05](https://github.com/lordpietre/ssh05) o lee [README.en.md](README.en.md).
 
-### TRSS — Fase 0
+### ssh05 — Fase 0
 
-El diseño de la evolución multipestaña TRSS vive en [TRSS_SDD_v0.2.md](TRSS_SDD_v0.2.md).
+El diseño de la evolución multipestaña ssh05 vive en [SSH05_SDD_v0.3.md](SSH05_SDD_v0.3.md).
 La Fase 0 (auditoría, ADRs y prototipo PTY/OpenTUI) está documentada en:
 
 - [Auditoría del código actual](docs/audit/phase-0-audit.md)
@@ -132,17 +138,17 @@ bun run smoke        # tmux + vim + htop + SSH real + resize
 Supervisor local:
 
 ```sh
-CGO_ENABLED=0 go build -o ./bin/ ./cmd/trssd
-./bin/trssd --ssh-config ~/.ssh/config
+CGO_ENABLED=0 go build -o ./bin/ ./cmd/ssh05d
+./bin/ssh05d --ssh-config ~/.ssh/config
 ```
 
 KeePass opcional:
 
 ```sh
-./bin/trssd --ssh-config ~/.ssh/config \
+./bin/ssh05d --ssh-config ~/.ssh/config \
   --keepass-db ~/db.kdbx --keepass-key-file ~/db.key
 # o con askpass, sin persistir el secreto:
-./bin/trssd --ssh-config ~/.ssh/config \
+./bin/ssh05d --ssh-config ~/.ssh/config \
   --keepass-db ~/db.kdbx --keepass-password-command 'pass show keepass'
 ```
 
@@ -152,7 +158,7 @@ resuelven a `usuario@host:puerto`; los de `ssh_config` conservan su alias.
 FRP local (frpc) contra un frps autorizado:
 
 ```sh
-./bin/trssd --ssh-config ~/.ssh/config \
+./bin/ssh05d --ssh-config ~/.ssh/config \
   --frp-server frps.example.net --frp-port 7000 \
   --frpc-sha256 <sha256-del-binario-frpc>
 ```
@@ -160,17 +166,17 @@ FRP local (frpc) contra un frps autorizado:
 Para levantar un `frps` local gestionado por el supervisor:
 
 ```sh
-./bin/trssd --ssh-config ~/.ssh/config \
+./bin/ssh05d --ssh-config ~/.ssh/config \
   --frps-listen 127.0.0.1:7000 --frpc /ruta/frpc --frps /ruta/frps
 ```
 
 En la UI, `Ctrl+F` abre el panel FRP (endpoints, proxies, crear, parar,
-iniciar/parar `frps` con `s`, rotar token). El smoke real `make trssd-frp-smoke` cubre TCP, UDP, STCP y XTCP.
+iniciar/parar `frps` con `s`, rotar token). El smoke real `make ssh05d-frp-smoke` cubre TCP, UDP, STCP y XTCP.
 La rotación reinicia el `frps` local antes que los `frpc`; para un `frps` remoto se rechaza para no exponer el
 token: actualízalo fuera de banda y reinicia con `--frp-token ... --frp-token-force`.
 
-Atajos configurables en `~/.config/trss/keybindings.json` (o
-`TRSS_KEYBINDINGS`); los valores ausentes conservan el atajo por defecto y
+Atajos configurables en `~/.config/ssh05/keybindings.json` (o
+`SSH05_KEYBINDINGS`); los valores ausentes conservan el atajo por defecto y
 `null` lo desactiva:
 
 ```json
@@ -179,7 +185,7 @@ Atajos configurables en `~/.config/trss/keybindings.json` (o
 
 La paleta (`Ctrl+K`) incluye «Diagnosticar host» (DNS, TCP, banner y latencia)
 y «Exportar diagnóstico saneado», que escribe un
-JSON sin secretos en `~/.local/state/trss/diagnostics/`, y «Probar ruta del host»: informa `reachable`,
+JSON sin secretos en `~/.local/state/ssh05/diagnostics/`, y «Probar ruta del host»: informa `reachable`,
 `refused`, `timeout`, `dns_failure` o `unknown` sin interpretar un timeout como
 puerto cerrado.
 
@@ -194,7 +200,7 @@ Host lab
 ```
 
 Los colores usan RGB cuando la terminal lo soporta y degradan a 256/16
-colores; `NO_COLOR=1` o `TRSS_THEME=mono` desactivan el color.
+colores; `NO_COLOR=1` o `SSH05_THEME=mono` desactivan el color.
 
 Línea base de rendimiento: `make bench` (ver `docs/performance.md`).
 
@@ -217,7 +223,7 @@ pendiente de compatibilidad remota.
 
 La paleta «Preferencias» ajusta ancho del panel, densidad y posición de las
 pestañas; `Ctrl+Shift+←/→` reordena la pestaña activa. Las preferencias se guardan en
-`~/.config/trss/preferences.json` (`TRSS_PREFERENCES`).
+`~/.config/ssh05/preferences.json` (`SSH05_PREFERENCES`).
 
 `F1` muestra la ayuda con todos los atajos.
 
@@ -227,10 +233,10 @@ puerto, usuario, IdentityFile) y lo guarda en `ssh_config`; Enter guarda y
 conecta.
 
 Desde la lista de hosts, `F2` marca favorito, `F3` cicla el color y `F4` edita
-etiquetas. Los cambios se guardan en `~/.config/trss/hosts.json` sin tocar
-`~/.ssh/config` (`TRSS_HOST_OVERRIDES` permite otra ruta).
+etiquetas. Los cambios se guardan en `~/.config/ssh05/hosts.json` sin tocar
+`~/.ssh/config` (`SSH05_HOST_OVERRIDES` permite otra ruta).
 
-Si `SSH_AUTH_SOCK` apunta a un agente (OpenSSH o KeePassXC), `trssd` lo usa
+Si `SSH_AUTH_SOCK` apunta a un agente (OpenSSH o KeePassXC), `ssh05d` lo usa
 para autenticar y solo expone el proveedor y el número de identidades; nunca
 extrae claves privadas del agente.
 
@@ -241,13 +247,13 @@ hosts de KeePass dejan de listarse hasta un nuevo `hosts.import` o
 Reconexión automática configurable:
 
 ```sh
-./bin/trssd --ssh-config ~/.ssh/config --reconnect-max 3 --reconnect-delay 500ms
+./bin/ssh05d --ssh-config ~/.ssh/config --reconnect-max 3 --reconnect-delay 500ms
 ```
 
 Auditoría saneada (sin secretos, con rotación):
 
 ```sh
-./bin/trssd --audit-log ~/.local/state/trss/audit.log --audit-max-bytes 10485760
+./bin/ssh05d --audit-log ~/.local/state/ssh05/audit.log --audit-max-bytes 10485760
 ```
 
 UI OpenTUI (en otra terminal):
@@ -262,14 +268,14 @@ bun run ui
 un host. La barra de estado muestra la ruta elegida (directa/ProxyJump). Cerrar la pestaña no
 destruye la sesión tmux; al reabrir el mismo host se reengancha.
 
-El workspace se guarda en `~/.config/trss/workspaces/<nombre>.json` (sin
+El workspace se guarda en `~/.config/ssh05/workspaces/<nombre>.json` (sin
 secretos) y se restaura como pestañas **pendientes**: Enter reconecta, no se
 simula una sesión viva. `Ctrl+P` abre el selector y `n` crea un workspace. Al
 cambiar de workspace se reutilizan las sesiones vivas, sin abrir SSH duplicado.
-Usa `--workspace <nombre>`, `TRSS_WORKSPACE_NAME` o `TRSS_WORKSPACE_DIR` para
+Usa `--workspace <nombre>`, `SSH05_WORKSPACE_NAME` o `SSH05_WORKSPACE_DIR` para
 aislar el archivo en pruebas.
 
-Smoke completo (sshd local + trssd + 3 pestañas SSH + resize + tmux + restore +
+Smoke completo (sshd local + ssh05d + 3 pestañas SSH + resize + tmux + restore +
 10 pestañas con overflow):
 
 ```sh

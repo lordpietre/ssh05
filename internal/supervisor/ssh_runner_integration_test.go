@@ -11,15 +11,15 @@ import (
 
 // TestSSHRunnerIntegration is opt-in because it needs a reachable SSH alias.
 //
-//	TRSS_TEST_SSH_ALIAS=trss-test \
-//	TRSS_TEST_SSH_CONFIG=/tmp/trss-ssh-config \
+//	SSH05_TEST_SSH_ALIAS=ssh05-test \
+//	SSH05_TEST_SSH_CONFIG=/tmp/ssh05-ssh-config \
 //	go test -run TestSSHRunnerIntegration -v ./internal/supervisor
 func TestSSHRunnerIntegration(t *testing.T) {
-	alias := os.Getenv("TRSS_TEST_SSH_ALIAS")
+	alias := os.Getenv("SSH05_TEST_SSH_ALIAS")
 	if alias == "" {
-		t.Skip("set TRSS_TEST_SSH_ALIAS to run the SSH integration test")
+		t.Skip("set SSH05_TEST_SSH_ALIAS to run the SSH integration test")
 	}
-	configPath := os.Getenv("TRSS_TEST_SSH_CONFIG")
+	configPath := os.Getenv("SSH05_TEST_SSH_CONFIG")
 
 	runner := &SSHRunner{Config: SSHConfig{ConfigPath: configPath}}
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
@@ -31,7 +31,7 @@ func TestSSHRunnerIntegration(t *testing.T) {
 	}
 	defer run.Close()
 
-	if err := run.Write([]byte("echo TRSS_SUPERVISOR_OK; stty size\n")); err != nil {
+	if err := run.Write([]byte("echo SSH05_SUPERVISOR_OK; stty size\n")); err != nil {
 		t.Fatalf("Write: %v", err)
 	}
 
@@ -44,7 +44,7 @@ func TestSSHRunnerIntegration(t *testing.T) {
 				t.Fatalf("output closed early: %q", output.String())
 			}
 			output.Write(chunk)
-			if strings.Contains(output.String(), "TRSS_SUPERVISOR_OK") &&
+			if strings.Contains(output.String(), "SSH05_SUPERVISOR_OK") &&
 				strings.Contains(output.String(), "30 100") {
 				if err := run.Resize(90, 28); err != nil {
 					t.Fatalf("Resize: %v", err)

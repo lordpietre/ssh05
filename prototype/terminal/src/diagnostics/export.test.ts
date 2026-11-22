@@ -18,21 +18,21 @@ const report: DiagnosticsReport = {
 describe("diagnosticsDir", () => {
   test("prefers XDG_STATE_HOME", () => {
     expect(diagnosticsDir({ XDG_STATE_HOME: "/tmp/state", HOME: "/home/x" })).toBe(
-      "/tmp/state/trss/diagnostics",
+      "/tmp/state/ssh05/diagnostics",
     )
   })
 
   test("falls back to HOME", () => {
-    expect(diagnosticsDir({ HOME: "/home/x" })).toBe("/home/x/.local/state/trss/diagnostics")
+    expect(diagnosticsDir({ HOME: "/home/x" })).toBe("/home/x/.local/state/ssh05/diagnostics")
   })
 })
 
 describe("exportDiagnostics", () => {
   test("writes private JSON and returns its path", () => {
-    const dir = mkdtempSync(join(tmpdir(), "trss-diag-"))
+    const dir = mkdtempSync(join(tmpdir(), "ssh05-diag-"))
     const target = join(dir, "nested")
     const path = exportDiagnostics(report, target, new Date("2026-11-22T01:02:03.456Z"))
-    expect(path.endsWith("trss-diagnostics-2026-11-22T01-02-03-456Z.json")).toBe(true)
+    expect(path.endsWith("ssh05-diagnostics-2026-11-22T01-02-03-456Z.json")).toBe(true)
     expect(JSON.parse(readFileSync(path, "utf8"))).toEqual(report)
     if (process.platform !== "win32") {
       expect(statSync(target).mode & 0o777).toBe(0o700)

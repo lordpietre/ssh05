@@ -28,7 +28,7 @@ else
 	GO_TEST := ${shell basename `which gotest 2>/dev/null` 2>/dev/null || echo go test}
 endif
 
-.PHONY: all clean test install download-frp phase0 bench contracts-check ui-check ui-smoke trssd frp-smoke trssd-frp-smoke hostkey-smoke phase1-smoke p1-smoke verify deb
+.PHONY: all clean test install download-frp phase0 bench contracts-check ui-check ui-smoke ssh05d trssd frp-smoke ssh05d-frp-smoke trssd-frp-smoke hostkey-smoke phase1-smoke p1-smoke verify deb
 
 # Check if frp source is available (may not exist on clone since /frp/ is gitignored)
 ifneq ("$(wildcard $(FRP_DIR)/go.mod)","")
@@ -40,6 +40,8 @@ all: ${BIN_DIR}/${SSH05}
 ifeq ($(HAS_FRP),yes)
 all: ${BIN_DIR}/frps ${BIN_DIR}/frpc
 endif
+
+all: ssh05d
 
 ${BIN_DIR}/${SSH05}: $(wildcard ./cmd/ssh05/*.go ./ssh05/*.go) go.mod go.sum
 	CGO_ENABLED=0 go build -o ${BIN_DIR}/ ./cmd/ssh05
@@ -78,13 +80,17 @@ download-frp:
 	echo "FRP binaries installed in ${BIN_DIR}/"
 
 clean:
-	$(RM) ${BIN_DIR}/ssh05 ${BIN_DIR}/ssh05.exe ${BIN_DIR}/trssd ${BIN_DIR}/trssd.exe ${BIN_DIR}/frps ${BIN_DIR}/frpc 2>/dev/null; true
+	$(RM) ${BIN_DIR}/ssh05 ${BIN_DIR}/ssh05.exe ${BIN_DIR}/ssh05d ${BIN_DIR}/ssh05d.exe ${BIN_DIR}/trssd ${BIN_DIR}/trssd.exe ${BIN_DIR}/frps ${BIN_DIR}/frpc 2>/dev/null; true
 
 test:
-	${GO_TEST} -v -count=1 ./ssh05 ./contracts ./internal/ipc ./internal/supervisor ./internal/audit ./internal/frp ./internal/transfer
+	${GO_TEST} -v -count=1 ./ssh05 ./contracts ./internal/identity ./internal/ipc ./internal/supervisor ./internal/audit ./internal/frp ./internal/transfer
 
-trssd:
-	CGO_ENABLED=0 go build -o ${BIN_DIR}/ ./cmd/trssd
+## ssh05d builds the local supervisor. `trssd` remains an alias for scripts
+## written before the rename.
+ssh05d:
+	CGO_ENABLED=0 go build -o ${BIN_DIR}/ ./cmd/ssh05d
+
+trssd: ssh05d
 
 phase0:
 	cd prototype/terminal && $(BUN) install && $(BUN) run typecheck && $(BUN) run smoke
@@ -92,16 +98,18 @@ phase0:
 ui-check:
 	cd prototype/terminal && $(BUN) run typecheck && $(BUN) test
 
-ui-smoke: trssd
+ui-smoke: ssh05d
 	cd prototype/terminal && $(BUN) run ui:smoke
 
 frp-smoke:
 	./scripts/frp-smoke.sh
 
-trssd-frp-smoke:
-	./scripts/trssd-frp-smoke.sh
+ssh05d-frp-smoke:
+	./scripts/ssh05d-frp-smoke.sh
 
-p1-smoke: hostkey-smoke ui-smoke trssd-frp-smoke
+trssd-frp-smoke: ssh05d-frp-smoke
+
+p1-smoke: hostkey-smoke ui-smoke ssh05d-frp-smoke
 
 verify: test contracts-check p1-smoke
 
@@ -115,7 +123,7 @@ bench:
 	CGO_ENABLED=0 ${GO_TEST} -run '^$$' -bench . -benchmem ./internal/ipc ./internal/supervisor ./internal/frp
 
 contracts-check:
-	CGO_ENABLED=0 ${GO_TEST} -count=1 ./contracts ./internal/ipc ./internal/supervisor ./internal/audit ./internal/frp ./internal/transfer
+	CGO_ENABLED=0 ${GO_TEST} -count=1 ./contracts ./internal/identity ./internal/ipc ./internal/supervisor ./internal/audit ./internal/frp ./internal/transfer
 	cd prototype/terminal && $(BUN) run typecheck:contracts
 
 install: all
@@ -124,6 +132,7 @@ ifdef WIN_TARGET
 else
 	@mkdir -p ${DESTDIR}${BIN_DST}
 	cp ${BIN_DIR}/ssh05 ${DESTDIR}${BIN_DST}/
+	cp ${BIN_DIR}/ssh05d ${DESTDIR}${BIN_DST}/
 endif
 
 hostkey-smoke:

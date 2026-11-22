@@ -1,3 +1,12 @@
+ssh05 (0.3.18) unstable; urgency=medium
+
+  * Reunificación de identidad: supervisor ssh05d, UI src/ssh05.ts y rutas
+    ~/.config/ssh05 y ~/.local/state/ssh05, con compatibilidad TRSS_*.
+  * Vendor Dinámicas Electrónicas y correo de soporte en --version y ayuda.
+  * Servicio de usuario ssh05d.service y metadatos del paquete actualizados.
+
+ -- Dinámicas Electrónicas <dinamicas.electronicas@gmail.com>  Sun, 22 Nov 2026 22:00:00 +0000
+
 ssh05 (0.3.17) unstable; urgency=medium
 
   * hosts.list devuelve siempre un array y evita el error de la UI vacía.
@@ -6,19 +15,19 @@ ssh05 (0.3.17) unstable; urgency=medium
 
 ssh05 (0.3.16) unstable; urgency=medium
 
-  * Servicio de usuario trssd y Docker desactivado por defecto en el supervisor.
+  * Servicio de usuario ssh05d y Docker desactivado por defecto en el supervisor.
 
  -- lordpietre <pietrelinux@gmail.com>  Sun, 22 Nov 2026 20:00:00 +0000
 
 ssh05 (0.3.15) unstable; urgency=medium
 
-  * Alta de hosts desde la UI OpenTUI y paquete con ssh05 + trssd.
+  * Alta de hosts desde la UI OpenTUI y paquete con ssh05 + ssh05d.
 
  -- lordpietre <pietrelinux@gmail.com>  Sun, 22 Nov 2026 19:00:00 +0000
 
 ssh05 (0.3.14) unstable; urgency=medium
 
-  * Revisión funcional completa y paquete con ssh05 + trssd.
+  * Revisión funcional completa y paquete con ssh05 + ssh05d.
 
  -- lordpietre <pietrelinux@gmail.com>  Sun, 22 Nov 2026 18:00:00 +0000
 

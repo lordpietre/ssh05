@@ -1,11 +1,11 @@
-# Auditoría de Fase 0 — de `ssh05` a TRSS
+# Auditoría de Fase 0 — de `trzsz-ssh` a ssh05
 
 | Campo | Valor |
 |---|---|
 | Fecha | 21/11/2026 |
 | Repositorio | `lordpietre/trzsz-ssh` |
 | Commit auditado | `6e98b8d` |
-| Referencia | `TRSS_SDD_v0.2.md` |
+| Referencia | `SSH05_SDD_v0.3.md` |
 | Alcance | Inventario, reutilización, huecos frente al SDD, seguridad y línea base de compilación |
 | Resultado | Fase 0 ejecutada; prototipo PTY/OpenTUI reproducible en `prototype/terminal` |
 
@@ -48,7 +48,7 @@ Total: 78 archivos Go, ~26.500 líneas; 14 archivos de prueba.
 
 | Requisito | Estado real | Evidencia / hueco |
 |---|---|---|
-| SES-01…04 multipestañas y PTY | **No cumple** | La TUI elige un host y lanza el login; no hay `TabStore`, ni emulador VT, ni sesiones concurrentes dentro de la interfaz. El batch abre ventanas/pestañas en tmux/iTerm2/WT, no en TRSS. |
+| SES-01…04 multipestañas y PTY | **No cumple** | La TUI elige un host y lanza el login; no hay `TabStore`, ni emulador VT, ni sesiones concurrentes dentro de la interfaz. El batch abre ventanas/pestañas en tmux/iTerm2/WT, no en ssh05. |
 | SES-05 estados | Brecha en commit auditado | Hay estados de UI para escaneo/túnel, no una máquina `connecting → connected → degraded…` por sesión. |
 | SES-06 reconexión | Brecha en commit auditado | `--reconnect` relanza el proceso; no hay política por sesión ni cancelación desde UI. |
 | SES-07/08 tmux | Brecha en commit auditado | `attach.go` reengancha sesiones tsshd; `tmgr_tmux.go` abre tmux local. No hay `TmuxBinding` por pestaña ni restauración de workspace. |
@@ -87,7 +87,7 @@ Total: 78 archivos Go, ~26.500 líneas; 14 archivos de prueba.
 | H-03 | Token FRP persistido en `~/.tssh_frp` (JSON) y TOML | `frpSaveConfig`, `writeFrpcConfig` | Secreto en claro fuera de un proveedor | **Resuelto:** `Token` no se serializa; se cifra AES-GCM con `~/.tssh/frp.key` (`0600`) y los TOML remotos se copian con `0600`. Riesgo residual: un atacante con la misma UID puede leer la clave, igual que un keyring desbloqueado |
 | H-04 | Solo proxies `type = "tcp"` | `ssh05/frp_proxy.go` | No cubre UDP/STCP/XTCP (FRP-02) | **Resuelto:** UI/config admiten los 4 tipos; `frpc verify` los acepta y los túneles reales TCP/STCP/XTCP/UDP funcionan |
 | H-05 | `frpCopyToRemote` construye `mkdir -p … && cat > …` sin citar rutas | `ssh05/frp_proxy.go` | Inyección de comandos si la ruta es controlable | **Resuelto:** `sh -c` con argumentos citados, expansión de `~/` en el script y tests de inyección/rutas con espacios |
-| H-06 | Claves nuevas se aceptan automáticamente con `accept-new`/`no` | `ssh05/known_hosts.go:199-216` | Comportamiento OpenSSH esperado, pero el SDD pide flujo explícito | No cambiar el default; añadir UX explícita en TRSS |
+| H-06 | Claves nuevas se aceptan automáticamente con `accept-new`/`no` | `ssh05/known_hosts.go:199-216` | Comportamiento OpenSSH esperado, pero el SDD pide flujo explícito | No cambiar el default; añadir UX explícita en ssh05 |
 | H-07 | Sin bloqueo de secretos por inactividad | `ssh05/config.go` (cifrado AES-GCM) | AUT-05 pendiente | Diseñar vault y temporalidad |
 | H-08 | Prueba `TestTableExample` falla por color en el entorno | `internal/table/table_test.go` | Línea base ruidosa | Arreglar aparte; no relacionado con Fase 0 |
 

@@ -1,10 +1,10 @@
 {
-  "name": "trss-pty-prototype",
+  "name": "ssh05-terminal",
   "private": true,
   "type": "module",
   "scripts": {
     "start": "bun run src/main.ts",
-    "ui": "bun run src/trss.ts",
+    "ui": "bun run src/ssh05.ts",
     "ui:smoke": "bash scripts/ui-smoke.sh",
     "smoke": "bash scripts/smoke.sh",
     "test": "bun test",

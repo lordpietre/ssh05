@@ -7,18 +7,16 @@ import {
   renameSync,
   writeFileSync,
 } from "node:fs"
-import { homedir } from "node:os"
 import { basename, dirname, join } from "node:path"
 import type { Workspace } from "../../../../contracts/ts/index.ts"
+import { configDir, envValue } from "../identity.ts"
 
 /**
  * Workspace files contain only non-secret view state: titles, host profile
  * ids, session ids, order and optional tmux names. Never PTY bytes or secrets.
  */
 export function workspaceDir(): string {
-  if (process.env.TRSS_WORKSPACE_DIR) return process.env.TRSS_WORKSPACE_DIR
-  const configHome = process.env.XDG_CONFIG_HOME || join(homedir(), ".config")
-  return join(configHome, "trss", "workspaces")
+  return envValue("WORKSPACE_DIR") ?? join(configDir(), "workspaces")
 }
 
 export function safeWorkspaceName(name: string): string {
@@ -27,12 +25,13 @@ export function safeWorkspaceName(name: string): string {
 }
 
 export function workspacePath(name = "default"): string {
-  if (process.env.TRSS_WORKSPACE) return process.env.TRSS_WORKSPACE
+  const override = envValue("WORKSPACE")
+  if (override) return override
   return join(workspaceDir(), `${safeWorkspaceName(name)}.json`)
 }
 
 export function listWorkspaceNames(dir = workspaceDir()): string[] {
-  if (process.env.TRSS_WORKSPACE) return ["default"]
+  if (envValue("WORKSPACE")) return ["default"]
   const names = new Set<string>(["default"])
   try {
     for (const file of readdirSync(dir)) {

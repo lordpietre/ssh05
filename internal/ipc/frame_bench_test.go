@@ -30,7 +30,7 @@ func BenchmarkJSONEnvelopeRoundTrip(b *testing.B) {
 		"jsonrpc": "2.0",
 		"id":      "req-123",
 		"method":  "sessions.open",
-		"params":  map[string]any{"hostProfileId": "lab", "tmuxSession": "trss-lab"},
+		"params":  map[string]any{"hostProfileId": "lab", "tmuxSession": "ssh05-lab"},
 	}
 	var buffer bytes.Buffer
 	b.ResetTimer()

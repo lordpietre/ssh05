@@ -6,7 +6,7 @@ import "net"
 
 // DefaultSocketPath is reserved for the future Windows named-pipe transport.
 func DefaultSocketPath() string {
-	return `\\.\pipe\trss-control`
+	return `\\.\pipe\ssh05-control`
 }
 
 func listenUnix(path string) (net.Listener, error) {

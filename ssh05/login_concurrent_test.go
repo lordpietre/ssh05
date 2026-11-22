@@ -10,15 +10,15 @@ import (
 
 // Opt-in concurrency check:
 //
-//	TRSS_TEST_SSH_ALIAS=trss-ui-1 \
-//	TRSS_TEST_SSH_CONFIG=/tmp/trss-ui-smoke-ssh-config \
+//	SSH05_TEST_SSH_ALIAS=ssh05-ui-1 \
+//	SSH05_TEST_SSH_CONFIG=/tmp/ssh05-ui-smoke-ssh-config \
 //	go test -race -run TestSshLoginConcurrent -v ./ssh05
 func TestSshLoginConcurrent(t *testing.T) {
-	alias := os.Getenv("TRSS_TEST_SSH_ALIAS")
+	alias := os.Getenv("SSH05_TEST_SSH_ALIAS")
 	if alias == "" {
-		t.Skip("set TRSS_TEST_SSH_ALIAS to run the concurrent SSH test")
+		t.Skip("set SSH05_TEST_SSH_ALIAS to run the concurrent SSH test")
 	}
-	config := os.Getenv("TRSS_TEST_SSH_CONFIG")
+	config := os.Getenv("SSH05_TEST_SSH_CONFIG")
 
 	const count = 3
 	clients := make([]SshClient, count)
@@ -52,13 +52,13 @@ func TestSshLoginConcurrent(t *testing.T) {
 		if err != nil {
 			t.Fatalf("session %d: %v", index, err)
 		}
-		output, err := session.CombinedOutput("echo TRSS_CONCURRENT_OK")
+		output, err := session.CombinedOutput("echo SSH05_CONCURRENT_OK")
 		_ = session.Close()
 		_ = client.Close()
 		if err != nil {
 			t.Fatalf("command %d: %v", index, err)
 		}
-		if !strings.Contains(string(output), "TRSS_CONCURRENT_OK") {
+		if !strings.Contains(string(output), "SSH05_CONCURRENT_OK") {
 			t.Fatalf("output %d = %q", index, output)
 		}
 	}

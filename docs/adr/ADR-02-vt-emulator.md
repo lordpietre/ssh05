@@ -15,7 +15,7 @@ y si el resize llega al PTY y al servidor SSH.
 ## Decisión
 
 Adoptar **OpenTUI 0.8.2 + PTY nativo de Bun** para el prototipo y para la
-primera UI de TRSS, manteniendo `SessionBackend` como contrato estable para
+primera UI de ssh05, manteniendo `SessionBackend` como contrato estable para
 poder sustituir el backend sin cambiar `TabStore`.
 
 El prototipo vive en `prototype/terminal` y demuestra:

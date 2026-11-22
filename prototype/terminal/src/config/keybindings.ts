@@ -1,6 +1,6 @@
 import { existsSync, readFileSync } from "node:fs"
-import { homedir } from "node:os"
 import { join } from "node:path"
+import { configDir, envValue } from "../identity.ts"
 
 export type KeyAction =
   | "hosts"
@@ -98,8 +98,8 @@ export function matchesAction(key: KeyLike, bindings: KeyBindings, action: KeyAc
 }
 
 /**
- * Loads bindings from `TRSS_KEYBINDINGS` or
- * `~/.config/trss/keybindings.json`. Invalid entries keep the default and are
+ * Loads bindings from `SSH05_KEYBINDINGS` (legacy `TRSS_KEYBINDINGS`) or
+ * `~/.config/ssh05/keybindings.json`. Invalid entries keep the default and are
  * reported in `errors` instead of breaking the UI.
  */
 export function loadKeybindings(
@@ -107,7 +107,7 @@ export function loadKeybindings(
   readFile: (path: string) => string = (path) => readFileSync(path, "utf8"),
   exists: (path: string) => boolean = existsSync,
 ): LoadedKeybindings {
-  const path = env.TRSS_KEYBINDINGS || join(homedir(), ".config", "trss", "keybindings.json")
+  const path = envValue("KEYBINDINGS", env) ?? join(configDir(env), "keybindings.json")
   const bindings = { ...DEFAULT_KEYBINDINGS }
   const errors: string[] = []
   if (!exists(path)) return { bindings, path, errors }

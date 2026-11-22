@@ -1,23 +1,25 @@
 import { RGBA } from "@opentui/core"
+import { envValue } from "../identity.ts"
 
 /** Terminal color capabilities, from richest to none. */
 export type ColorLevel = "truecolor" | "256" | "16" | "none"
 
 /**
- * Detects the color capability of the hosting terminal. `TRSS_COLOR_LEVEL`
- * overrides detection (useful for tests and for a forced monochrome theme).
+ * Detects the color capability of the hosting terminal. `SSH05_COLOR_LEVEL`
+ * (legacy `TRSS_COLOR_LEVEL`) overrides detection (useful for tests and for a
+ * forced monochrome theme).
  * `NO_COLOR` and `TERM=dumb` disable color entirely.
  */
 export function detectColorLevel(
   env: Record<string, string | undefined> = process.env,
   isTTY: boolean = process.stdout.isTTY ?? false,
 ): ColorLevel {
-  const override = (env.TRSS_COLOR_LEVEL ?? "").toLowerCase()
+  const override = (envValue("COLOR_LEVEL", env) ?? "").toLowerCase()
   if (override === "truecolor" || override === "256" || override === "16" || override === "none") {
     return override
   }
   if (env.NO_COLOR !== undefined && env.NO_COLOR !== "") return "none"
-  if ((env.TRSS_THEME ?? "").toLowerCase() === "mono") return "none"
+  if ((envValue("THEME", env) ?? "").toLowerCase() === "mono") return "none"
   const term = (env.TERM ?? "").toLowerCase()
   if (term === "dumb") return "none"
   if (term === "") return isTTY ? "16" : "none"

@@ -4,7 +4,7 @@
 |---|---|
 | Fecha | 22/11/2026 |
 | Repositorio | https://github.com/lordpietre/ssh05 |
-| Documento base | `TRSS_SDD_v0.2.md` |
+| Documento base | `SSH05_SDD_v0.3.md` |
 | Alcance | Todos los requisitos P0, P1 y P2 |
 | Estado global | **Aprobado con limitaciones documentadas** |
 
@@ -22,11 +22,11 @@ CGO_ENABLED=0 go test ./ssh05 ./contracts ./internal/ipc ./internal/supervisor \
   ./internal/audit ./internal/frp ./internal/transfer
 make verify
 make deb
-make trssd-frp-smoke
+make ssh05d-frp-smoke
 ```
 
 Resultado local: tests, tipos, UI smoke y smoke FRP correctos. Los `.deb`
-generados incluyen `ssh05` y `trssd`.
+generados incluyen `ssh05` y `ssh05d`.
 
 ## P0
 
@@ -50,7 +50,7 @@ generados incluyen `ssh05` y `trssd`.
 | ID | Estado | Evidencia / límite |
 |---|---|---|
 | SES-06 | Cumple | Backoff configurable, límites y cancelación; tests |
-| SES-07 | Cumple | tmux opcional, nombre `trss-<alias>`, activación explícita `Ctrl+G` |
+| SES-07 | Cumple | tmux opcional, nombre `ssh05-<alias>`, activación explícita `Ctrl+G` |
 | SES-08 | Cumple | `TmuxCreate=false` + `tmux has-session`; si falta, shell y se borra el binding |
 | INV-02 | Cumple | `Include`, aliases y opciones vía `ssh_config`; `TestSSHHostsInclude` |
 | INV-03 | Cumple | Importación KDBX por `keepassxc-cli` |
@@ -106,8 +106,8 @@ generados incluyen `ssh05` y `trssd`.
 
 ## Límites explícitos
 
-1. **OpenTUI no está dentro del `.deb`.** El paquete instala `ssh05` y `trssd`
-   y una unidad `trssd.service`; la UI OpenTUI requiere Bun y se ejecuta desde
+1. **OpenTUI no está dentro del `.deb`.** El paquete instala `ssh05` y `ssh05d`
+   y una unidad `ssh05d.service`; la UI OpenTUI requiere Bun y se ejecuta desde
    `prototype/terminal`. No se empaqueta porque OpenTUI necesita runtime Bun y
    dependencias nativas, y el binario único de Bun no resuelve el módulo nativo
    musl/glibc de forma portable.

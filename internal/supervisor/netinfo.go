@@ -44,7 +44,7 @@ func (s *Service) nmapScan(ctx context.Context, req contracts.RPCRequest) (json.
 		return nil, &contracts.RPCError{Code: ipc.CodeInvalidRequest, Message: "nmap requires explicit confirmation and authorization"}
 	}
 	if strings.TrimSpace(s.nmapPath) == "" {
-		return nil, internalError(fmt.Errorf("nmap is not configured; start trssd with --nmap"))
+		return nil, internalError(fmt.Errorf("nmap is not configured; start ssh05d with --nmap"))
 	}
 	ports := strings.TrimSpace(params.Ports)
 	if ports == "" {
@@ -245,7 +245,7 @@ func lookupRDAP(ctx context.Context, ip net.IP) contracts.RDAPInfo {
 	if err != nil {
 		return contracts.RDAPInfo{Error: err.Error()}
 	}
-	request.Header.Set("User-Agent", "trss/1")
+	request.Header.Set("User-Agent", "ssh05/1")
 	response, err := http.DefaultClient.Do(request)
 	if err != nil {
 		return contracts.RDAPInfo{Error: err.Error()}

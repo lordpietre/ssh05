@@ -1,8 +1,8 @@
 /**
- * TRSS Phase 0 prototype: OpenTUI host TUI + Bun PTY + embedded terminal.
+ * ssh05 Phase 0 prototype: OpenTUI host TUI + Bun PTY + embedded terminal.
  *
  * This is intentionally small. It proves the integration surface described in
- * TRSS_SDD_v0.2 §17:
+ * SSH05_SDD_v0.3 §17:
  *   - EmbeddedTerminalRenderable interprets ANSI and keeps a VT screen.
  *   - Bun.spawn({ terminal }) gives us a real PTY and SIGWINCH on resize.
  *   - Keyboard input and resize are forwarded without a second emulator.
@@ -20,8 +20,9 @@ import {
   createCliRenderer,
 } from "@opentui/core"
 import { appendFileSync } from "node:fs"
+import { envValue } from "./identity.ts"
 
-const debugFile = process.env.TRSS_PROTO_DEBUG
+const debugFile = envValue("PROTO_DEBUG")
 const debug = (message: string) => {
   if (debugFile) appendFileSync(debugFile, `${new Date().toISOString()} ${message}\n`)
 }
@@ -51,7 +52,7 @@ const initialRows = Math.max(5, renderer.height - 2)
 
 const tabBar = new TextRenderable(renderer, {
   id: "tabbar",
-  content: ` TRSS · Phase 0 prototype   [1 ${argv.join(" ")}]   F10 quit`,
+  content: ` ssh05 · Dinámicas Electrónicas · Phase 0 prototype   [1 ${argv.join(" ")}]   F10 quit`,
   fg: RGBA.fromInts(220, 225, 235),
   bg: RGBA.fromInts(38, 44, 58),
   height: 1,
@@ -150,7 +151,7 @@ renderer.keyInput.on("keypress", (key) => {
   const isQuit =
     key.name.toLowerCase() === "f10" ||
     (key.ctrl && key.shift && key.name.toLowerCase() === "q") ||
-    (key.ctrl && key.name.toLowerCase() === "q" && process.env.TRSS_PROTO_ALLOW_CTRL_Q === "1")
+    (key.ctrl && key.name.toLowerCase() === "q" && envValue("PROTO_ALLOW_CTRL_Q") === "1")
   if (isQuit) {
     const child = pty
     child?.terminal?.close()

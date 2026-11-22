@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 # Starts/stops a throwaway OpenSSH server for the Phase 0 prototype tests.
 # It runs as the current user on a high port and writes everything under
-# ${TMPDIR:-/tmp}/trss-sshd-fixture. No sudo is required.
+# ${TMPDIR:-/tmp}/ssh05-sshd-fixture. No sudo is required.
 set -euo pipefail
 
 ACTION="${1:-start}"
-DIR="${TRSS_SSH_FIXTURE_DIR:-${TMPDIR:-/tmp}/trss-sshd-fixture}"
-PORT="${TRSS_SSH_PORT:-2222}"
+DIR="${SSH05_SSH_FIXTURE_DIR:-${TMPDIR:-/tmp}/ssh05-sshd-fixture}"
+PORT="${SSH05_SSH_PORT:-2222}"
 USER_NAME="$(id -un)"
 
 stop_server() {

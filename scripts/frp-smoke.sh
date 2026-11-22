@@ -7,7 +7,7 @@ cd "$(dirname "$0")/.."
 ROOT="$(pwd)"
 FRPS="${FRPS:-$ROOT/bin/frps}"
 FRPC="${FRPC:-$ROOT/bin/frpc}"
-DIR="$(mktemp -d "${TMPDIR:-/tmp}/trss-frp-smoke.XXXXXX")"
+DIR="$(mktemp -d "${TMPDIR:-/tmp}/ssh05-frp-smoke.XXXXXX")"
 FRPS_PID=""
 FRPC_PID=""
 HTTP_PID=""
@@ -35,7 +35,7 @@ command -v curl >/dev/null || fail "curl required"
 
 TOKEN="$(python3 -c 'import secrets; print(secrets.token_hex(16))')"
 SECRET="$(python3 -c 'import secrets; print(secrets.token_hex(16))')"
-echo "TRSS_FRP_OK" > "$DIR/hello.txt"
+echo "SSH05_FRP_OK" > "$DIR/hello.txt"
 
 cat > "$DIR/frps.toml" <<EOF
 bindPort = 17000
@@ -58,45 +58,45 @@ webServer.addr = "127.0.0.1"
 webServer.port = 17401
 
 [[proxies]]
-name = "trss-smoke-tcp"
+name = "ssh05-smoke-tcp"
 type = "tcp"
 localIP = "127.0.0.1"
 localPort = 18080
 remotePort = 18081
 
 [[proxies]]
-name = "trss-smoke-stcp"
+name = "ssh05-smoke-stcp"
 type = "stcp"
 localIP = "127.0.0.1"
 localPort = 18080
 secretKey = "$SECRET"
 
 [[visitors]]
-name = "trss-smoke-stcp-visitor"
+name = "ssh05-smoke-stcp-visitor"
 type = "stcp"
-serverName = "trss-smoke-stcp"
+serverName = "ssh05-smoke-stcp"
 secretKey = "$SECRET"
 bindAddr = "127.0.0.1"
 bindPort = 18082
 
 [[proxies]]
-name = "trss-smoke-udp"
+name = "ssh05-smoke-udp"
 type = "udp"
 localIP = "127.0.0.1"
 localPort = 18084
 remotePort = 18085
 
 [[proxies]]
-name = "trss-smoke-xtcp"
+name = "ssh05-smoke-xtcp"
 type = "xtcp"
 localIP = "127.0.0.1"
 localPort = 18080
 secretKey = "$SECRET"
 
 [[visitors]]
-name = "trss-smoke-xtcp-visitor"
+name = "ssh05-smoke-xtcp-visitor"
 type = "xtcp"
-serverName = "trss-smoke-xtcp"
+serverName = "ssh05-smoke-xtcp"
 secretKey = "$SECRET"
 bindAddr = "127.0.0.1"
 bindPort = 18083
@@ -130,7 +130,7 @@ wait_http() {
   local port="$1" label="$2"
   for _ in $(seq 1 50); do
     if body="$(curl -fsS --max-time 1 "http://127.0.0.1:$port/hello.txt" 2>/dev/null)"; then
-      [[ "$body" == "TRSS_FRP_OK" ]] || fail "$label unexpected payload: $body"
+      [[ "$body" == "SSH05_FRP_OK" ]] || fail "$label unexpected payload: $body"
       echo "PASS: $label"
       return 0
     fi
@@ -145,10 +145,10 @@ wait_udp() {
 import socket, sys
 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 sock.settimeout(0.3)
-sock.sendto(b"TRSS_UDP_OK", ("127.0.0.1", 18085))
+sock.sendto(b"SSH05_UDP_OK", ("127.0.0.1", 18085))
 try:
     data, _ = sock.recvfrom(65535)
-    sys.exit(0 if data == b"TRSS_UDP_OK" else 1)
+    sys.exit(0 if data == b"SSH05_UDP_OK" else 1)
 except OSError:
     sys.exit(1)
 PY

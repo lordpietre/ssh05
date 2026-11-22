@@ -3,7 +3,7 @@
   "configVersion": 1,
   "workspaces": {
     "": {
-      "name": "trss-pty-prototype",
+      "name": "ssh05-terminal",
       "dependencies": {
         "@opentui/core": "0.8.2",
       },

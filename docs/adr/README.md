@@ -1,4 +1,4 @@
-# Architecture Decision Records — TRSS
+# Architecture Decision Records — ssh05
 
 Registro de decisiones de arquitectura de la Fase 0. El estado de cada ADR es
 explícito: **Aceptado (prototipo)** significa que hay evidencia reproducible,

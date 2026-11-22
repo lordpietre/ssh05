@@ -1,5 +1,5 @@
 // Package contracts contains the stable, transport-agnostic vocabulary shared
-// by the TRSS UI (TypeScript) and the supervisor (Go).
+// by the ssh05 UI (TypeScript) and the supervisor (Go).
 //
 // This package is intentionally free of dependencies. It represents the SDD
 // domain and IPC envelope, not an implementation. Changes that break JSON or

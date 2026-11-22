@@ -15,7 +15,7 @@ function workspace(): Workspace {
         title: "lab",
         hostProfileId: "lab",
         order: 0,
-        tmux: { hostProfileId: "lab", sessionName: "trss-lab", verified: true },
+        tmux: { hostProfileId: "lab", sessionName: "ssh05-lab", verified: true },
       },
       { id: "tab-2", title: "vps", hostProfileId: "vps", order: 1 },
     ],
@@ -24,7 +24,7 @@ function workspace(): Workspace {
 }
 
 function tempPath(): { dir: string; path: string } {
-  const dir = mkdtempSync(join(tmpdir(), "trss-workspace-"))
+  const dir = mkdtempSync(join(tmpdir(), "ssh05-workspace-"))
   return { dir, path: join(dir, "nested", "workspace.json") }
 }
 
@@ -81,7 +81,7 @@ describe("workspace store", () => {
 
 describe("workspace names", () => {
   test("lists files and always includes default", () => {
-    const dir = mkdtempSync(join(tmpdir(), "trss-workspace-list-"))
+    const dir = mkdtempSync(join(tmpdir(), "ssh05-workspace-list-"))
     try {
       expect(listWorkspaceNames(dir)).toEqual(["default"])
       saveWorkspaceFile(workspace(), join(dir, "lab.json"))

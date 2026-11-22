@@ -34,7 +34,7 @@ describe("loadKeybindings", () => {
 
   test("overrides known actions and disables with null", () => {
     const loaded = loadKeybindings(
-      { TRSS_KEYBINDINGS: "/tmp/keys.json" },
+      { SSH05_KEYBINDINGS: "/tmp/keys.json" },
       () => JSON.stringify({ palette: "ctrl+space", frp: null, quit: "ctrl+q" }),
       () => true,
     )

@@ -52,7 +52,7 @@ describe("renderTabBar", () => {
 
 describe("renderTabBarStyled", () => {
   test("preserves the computed text and colors tabs", () => {
-    process.env.TRSS_COLOR_LEVEL = "truecolor"
+    process.env.SSH05_COLOR_LEVEL = "truecolor"
     resetColorLevel()
     try {
       const options = { tabs: tabs(3), activeId: "tab-2", width: 120 }
@@ -62,13 +62,13 @@ describe("renderTabBarStyled", () => {
       expect(styled.chunks.map((chunk) => chunk.text).join("")).toBe(renderTabBar(options))
       expect(styled.chunks.filter((chunk) => chunk.fg).length).toBe(3)
     } finally {
-      delete process.env.TRSS_COLOR_LEVEL
+      delete process.env.SSH05_COLOR_LEVEL
       resetColorLevel()
     }
   })
 
   test("prefers the tab color over the phase color", () => {
-    process.env.TRSS_COLOR_LEVEL = "truecolor"
+    process.env.SSH05_COLOR_LEVEL = "truecolor"
     resetColorLevel()
     try {
       const list = tabs(1)
@@ -78,7 +78,7 @@ describe("renderTabBarStyled", () => {
       const colored = styled.chunks.find((chunk) => chunk.fg)
       expect(colored?.fg?.toInts().slice(0, 3)).toEqual([0x11, 0x22, 0x33])
     } finally {
-      delete process.env.TRSS_COLOR_LEVEL
+      delete process.env.SSH05_COLOR_LEVEL
       resetColorLevel()
     }
   })

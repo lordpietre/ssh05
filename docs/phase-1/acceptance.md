@@ -4,7 +4,7 @@
 |---|---|
 | Fase | 1 — núcleo multipestaña P0 |
 | Estado | Aprobada por la suite de aceptación |
-| Referencia | `TRSS_SDD_v0.2.md` §16.1 y capítulos 2, 4, 11 |
+| Referencia | `SSH05_SDD_v0.3.md` §16.1 y capítulos 2, 4, 11 |
 | Fecha | 21/11/2026 |
 
 ## Requisitos y evidencia

@@ -9,12 +9,12 @@ import (
 func TestListHostEntries(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "ssh_config")
-	content := `Host trss-test-a
+	content := `Host ssh05-test-a
     HostName 127.0.0.1
     Port 2222
     User tester
 
-Host trss-test-b trss-test-c
+Host ssh05-test-b ssh05-test-c
     HostName example.invalid
     User admin
 `
@@ -30,13 +30,13 @@ Host trss-test-b trss-test-c
 	for _, entry := range entries {
 		found[entry.Alias] = entry
 	}
-	for _, alias := range []string{"trss-test-a", "trss-test-b", "trss-test-c"} {
+	for _, alias := range []string{"ssh05-test-a", "ssh05-test-b", "ssh05-test-c"} {
 		if _, ok := found[alias]; !ok {
 			t.Errorf("missing alias %q in %+v", alias, entries)
 		}
 	}
-	if got := found["trss-test-a"]; got.Host != "127.0.0.1" || got.Port != "2222" || got.User != "tester" {
-		t.Errorf("trss-test-a = %+v", got)
+	if got := found["ssh05-test-a"]; got.Host != "127.0.0.1" || got.Port != "2222" || got.User != "tester" {
+		t.Errorf("ssh05-test-a = %+v", got)
 	}
 	if _, ok := found["*"]; ok {
 		t.Error("wildcard host must not be listed")

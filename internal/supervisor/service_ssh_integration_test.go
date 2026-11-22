@@ -15,14 +15,14 @@ import (
 
 // TestServiceSSHIntegration is an opt-in end-to-end check:
 //
-//	TRSS_TEST_SSH_ALIAS=trss-test TRSS_TEST_SSH_CONFIG=/tmp/config \
+//	SSH05_TEST_SSH_ALIAS=ssh05-test SSH05_TEST_SSH_CONFIG=/tmp/config \
 //	go test -run TestServiceSSHIntegration -v ./internal/supervisor
 func TestServiceSSHIntegration(t *testing.T) {
-	alias := os.Getenv("TRSS_TEST_SSH_ALIAS")
+	alias := os.Getenv("SSH05_TEST_SSH_ALIAS")
 	if alias == "" {
-		t.Skip("set TRSS_TEST_SSH_ALIAS to run the SSH service integration test")
+		t.Skip("set SSH05_TEST_SSH_ALIAS to run the SSH service integration test")
 	}
-	configPath := os.Getenv("TRSS_TEST_SSH_CONFIG")
+	configPath := os.Getenv("SSH05_TEST_SSH_CONFIG")
 
 	backend := NewBackend(&SSHRunner{Config: SSHConfig{ConfigPath: configPath}}, Options{})
 	service := NewService(backend, SSHHosts{ConfigPath: configPath})
@@ -91,11 +91,11 @@ func TestServiceSSHIntegration(t *testing.T) {
 		t.Fatalf("sessions.resize: %v", err)
 	}
 
-	if err := client.SendBinary(string(opened.SessionID), []byte("echo TRSS_SERVICE_OK; stty size\n")); err != nil {
+	if err := client.SendBinary(string(opened.SessionID), []byte("echo SSH05_SERVICE_OK; stty size\n")); err != nil {
 		t.Fatalf("SendBinary: %v", err)
 	}
 	transcript := waitForOutput(t, output, "30 100")
-	if !strings.Contains(transcript, "TRSS_SERVICE_OK") {
+	if !strings.Contains(transcript, "SSH05_SERVICE_OK") {
 		t.Fatalf("command output missing from transcript: %q", transcript)
 	}
 

@@ -27,7 +27,7 @@ del renderer no mate sesiones ni túneles.
 
 Se acepta **JSON-RPC 2.0** para control y un **canal binario con encuadre de
 longitud** para bytes de PTY, sobre un Unix domain socket en
-`$XDG_RUNTIME_DIR/trss/control.sock` (modo `0600`, directorio `0700`).
+`$XDG_RUNTIME_DIR/ssh05/control.sock` (modo `0600`, directorio `0700`).
 
 Reglas:
 
@@ -57,10 +57,10 @@ Reglas:
 | `CallTyped[P,R]` para métodos del contrato | Hecho |
 | Servicio `sessions.*`, `hosts.list`, `routes.*` | Hecho (`internal/supervisor/service.go`) |
 | `sessions.list` / `sessions.attach` | Hecho (recuperación tras caer la UI) |
-| Daemon `trssd` | Hecho (`cmd/trssd`) |
+| Daemon `ssh05d` | Hecho (`cmd/ssh05d`) |
 | Cliente TypeScript/Bun (`IpcClient`) | Hecho (`prototype/terminal/src/ipc`) |
-| Prueba cruzada Bun ↔ Go | Hecho (opt-in `trssd.integration.test.ts`) |
-| UI OpenTUI conectada (`IpcClient` + `TabStore`) | Hecho (`src/trss.ts`) |
+| Prueba cruzada Bun ↔ Go | Hecho (opt-in `ssh05d.integration.test.ts`) |
+| UI OpenTUI conectada (`IpcClient` + `TabStore`) | Hecho (`src/ssh05.ts`) |
 | Smoke UI 3 SSH + resize + cierre | Hecho (`make ui-smoke`) |
 
 Tests: `internal/ipc/ipc_test.go` y `internal/ipc/frame_test.go` cubren round
@@ -94,5 +94,5 @@ CGO_ENABLED=0 go test -count=1 ./internal/ipc
 - SDD Anexo B y §17.5.
 - `internal/ipc/` (transporte implementado y probado).
 - `internal/supervisor/` (backend, runner SSH, servicio de sesiones).
-- `cmd/trssd` (daemon).
+- `cmd/ssh05d` (daemon).
 - `contracts/ipc.go` y `contracts/ts/index.ts` (envelopes y métodos).

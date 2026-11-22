@@ -5,9 +5,9 @@
 import { createSocket } from "node:dgram"
 import { IpcClient } from "../src/ipc/client.ts"
 
-const socket = process.env.TRSS_SOCKET
+const socket = process.env.SSH05_SOCKET
 if (!socket) {
-  console.error("TRSS_SOCKET is required")
+  console.error("SSH05_SOCKET is required")
   process.exit(2)
 }
 
@@ -119,28 +119,28 @@ async function waitUDP(port: number, payload: string, expected: string): Promise
 
 try {
   const tcp = await apply({
-    name: "trssd-smoke-tcp",
+    name: "ssh05d-smoke-tcp",
     type: "tcp",
     servicePort: 18080,
     remotePort: 18081,
   })
   console.log(`tcp online ${tcp}`)
-  await waitFetch("http://127.0.0.1:18081/hello.txt", "TRSS_FRP_SUPERVISOR_OK")
+  await waitFetch("http://127.0.0.1:18081/hello.txt", "SSH05_FRP_SUPERVISOR_OK")
   await stop(tcp)
   await waitUnreachable("http://127.0.0.1:18081/hello.txt")
 
   const udp = await apply({
-    name: "trssd-smoke-udp",
+    name: "ssh05d-smoke-udp",
     type: "udp",
     servicePort: 18084,
     remotePort: 18085,
   })
   console.log(`udp online ${udp}`)
-  await waitUDP(18085, "trssd-udp-ping", "trssd-udp-ping")
+  await waitUDP(18085, "ssh05d-udp-ping", "ssh05d-udp-ping")
   await stop(udp)
 
   const stcp = await apply({
-    name: "trssd-smoke-stcp",
+    name: "ssh05d-smoke-stcp",
     type: "stcp",
     servicePort: 18080,
     remotePort: 0,
@@ -148,7 +148,7 @@ try {
     hostProfileId: "smoke-stcp",
   })
   console.log(`stcp online ${stcp}`)
-  await waitFetch("http://127.0.0.1:18082/hello.txt", "TRSS_FRP_SUPERVISOR_OK")
+  await waitFetch("http://127.0.0.1:18082/hello.txt", "SSH05_FRP_SUPERVISOR_OK")
   const route = await client.call("routes.plan", { hostProfileId: "smoke-stcp" }, { timeoutMs: 3000 })
   if (!(route.selected ?? "").startsWith("frp:")) {
     throw new Error(`missing FRP route: ${JSON.stringify(route)}`)
@@ -156,7 +156,7 @@ try {
   await stop(stcp)
 
   const xtcp = await apply({
-    name: "trssd-smoke-xtcp",
+    name: "ssh05d-smoke-xtcp",
     type: "xtcp",
     servicePort: 18080,
     remotePort: 0,
@@ -164,7 +164,7 @@ try {
   })
   console.log(`xtcp online ${xtcp}`)
   try {
-    await waitFetch("http://127.0.0.1:18083/hello.txt", "TRSS_FRP_SUPERVISOR_OK", 15_000)
+    await waitFetch("http://127.0.0.1:18083/hello.txt", "SSH05_FRP_SUPERVISOR_OK", 15_000)
   } catch (error) {
     console.log(`SKIP: XTCP end-to-end depends on STUN/NAT: ${String(error)}`)
   }

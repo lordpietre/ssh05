@@ -1,10 +1,11 @@
 Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
 Upstream-Name: ssh05
-Upstream-Contact: lordpietre <pietrelinux@gmail.com>
+Upstream-Contact: Dinámicas Electrónicas <dinamicas.electronicas@gmail.com>
 Source: https://github.com/lordpietre/ssh05
 
 Files: *
-Copyright: 2023-2026 The Trzsz SSH Authors; 2026 ssh05 contributors.
+Copyright: 2023-2026 The Trzsz SSH Authors; 2026 ssh05 contributors;
+ 2026 Dinámicas Electrónicas.
 License: MIT
  Permission is hereby granted, free of charge, to any person obtaining a
  copy of this software and associated documentation files (the "Software"),

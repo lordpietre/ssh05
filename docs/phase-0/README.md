@@ -47,23 +47,23 @@ o, desde la raíz, `make phase0` (requiere `bun` en `PATH`).
 Resultado del 21/11/2026 (Bun 1.4.5, Linux x86_64):
 
 ```text
-PASS: TUI started (trss-smoke-size)
+PASS: TUI started (ssh05-smoke-size)
 PASS: Unicode output renders in the embedded terminal
 PASS: initial PTY size is 120x34
 PASS: resize propagates to the child PTY (100x28)
-PASS: TUI started (trss-smoke-vim)
+PASS: TUI started (ssh05-smoke-vim)
 PASS: vim receives input and renders in the embedded terminal
 PASS: vim survives an alt-screen resize
-PASS: TUI started (trss-smoke-htop)
+PASS: TUI started (ssh05-smoke-htop)
 PASS: htop renders (alt-screen + live updates)
 PASS: htop status line is visible
-PASS: TUI started (trss-smoke-keys)
+PASS: TUI started (ssh05-smoke-keys)
 PASS: keyboard input reaches the child PTY
 PASS: Escape and / do not close the TUI
 PASS: F10 closes the TUI
-PASS: TUI started (trss-smoke-tmux)
+PASS: TUI started (ssh05-smoke-tmux)
 PASS: tmux runs inside the embedded terminal
-PASS: TUI started (trss-smoke-ssh)
+PASS: TUI started (ssh05-smoke-ssh)
 PASS: SSH shell prompt is visible
 PASS: commands run in the real SSH PTY
 PASS: SSH PTY starts at 120x34
@@ -71,7 +71,7 @@ PASS: SSH window-change reaches the remote PTY
 == all checks passed ==
 ```
 
-Para omitir el caso SSH: `TRSS_PROTO_SKIP_SSH=1 bun run smoke`.
+Para omitir el caso SSH: `SSH05_PROTO_SKIP_SSH=1 bun run smoke`.
 
 ## Qué demuestra
 
@@ -112,6 +112,6 @@ Estos puntos están en la validación pendiente de
 ## Fixture SSH
 
 `scripts/ssh-fixture.sh start|stop` crea claves, `authorized_keys` y un
-`sshd_config` en `${TMPDIR:-/tmp}/trss-sshd-fixture`, escucha en el puerto 2222 y
+`sshd_config` en `${TMPDIR:-/tmp}/ssh05-sshd-fixture`, escucha en el puerto 2222 y
 se detiene al terminar el smoke test. No modifica `~/.ssh` ni requiere permisos
 de root.

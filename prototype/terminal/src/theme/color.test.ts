@@ -3,8 +3,8 @@ import { degradeColor, detectColorLevel, normalizeHex } from "./color.ts"
 
 describe("detectColorLevel", () => {
   test("honors an explicit override", () => {
-    expect(detectColorLevel({ TRSS_COLOR_LEVEL: "256" }, false)).toBe("256")
-    expect(detectColorLevel({ TRSS_COLOR_LEVEL: "none" }, true)).toBe("none")
+    expect(detectColorLevel({ SSH05_COLOR_LEVEL: "256" }, false)).toBe("256")
+    expect(detectColorLevel({ SSH05_COLOR_LEVEL: "none" }, true)).toBe("none")
   })
 
   test("detects truecolor, 256 and 16", () => {
@@ -17,7 +17,7 @@ describe("detectColorLevel", () => {
 
   test("disables color for NO_COLOR, mono theme and dumb terminals", () => {
     expect(detectColorLevel({ NO_COLOR: "1", TERM: "xterm" }, true)).toBe("none")
-    expect(detectColorLevel({ TRSS_THEME: "mono", TERM: "xterm" }, true)).toBe("none")
+    expect(detectColorLevel({ SSH05_THEME: "mono", TERM: "xterm" }, true)).toBe("none")
     expect(detectColorLevel({ TERM: "dumb" }, true)).toBe("none")
   })
 })

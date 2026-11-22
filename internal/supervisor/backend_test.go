@@ -273,7 +273,7 @@ func TestBackendRejectsUnsupportedDetach(t *testing.T) {
 func TestBackendDetachesRemoteTmux(t *testing.T) {
 	runner := &fakeRunner{}
 	backend := NewBackend(runner, Options{})
-	id, err := backend.Open(context.Background(), "host-1", "", contracts.SessionOptions{TmuxSession: "trss-lab"})
+	id, err := backend.Open(context.Background(), "host-1", "", contracts.SessionOptions{TmuxSession: "ssh05-lab"})
 	if err != nil {
 		t.Fatalf("Open: %v", err)
 	}
@@ -355,7 +355,7 @@ func TestBackendCapabilities(t *testing.T) {
 func TestBackendPassesTmuxOptions(t *testing.T) {
 	runner := &fakeRunner{}
 	backend := NewBackend(runner, Options{})
-	id, err := backend.Open(context.Background(), "host-1", "", contracts.SessionOptions{TmuxSession: "trss-demo"})
+	id, err := backend.Open(context.Background(), "host-1", "", contracts.SessionOptions{TmuxSession: "ssh05-demo"})
 	if err != nil {
 		t.Fatalf("Open: %v", err)
 	}
@@ -364,11 +364,11 @@ func TestBackendPassesTmuxOptions(t *testing.T) {
 	}
 	runner.mu.Lock()
 	defer runner.mu.Unlock()
-	if runner.lastOptions.TmuxSession != "trss-demo" {
+	if runner.lastOptions.TmuxSession != "ssh05-demo" {
 		t.Fatalf("tmux option = %q", runner.lastOptions.TmuxSession)
 	}
 	infos := backend.List()
-	if len(infos) != 1 || infos[0].ID != id || infos[0].ProfileID != "host-1" || infos[0].TmuxSession != "trss-demo" {
+	if len(infos) != 1 || infos[0].ID != id || infos[0].ProfileID != "host-1" || infos[0].TmuxSession != "ssh05-demo" {
 		t.Fatalf("List = %+v", infos)
 	}
 }
@@ -541,7 +541,7 @@ func TestBackendTmuxFallbackClearsBinding(t *testing.T) {
 	backend := NewBackend(runner, Options{})
 	defer backend.CloseAll()
 	id, err := backend.Open(context.Background(), "host-1", "", contracts.SessionOptions{
-		TmuxSession: "trss-missing",
+		TmuxSession: "ssh05-missing",
 		TmuxCreate:  false,
 	})
 	if err != nil {
@@ -561,7 +561,7 @@ func TestBackendReconnectAttachesOnly(t *testing.T) {
 	backend := NewBackend(runner, Options{ReconnectMax: 1, ReconnectBase: time.Millisecond})
 	defer backend.CloseAll()
 	if _, err := backend.Open(context.Background(), "host-1", "", contracts.SessionOptions{
-		TmuxSession: "trss-demo",
+		TmuxSession: "ssh05-demo",
 		TmuxCreate:  true,
 	}); err != nil {
 		t.Fatal(err)

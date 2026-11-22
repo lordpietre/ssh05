@@ -1,4 +1,4 @@
-// Command trssd is the TRSS local supervisor.
+// Command ssh05d is the ssh05 local supervisor.
 //
 // It exposes the typed IPC contract over an authenticated Unix socket. The UI
 // is a separate process; see contracts/ and internal/ipc/.
@@ -16,21 +16,18 @@ import (
 
 	"github.com/lordpietre/ssh05/internal/audit"
 	frpmanager "github.com/lordpietre/ssh05/internal/frp"
+	"github.com/lordpietre/ssh05/internal/identity"
 	"github.com/lordpietre/ssh05/internal/ipc"
 	"github.com/lordpietre/ssh05/internal/supervisor"
 	transfermanager "github.com/lordpietre/ssh05/internal/transfer"
 )
 
 func defaultAuditPath() string {
-	stateHome := os.Getenv("XDG_STATE_HOME")
-	if stateHome == "" {
-		home, _ := os.UserHomeDir()
-		stateHome = filepath.Join(home, ".local", "state")
-	}
-	return filepath.Join(stateHome, "trss", "audit.log")
+	return filepath.Join(identity.UserStateDir(), "audit.log")
 }
 
 func main() {
+	version := flag.Bool("version", false, "print version and support contact, then exit")
 	socket := flag.String("socket", ipc.DefaultSocketPath(), "control socket path")
 	sshConfig := flag.String("ssh-config", "", "ssh_config path (default: ~/.ssh/config)")
 	keepassDB := flag.String("keepass-db", "", "KDBX database to import (read-only)")
@@ -45,7 +42,7 @@ func main() {
 	auditPath := flag.String("audit-log", defaultAuditPath(), "sanitized audit log path (empty disables)")
 	auditMaxBytes := flag.Int64("audit-max-bytes", 10<<20, "audit log rotation threshold")
 	auditMaxFiles := flag.Int("audit-max-files", 3, "audit files kept (current + rotations)")
-	hostsOverrides := flag.String("hosts-overrides", "", "host metadata override path (default: ~/.config/trss/hosts.json)")
+	hostsOverrides := flag.String("hosts-overrides", "", "host metadata override path (default: ~/.config/ssh05/hosts.json)")
 	frpServer := flag.String("frp-server", "", "optional frps address for local frpc proxies")
 	frpPort := flag.Int("frp-port", 7000, "frps control port")
 	frpToken := flag.String("frp-token", "", "initial frps token (generated if empty)")
@@ -62,13 +59,19 @@ func main() {
 	dockerHosts := flag.Bool("docker", false, "include Docker containers as hosts")
 	flag.Parse()
 
+	if *version {
+		fmt.Printf("%s %s\n%s\nSoporte: %s\n", identity.Supervisor, identity.Version, identity.Vendor, identity.SupportEmail)
+		return
+	}
+
 	if !*dockerHosts {
 		_ = os.Setenv("TSSH_DISABLE_DOCKER", "1")
+		_ = os.Setenv("SSH05_DISABLE_DOCKER", "1")
 	}
 
 	logger, err := audit.NewRotating(*auditPath, *auditMaxBytes, *auditMaxFiles)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "trssd: audit log: %v\n", err)
+		fmt.Fprintf(os.Stderr, "ssh05d: audit log: %v\n", err)
 		os.Exit(1)
 	}
 
@@ -106,7 +109,7 @@ func main() {
 		EndpointTokenForce: *frpTokenForce,
 	})
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "trssd: frp: %v\n", err)
+		fmt.Fprintf(os.Stderr, "ssh05d: frp: %v\n", err)
 		os.Exit(1)
 	}
 	defer frpManager.Close()
@@ -121,7 +124,7 @@ func main() {
 		supervisor.WithTransfers(transferManager), supervisor.WithNmap(*nmapBin))
 	server, err := ipc.Listen(*socket, service)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "trssd: %v\n", err)
+		fmt.Fprintf(os.Stderr, "ssh05d: %v\n", err)
 		os.Exit(1)
 	}
 	defer server.Close()
@@ -129,9 +132,9 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	fmt.Fprintf(os.Stderr, "trssd: listening on %s\n", *socket)
+	fmt.Fprintf(os.Stderr, "ssh05d: listening on %s\n", *socket)
 	if err := server.Serve(ctx); err != nil {
-		fmt.Fprintf(os.Stderr, "trssd: %v\n", err)
+		fmt.Fprintf(os.Stderr, "ssh05d: %v\n", err)
 		os.Exit(1)
 	}
 }

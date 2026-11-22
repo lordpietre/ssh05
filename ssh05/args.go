@@ -28,6 +28,8 @@ import (
 	"bytes"
 	"fmt"
 	"strings"
+
+	"github.com/lordpietre/ssh05/internal/identity"
 )
 
 type sshOption struct {
@@ -108,7 +110,9 @@ type sshArgs struct {
 }
 
 func (sshArgs) Description() string {
-	return "ssh05: Highly OpenSSH-compatible client with extended features.\n" +
+	return "ssh05 — " + identity.Vendor + "\n" +
+		"Highly OpenSSH-compatible client with extended features.\n" +
+		"Soporte: " + identity.SupportEmail + "\n" +
 		"Run `ssh05 --help-config` for ~/.tssh.conf options reference.\n"
 }
 

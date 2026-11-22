@@ -31,9 +31,11 @@ import (
 	"runtime"
 	dbg "runtime/debug"
 	"strings"
+
+	"github.com/lordpietre/ssh05/internal/identity"
 )
 
-const kSSH05Version = "0.3.17"
+const kSSH05Version = identity.Version
 
 // buildTag stores the version tag injected at build time via -ldflags.
 var buildTag = ""
@@ -95,5 +97,6 @@ func printVersionShort() int {
 
 func printVersionDetailed() int {
 	fmt.Println(getSSH05Version())
+	fmt.Printf("%s\nSoporte: %s\n", identity.Vendor, identity.SupportEmail)
 	return 0
 }

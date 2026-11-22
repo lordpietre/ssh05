@@ -1,5 +1,6 @@
 import { StyledText, bold, fg, type TextChunk } from "@opentui/core"
 import type { SessionPhase, TabId, TabState } from "../../../../contracts/ts/index.ts"
+import { PRODUCT, VENDOR } from "../identity.ts"
 import { colorLevel, degradeColor } from "../theme/color.ts"
 
 export function phaseIcon(phase: SessionPhase): string {
@@ -112,12 +113,12 @@ interface TabBarWindow {
  */
 export function renderTabBar(options: TabBarOptions): string {
   const window = computeWindow(options)
-  return window ? window.text : fit(" TRSS · supervisor   Ctrl+T hosts   F10 salir", Math.max(20, options.width))
+  return window ? window.text : fit(` ${PRODUCT} · ${VENDOR}   Ctrl+T hosts   F10 salir`, Math.max(20, options.width))
 }
 
 /**
  * Colored variant. Tab color wins over the phase fallback. Colors degrade to
- * the terminal palette (truecolor → 256 → 16) and `NO_COLOR`/`TRSS_THEME=mono`
+ * the terminal palette (truecolor → 256 → 16) and `NO_COLOR`/`SSH05_THEME=mono`
  * yield a plain, monochrome string.
  */
 export function renderTabBarStyled(options: TabBarOptions): StyledText | string {
@@ -146,7 +147,7 @@ export function renderTabBarStyled(options: TabBarOptions): StyledText | string 
 
 function computeWindow(options: TabBarOptions): TabBarWindow | undefined {
   const width = Math.max(20, options.width)
-  const prefix = options.prefix ?? " TRSS · "
+  const prefix = options.prefix ?? ` ${PRODUCT} · `
   const suffix = options.suffix ?? " [+]"
   const tabs = options.tabs
   if (tabs.length === 0) return undefined

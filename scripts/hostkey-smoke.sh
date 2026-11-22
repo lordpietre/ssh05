@@ -5,7 +5,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 ROOT="$(pwd)"
 SSH05="${SSH05:-$ROOT/bin/ssh05}"
-DIR="$(mktemp -d "${TMPDIR:-/tmp}/trss-hostkey-smoke.XXXXXX")"
+DIR="$(mktemp -d "${TMPDIR:-/tmp}/ssh05-hostkey-smoke.XXXXXX")"
 chmod 700 "$DIR"
 cleanup() {
   "$ROOT/prototype/terminal/scripts/ssh-fixture.sh" stop >/dev/null 2>&1 || true
@@ -19,11 +19,11 @@ command -v ssh-keygen >/dev/null || { echo "ssh-keygen required" >&2; exit 1; }
 
 "$ROOT/prototype/terminal/scripts/ssh-fixture.sh" start >/dev/null
 USER_NAME="$(id -un)"
-SSH_DIR="${TRSS_SSH_FIXTURE_DIR:-${TMPDIR:-/tmp}/trss-sshd-fixture}"
+SSH_DIR="${SSH05_SSH_FIXTURE_DIR:-${TMPDIR:-/tmp}/ssh05-sshd-fixture}"
 CLIENT_KEY="$SSH_DIR/client_ed25519"
 
 cat > "$DIR/ssh_config" <<EOF
-Host trss-hostkey
+Host ssh05-hostkey
   HostName 127.0.0.1
   Port 2222
   User $USER_NAME
@@ -38,7 +38,7 @@ EOF
 ssh-keyscan -p 2222 127.0.0.1 2>/dev/null > "$DIR/known_hosts"
 chmod 600 "$DIR/known_hosts"
 
-if ! "$SSH05" -F "$DIR/ssh_config" trss-hostkey true >"$DIR/correct.out" 2>&1; then
+if ! "$SSH05" -F "$DIR/ssh_config" ssh05-hostkey true >"$DIR/correct.out" 2>&1; then
   echo "FAIL: correct host key was rejected" >&2
   cat "$DIR/correct.out" >&2
   exit 1
@@ -51,7 +51,7 @@ printf '[127.0.0.1]:2222 %s\n' "$WRONG_PUB" > "$DIR/known_hosts"
 chmod 600 "$DIR/known_hosts"
 
 set +e
-"$SSH05" -F "$DIR/ssh_config" trss-hostkey true >"$DIR/changed.out" 2>&1
+"$SSH05" -F "$DIR/ssh_config" ssh05-hostkey true >"$DIR/changed.out" 2>&1
 STATUS=$?
 set -e
 if [[ $STATUS -eq 0 ]]; then

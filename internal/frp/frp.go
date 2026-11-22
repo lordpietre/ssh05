@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/lordpietre/ssh05/contracts"
+	"github.com/lordpietre/ssh05/internal/identity"
 )
 
 const keySize = 32
@@ -97,10 +98,10 @@ type Manager struct {
 // NewManager loads the encrypted store and ensures the optional default endpoint.
 func NewManager(options Options) (*Manager, error) {
 	if options.ConfigPath == "" {
-		options.ConfigPath = defaultPath("TRSS_FRP_CONFIG", ".config", "trss", "frp.json")
+		options.ConfigPath = defaultConfigFile("FRP_CONFIG", "frp.json")
 	}
 	if options.KeyPath == "" {
-		options.KeyPath = defaultPath("", ".config", "trss", "frp.key")
+		options.KeyPath = defaultConfigFile("", "frp.key")
 	}
 	if options.WorkDir == "" {
 		options.WorkDir = defaultStatePath("frp")
@@ -154,23 +155,26 @@ func NewManager(options Options) (*Manager, error) {
 	return m, nil
 }
 
-func defaultPath(env, sub, dir, file string) string {
-	if env != "" {
-		if value := os.Getenv(env); value != "" {
-			return value
+func defaultConfigFile(envSuffix, file string) string {
+	if envSuffix != "" {
+		if value := identity.Env(envSuffix); value != "" {
+			return expandHome(value)
 		}
 	}
-	home, _ := os.UserHomeDir()
-	return filepath.Join(home, sub, dir, file)
+	return filepath.Join(identity.UserConfigDir(), file)
 }
 
 func defaultStatePath(dir string) string {
-	stateHome := os.Getenv("XDG_STATE_HOME")
-	if stateHome == "" {
-		home, _ := os.UserHomeDir()
-		stateHome = filepath.Join(home, ".local", "state")
+	return filepath.Join(identity.UserStateDir(), dir)
+}
+
+func expandHome(path string) string {
+	if path == "~" || strings.HasPrefix(path, "~/") {
+		if home, err := os.UserHomeDir(); err == nil {
+			return filepath.Join(home, strings.TrimPrefix(path, "~"))
+		}
 	}
-	return filepath.Join(stateHome, "trss", dir)
+	return path
 }
 
 // verifyBinaryHash refuses a binary whose SHA-256 does not match the pinned

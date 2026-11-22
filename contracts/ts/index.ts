@@ -1,5 +1,5 @@
 /**
- * TRSS shared contracts — TypeScript side.
+ * ssh05 shared contracts — TypeScript side.
  *
  * This file mirrors the Go package `contracts/`. It is deliberately free of
  * runtime dependencies so the UI and the supervisor can version it together.

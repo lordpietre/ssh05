@@ -13,7 +13,7 @@ afterEach(() => {
 })
 
 function startFakeServer(mode: "respond" | "error" | "silent" = "respond") {
-  const dir = mkdtempSync(join(tmpdir(), "trss-ipc-"))
+  const dir = mkdtempSync(join(tmpdir(), "ssh05-ipc-"))
   const socketPath = join(dir, "control.sock")
   let requests = 0
   let serverSocket: Bun.Socket<undefined> | null = null

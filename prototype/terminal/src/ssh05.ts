@@ -1,11 +1,13 @@
 /**
- * TRSS UI: OpenTUI + IpcClient + TabStore against the local supervisor.
+ * ssh05 UI: OpenTUI + IpcClient + TabStore against the local supervisor.
  *
  * It never opens SSH directly. All sessions, input, resize and status go
- * through trssd over the typed IPC contract.
+ * through ssh05d over the typed IPC contract.
  *
  * Run:
- *   TRSS_SOCKET=/run/user/1000/trss/control.sock bun run src/trss.ts
+ *   SSH05_SOCKET=/run/user/1000/ssh05/control.sock bun run src/ssh05.ts
+ *
+ * Producto de Dinámicas Electrónicas · soporte: dinamicas.electronicas@gmail.com
  */
 
 import {
@@ -16,9 +18,7 @@ import {
   TextRenderable,
   createCliRenderer,
 } from "@opentui/core"
-import { tmpdir } from "node:os"
 import { appendFileSync } from "node:fs"
-import { join } from "node:path"
 import type {
   FrpEndpoint,
   FrpProxy,
@@ -36,6 +36,7 @@ import type {
 } from "../../../contracts/ts/index.ts"
 import { loadKeybindings, matchesAction } from "./config/keybindings.ts"
 import { exportDiagnostics } from "./diagnostics/export.ts"
+import { envValue, resolveSocketPath, SUPERVISOR } from "./identity.ts"
 import {
   loadPreferences,
   nextPanelWidth,
@@ -53,7 +54,7 @@ let hostPanelWidth = preferences.hostPanelWidth
 const MAX_SESSIONS = 16
 const MAX_PENDING_BYTES = 1 << 20
 
-const debugFile = process.env.TRSS_UI_DEBUG
+const debugFile = envValue("UI_DEBUG")
 const debug = (message: string) => {
   if (debugFile) {
     try {
@@ -68,18 +69,10 @@ const loadedBindings = loadKeybindings()
 const keybindings = loadedBindings.bindings
 for (const error of loadedBindings.errors) debug(error)
 
-function defaultSocketPath(): string {
-  if (process.env.TRSS_SOCKET) return process.env.TRSS_SOCKET
-  const runtimeDir = process.env.XDG_RUNTIME_DIR
-  if (runtimeDir) return join(runtimeDir, "trss", "control.sock")
-  const uid = typeof process.getuid === "function" ? process.getuid() : "user"
-  return join(tmpdir(), `trss-${uid}`, "control.sock")
-}
-
-const socketPath = defaultSocketPath()
+const socketPath = resolveSocketPath()
 
 const cliArgs = process.argv.slice(2)
-let currentWorkspace = process.env.TRSS_WORKSPACE_NAME || "default"
+let currentWorkspace = envValue("WORKSPACE_NAME") || "default"
 for (let index = 0; index < cliArgs.length; index++) {
   if (cliArgs[index] === "--workspace" && cliArgs[index + 1]) {
     currentWorkspace = safeWorkspaceName(cliArgs[++index])
@@ -103,7 +96,7 @@ const root = new BoxRenderable(renderer, {
 
 const tabBar = new TextRenderable(renderer, {
   id: "tabbar",
-  content: " TRSS",
+  content: " ssh05 · Dinámicas Electrónicas",
   fg: RGBA.fromInts(225, 230, 240),
   bg: RGBA.fromInts(38, 44, 58),
   height: 1,
@@ -591,7 +584,7 @@ const paletteCommands = [
   "Preferencias",
   "Transferencias",
   "FRP",
-  "Salir de TRSS",
+  "Salir de ssh05",
   "Ayuda",
 ]
 
@@ -607,7 +600,7 @@ function hostTarget(host: HostProfile): string {
 
 function tmuxSessionName(alias: string): string {
   const safe = alias.replace(/[^A-Za-z0-9_-]+/g, "-").replace(/^-+|-+$/g, "")
-  return `trss-${safe || "host"}`
+  return `ssh05-${safe || "host"}`
 }
 
 function filteredHosts(): HostProfile[] {
@@ -654,7 +647,7 @@ function renderHosts(): void {
   if (hosts.length === 0) {
     hostList.content =
       `\n No hay hosts disponibles.\n\n` +
-      ` trssd: ${socketPath}\n\n` +
+      ` ${SUPERVISOR}: ${socketPath}\n\n` +
       " Añade un bloque Host a ~/.ssh/config\n"
     return
   }
@@ -2672,7 +2665,7 @@ async function start(): Promise<void> {
   try {
     client = await IpcClient.connect(socketPath)
   } catch (error) {
-    errorText = `No se pudo conectar a trssd en ${socketPath}: ${String(error)}. Arranca ./bin/trssd`
+    errorText = `No se pudo conectar a ${SUPERVISOR} en ${socketPath}: ${String(error)}. Arranca ./bin/${SUPERVISOR}`
     uiDirty()
     return
   }

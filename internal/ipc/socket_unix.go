@@ -8,15 +8,14 @@ import (
 	"os"
 	"path/filepath"
 	"time"
+
+	"github.com/lordpietre/ssh05/internal/identity"
 )
 
-// DefaultSocketPath returns $XDG_RUNTIME_DIR/trss/control.sock when available,
+// DefaultSocketPath returns $XDG_RUNTIME_DIR/ssh05/control.sock when available,
 // otherwise a per-user directory under os.TempDir().
 func DefaultSocketPath() string {
-	if runtimeDir := os.Getenv("XDG_RUNTIME_DIR"); runtimeDir != "" {
-		return filepath.Join(runtimeDir, "trss", "control.sock")
-	}
-	return filepath.Join(os.TempDir(), fmt.Sprintf("trss-%d", os.Getuid()), "control.sock")
+	return identity.UserSocketPath()
 }
 
 func listenUnix(path string) (net.Listener, error) {

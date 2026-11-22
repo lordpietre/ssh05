@@ -1,4 +1,4 @@
-// Package ipc implements the local, authenticated control transport for TRSS.
+// Package ipc implements the local, authenticated control transport for ssh05.
 //
 // It uses a Unix domain socket, a length-prefixed JSON control frame and a
 // separate binary frame for PTY bytes. The package deliberately does not know

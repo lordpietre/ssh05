@@ -141,14 +141,14 @@ func TestFrpRemoteCopyCommandHandlesPlainTildePath(t *testing.T) {
 	}
 
 	home := t.TempDir()
-	cmd := frpRemoteCopyCommand("~/trss.conf", "600")
+	cmd := frpRemoteCopyCommand("~/ssh05.conf", "600")
 	command := exec.Command("sh", "-c", cmd)
 	command.Env = append(os.Environ(), "HOME="+home)
 	command.Stdin = strings.NewReader("x")
 	if out, err := command.CombinedOutput(); err != nil {
 		t.Fatalf("remote copy script failed: %v\n%s", err, out)
 	}
-	if _, err := os.Stat(filepath.Join(home, "trss.conf")); err != nil {
+	if _, err := os.Stat(filepath.Join(home, "ssh05.conf")); err != nil {
 		t.Fatalf("tilde path not expanded into HOME: %v", err)
 	}
 }

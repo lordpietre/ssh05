@@ -1,23 +1,23 @@
 /**
- * DAT-01 check: real SCP and SFTP upload/download through trssd.
+ * DAT-01 check: real SCP and SFTP upload/download through ssh05d.
  * Used by ui-smoke with the local sshd fixture.
  */
 import { readFileSync, unlinkSync, writeFileSync } from "node:fs"
 import { IpcClient } from "../src/ipc/client.ts"
 
-const socket = process.env.TRSS_SOCKET
-const alias = process.env.TRSS_TEST_SSH_ALIAS
+const socket = process.env.SSH05_SOCKET
+const alias = process.env.SSH05_TEST_SSH_ALIAS
 if (!socket || !alias) {
-  console.error("TRSS_SOCKET and TRSS_TEST_SSH_ALIAS are required")
+  console.error("SSH05_SOCKET and SSH05_TEST_SSH_ALIAS are required")
   process.exit(2)
 }
 
 const hostAlias = alias as string
 const stamp = `${Date.now()}-${process.pid}`
-const localUpload = `/tmp/trss-xfer-upload-${stamp}.txt`
-const localDownload = `/tmp/trss-xfer-download-${stamp}.txt`
-const remote = `/tmp/trss-xfer-remote-${stamp}.txt`
-const payload = "TRSS_TRANSFER_OK"
+const localUpload = `/tmp/ssh05-xfer-upload-${stamp}.txt`
+const localDownload = `/tmp/ssh05-xfer-download-${stamp}.txt`
+const remote = `/tmp/ssh05-xfer-remote-${stamp}.txt`
+const payload = "SSH05_TRANSFER_OK"
 writeFileSync(localUpload, payload, { mode: 0o600 })
 
 const client = await IpcClient.connect(socket)

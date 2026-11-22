@@ -36,7 +36,7 @@ describe("loadPreferences", () => {
 
 describe("savePreferences", () => {
   test("writes private JSON", () => {
-    const dir = mkdtempSync(join(tmpdir(), "trss-prefs-"))
+    const dir = mkdtempSync(join(tmpdir(), "ssh05-prefs-"))
     const path = join(dir, "nested", "preferences.json")
     savePreferences({ hostPanelWidth: 42, density: "compact", tabPosition: "bottom" }, path)
     expect(JSON.parse(readFileSync(path, "utf8"))).toEqual({

@@ -1,11 +1,11 @@
-# Aceptación Fase P1 (TRSS 0.2)
+# Aceptación Fase P1 (ssh05 0.3)
 
 | Campo | Valor |
 |---|---|
 | Fecha | 22/11/2026 |
-| Alcance | Todos los requisitos `P1` del SDD 0.2 |
+| Alcance | Todos los requisitos `P1` del SDD 0.3 |
 | Fuera de alcance | `P2`: Nmap, GeoIP/ASN/RDAP, SFTP/SCP/trzsz |
-| Documento | `TRSS_SDD_v0.2.md` |
+| Documento | `SSH05_SDD_v0.3.md` |
 | Estado | **Aprobado** |
 
 ## Cómo reproducir
@@ -16,7 +16,7 @@ cd prototype/terminal && bun run typecheck && bun test
 
 make p1-smoke          # host key + UI + FRP real del supervisor
 make verify            # tests + contratos + p1-smoke
-make trssd-frp-smoke   # solo frps/frpc reales a través de trssd
+make ssh05d-frp-smoke   # solo frps/frpc reales a través de ssh05d
 ```
 
 `make p1-smoke` requiere `bin/frps`, `bin/frpc`, `python3`, `curl` y `bun`.
@@ -27,12 +27,12 @@ Los binarios FRP se obtienen con `make download-frp`.
 | ID | Estado | Evidencia |
 |---|---|---|
 | SES-06 | Cumplido | `internal/supervisor/backend.go`: backoff, límite y cancelación; tests de reconexión |
-| SES-07 | Cumplido | tmux opcional con `Ctrl+G`; nombres `trss-<alias>`; `tmuxStartCommand` en el runner |
+| SES-07 | Cumplido | tmux opcional con `Ctrl+G`; nombres `ssh05-<alias>`; `tmuxStartCommand` en el runner |
 | SES-08 | Cumplido | Restauración pendiente; `TmuxCreate=false` + `tmux has-session`; si falta, shell y se borra el binding |
 | INV-02 | Cumplido | `ssh05.ListHostEntries` respeta `Include`; `TestSSHHostsInclude` |
 | INV-03 | Cumplido | `internal/supervisor/keepass.go` importa KDBX con `keepassxc-cli` |
 | INV-04 | Cumplido | `Inventory.mergeLocked` conserva procedencia y expone conflictos sin sobrescribir |
-| INV-05 | Cumplido | `#!!` + overrides persistentes en `~/.config/trss/hosts.json`; `F2` favorito, `F3` color, `F4` etiquetas |
+| INV-05 | Cumplido | `#!!` + overrides persistentes en `~/.config/ssh05/hosts.json`; `F2` favorito, `F3` color, `F4` etiquetas |
 | AUT-02 | Cumplido | `SSH_AUTH_SOCK` + `ssh-add -l`; solo proveedor/identidades, sin extraer claves |
 | AUT-03 | Cumplido | `AuthRef` estable por UUID de KeePass; nunca contiene el secreto |
 | AUT-04 | Cumplido | Tokens/secretos cifrados, auditoría saneada, sin credenciales en perfiles ni logs |
@@ -48,10 +48,10 @@ Los binarios FRP se obtienen con `make download-frp`.
 | RUT-01 | Cumplido | `routes.plan` combina directo, `ProxyJump` y visitor FRP |
 | RUT-02 | Cumplido | `routes.probe`: `reachable`, `refused`, `timeout`, `dns_failure`, `unknown`; timeout no se interpreta como cerrado |
 | RUT-03 | Cumplido | La ruta elegida se muestra en la barra de estado; no se abren exposiciones públicas silenciosas |
-| UI-02 | Cumplido | Color RGB con degradación a 256/16 y `NO_COLOR`/`TRSS_THEME=mono` |
+| UI-02 | Cumplido | Color RGB con degradación a 256/16 y `NO_COLOR`/`SSH05_THEME=mono` |
 | UI-03 | Cumplido | Icono + texto de estado; el color nunca decide el significado |
 | UI-04 | Cumplido | Búsqueda de hosts, paleta `Ctrl+K` y atajos en `keybindings.json` |
-| OPS-01 | Cumplido | Workspaces, pestañas y tmux en `~/.config/trss/workspace.json` |
+| OPS-01 | Cumplido | Workspaces, pestañas y tmux en `~/.config/ssh05/workspace.json` |
 | OPS-02 | Cumplido | Sesiones y túneles separados; grupo de proceso, `Pdeathsig` en Linux y `Close` sin huérfanos |
 | SEG-03 | Cumplido | Socket 0700/0600, credenciales de par, operaciones tipadas IPC |
 | SEG-04 | Cumplido | `internal/audit` rota y sanea sin secretos; retención con `--audit-max-files` |
@@ -75,7 +75,7 @@ envían a servicios externos.
 
 ## Extra posterior: preferencias de UI
 
-`~/.config/trss/preferences.json` (`TRSS_PREFERENCES`) guarda ancho del panel,
+`~/.config/ssh05/preferences.json` (`SSH05_PREFERENCES`) guarda ancho del panel,
 densidad y posición de pestañas. La paleta abre «Preferencias»; los cambios se
 aplican y persisten con permisos `0600`.
 
@@ -91,7 +91,7 @@ contra un sshd real.
 
 `diagnostics.report` devuelve versión, hosts, conflictos, sesiones, vault y
 estado FRP sin tokens ni datos de PTY. La paleta (`Ctrl+K`) permite exportarlo
-a `~/.local/state/trss/diagnostics/` con permisos `0600`.
+a `~/.local/state/ssh05/diagnostics/` con permisos `0600`.
 
 ## Extra posterior: concurrencia de conexiones
 
@@ -102,7 +102,7 @@ el establecimiento de conexiones ya no lo está.
 
 ## Pruebas reales de red
 
-`make trssd-frp-smoke` levanta un `frps` gestionado y un `frpc` reales, crea
+`make ssh05d-frp-smoke` levanta un `frps` gestionado y un `frpc` reales, crea
 proxies TCP, UDP, STCP y XTCP, comprueba HTTP y eco UDP, valida la ruta FRP
 STCP, detiene cada proxy y verifica que deja de ser alcanzable. XTCP se prueba
 de extremo a extremo cuando STUN/NAT lo permite; en redes restringidas se
@@ -118,6 +118,6 @@ informa como SKIP.
 - La rotación de un `frps` remoto se rechaza a propósito: el token no se
   expone por IPC. La recuperación es actualizar el token fuera de banda y
   reiniciar con `--frp-token ... --frp-token-force`.
-- Los proxies FRP no se reinician automáticamente tras reiniciar `trssd`;
+- Los proxies FRP no se reinician automáticamente tras reiniciar `ssh05d`;
   permanecen definidos y se reaplican desde la UI o por IPC.
 - No se implementan los requisitos `P2` del SDD.

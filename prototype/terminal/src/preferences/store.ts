@@ -1,6 +1,6 @@
 import { chmodSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
-import { homedir } from "node:os"
 import { dirname, join } from "node:path"
+import { configDir, envValue } from "../identity.ts"
 
 export type Density = "compact" | "comfortable"
 export type TabPosition = "top" | "bottom"
@@ -22,8 +22,7 @@ export const MIN_PANEL_WIDTH = 20
 export const MAX_PANEL_WIDTH = 60
 
 export function defaultPreferencesPath(env: Record<string, string | undefined> = process.env): string {
-  if (env.TRSS_PREFERENCES) return env.TRSS_PREFERENCES
-  return join(env.HOME || homedir(), ".config", "trss", "preferences.json")
+  return envValue("PREFERENCES", env) ?? join(configDir(env), "preferences.json")
 }
 
 export function sanitizePreferences(input: unknown): Preferences {

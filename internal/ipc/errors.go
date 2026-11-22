@@ -6,7 +6,7 @@ import (
 	"github.com/lordpietre/ssh05/contracts"
 )
 
-// JSON-RPC 2.0 plus TRSS application codes.
+// JSON-RPC 2.0 plus ssh05 application codes.
 const (
 	CodeParseError      = -32700
 	CodeInvalidRequest  = -32600
