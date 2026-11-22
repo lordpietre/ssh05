@@ -1617,7 +1617,7 @@ function renderTransfers(): void {
       `  ${form.field === 0 ? ">" : " "} Local:  ${form.localPath}`,
       `  ${form.field === 1 ? ">" : " "} Remoto: ${form.remotePath}`,
       "",
-      `  p protocolo: ${form.protocol} · r recursivo: ${form.recursive ? "sí" : "no"}`,
+      `  Ctrl+P protocolo: ${form.protocol} · Ctrl+R recursivo: ${form.recursive ? "sí" : "no"}`,
       "",
       "  Tab/↑↓ campo · Enter iniciar · Esc cancelar",
     ]
@@ -1733,9 +1733,9 @@ async function handleTransferKey(key: KeyEvent): Promise<void> {
       form.field = (form.field + 1) % 2
     } else if (name === "up") {
       form.field = (form.field + 1) % 2
-    } else if (name === "p") {
+    } else if (key.ctrl && name === "p") {
       form.protocol = form.protocol === "sftp" ? "scp" : "sftp"
-    } else if (name === "r") {
+    } else if (key.ctrl && name === "r") {
       form.recursive = !form.recursive
     } else if (name === "backspace" || name === "delete") {
       if (form.field === 0) {
