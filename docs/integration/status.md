@@ -79,6 +79,7 @@
 | Barra de botones navegable | **Hecho** | `Menú`, acciones y ratón; `Tab`/flechas |
 | Identidad ssh05 reunificada | **Hecho** | `ssh05d`, `src/ssh05.ts`, rutas `~/.config/ssh05`, `SSH05_*` con respaldo `TRSS_*` |
 | Vendor y soporte en el producto | **Hecho** | `internal/identity/`, `--version` y ayuda; `Dinámicas Electrónicas` |
+| Publicación del release 0.3.18 | **Hecho** | `v0.3.18`: 4 `.deb` + checksums; `docs/releases/0.3.18.md` |
 | Alta de hosts desde la UI | **Hecho** | `hosts.create`, `Ctrl+N` |
 | Servicio de usuario y Docker opt-in | **Hecho** | `ssh05d.service`, `--docker` |
 | tmux solo se reengancha si existe | **Hecho** | `TmuxCreate=false`, sonda `has-session`, prueba real |
@@ -92,7 +93,9 @@
 |---|---|---|
 | — | DAT-01: trzsz/Zmodem | Condicionado a compatibilidad remota; SCP/SFTP ya operativos |
 | — | GeoIP de ciudad | No incluido; ASN/RDAP y país orientativo ya operativos |
-| P2 | Publicar release 0.3.18 | Código y `.deb` listos (commit `c0aa511`); notas en `docs/releases/0.3.18.md`; falta subir `main` + tag `v0.3.18` y publicar el release |
+
+El release 0.3.18 está publicado en
+<https://github.com/lordpietre/ssh05/releases/tag/v0.3.18>.
 
 ## Invariantes que no se negocian
 

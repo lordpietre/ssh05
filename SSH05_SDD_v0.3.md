@@ -718,6 +718,6 @@ Navegación completa por teclado, foco visible, mensajes legibles sin color, sop
   sesión tmux generados usan el prefijo `ssh05-`.
 - Versión del cliente: **0.3.18**. Se mantiene la compatibilidad con
   `~/.tssh.conf`, `TSSH_*` y `~/.tssh/` heredada de `trzsz-ssh`.
-- **Pendiente:** publicar el release 0.3.18. Los `.deb` de Ubuntu/Debian
-  (amd64/arm64) ya se generaron en `dist/` e `installers/` con la identidad
-  ssh05 y el servicio `ssh05d.service`.
+- **Publicado:** release `v0.3.18` con los `.deb` de Ubuntu/Debian
+  (amd64/arm64) y sus checksums, generados con la identidad ssh05 y el
+  servicio `ssh05d.service`. Notas en `docs/releases/0.3.18.md`.
