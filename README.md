@@ -81,28 +81,44 @@ DragFileUploadCommand = trz -y
 DefaultDownloadPath = ~/Downloads
 ```
 
-### Instalar .deb (Ubuntu / Debian)
+### Instalar desde el release (Ubuntu / Debian)
+
+Descarga el `.deb` de tu arquitectura desde
+<https://github.com/lordpietre/ssh05/releases/latest> (`ubuntu` o `debian`;
+`amd64` o `arm64`):
 
 ```sh
-make deb
-sudo apt install ./dist/ssh05_*_ubuntu_amd64.deb
-# o ./dist/ssh05_*_debian_amd64.deb
+VERSION=0.3.19
+wget "https://github.com/lordpietre/ssh05/releases/download/v${VERSION}/ssh05_${VERSION}_ubuntu_amd64.deb"
+wget "https://github.com/lordpietre/ssh05/releases/download/v${VERSION}/ssh05_${VERSION}_ubuntu_amd64.deb.sha256"
+sha256sum -c "ssh05_${VERSION}_ubuntu_amd64.deb.sha256"
+sudo apt install "./ssh05_${VERSION}_ubuntu_amd64.deb"
 ```
 
-Cada push a `main` genera `.deb` para Ubuntu y Debian (amd64 y arm64)
-como artifacts de GitHub Actions. Los paquetes incluyen `ssh05` y `ssh05d`.
-Las etiquetas `v*` también los adjuntan al release.
-
-La UI OpenTUI no se incluye en el `.deb`: requiere Bun y dependencias nativas.
-Se ejecuta desde `prototype/terminal` con `bun install && bun run ui` contra un
-`ssh05d` en marcha.
-
-El paquete instala `ssh05d.service` para systemd de usuario:
+El paquete instala `ssh05` (cliente) y `ssh05d` (supervisor) y la unidad de
+usuario `ssh05d.service`:
 
 ```sh
 systemctl --user daemon-reload
 systemctl --user enable --now ssh05d
 ```
+
+El cliente funciona por sí solo (`ssh05 usuario@host`). La UI OpenTUI no se
+incluye en el `.deb`: requiere Bun y dependencias nativas, y se ejecuta desde
+`prototype/terminal` con `bun install && bun run ui` contra el `ssh05d` en
+marcha.
+
+### Construir el .deb localmente
+
+```sh
+make deb
+sudo apt install ./dist/ssh05_0.3.19_ubuntu_amd64.deb
+# o ./dist/ssh05_0.3.19_debian_amd64.deb
+```
+
+Cada push a `main` genera `.deb` para Ubuntu y Debian (amd64 y arm64)
+como artifacts de GitHub Actions. Los paquetes incluyen `ssh05` y `ssh05d`.
+Las etiquetas `v*` también los adjuntan al release.
 
 ### Compilar
 

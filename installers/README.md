@@ -22,9 +22,10 @@ systemctl --user daemon-reload
 systemctl --user enable --now ssh05d
 ```
 
-Instalación:
+Instalación (verifica antes la suma):
 
 ```sh
+sha256sum -c ssh05_0.3.19_ubuntu_amd64.deb.sha256
 sudo apt install ./ssh05_0.3.19_ubuntu_amd64.deb
 ```
 
