@@ -72,9 +72,10 @@ nfpms:
       {{- else if eq .Arch "arm" }}armv{{ .Arm }}
       {{- else }}{{ .Arch }}{{ end }}
     homepage: https://github.com/lordpietre/ssh05
-    maintainer: lordpietre <pietrelinux@gmail.com>
+    maintainer: Dinámicas Electrónicas <dinamicas.electronicas@gmail.com>
     description: |
       ssh05 is a highly OpenSSH-compatible client with extended features.
+      Soporte: dinamicas.electronicas@gmail.com
     license: MIT
     formats:
       - rpm

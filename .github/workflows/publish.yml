@@ -2,6 +2,9 @@ name: Release and publish ssh05
 on:
   release:
     types: [released]
+  workflow_dispatch:
+permissions:
+  contents: write
 jobs:
   release-and-publish:
     name: Release and publish ssh05
