@@ -387,14 +387,18 @@ func TestBackendLargeOutputIsBoundedBeforeAttach(t *testing.T) {
 	for written := 0; written < total; written += len(chunk) {
 		run.emit(string(chunk))
 	}
-	run.finish(0)
 
 	eventually(t, func() bool {
 		backend.mu.RLock()
 		defer backend.mu.RUnlock()
-		pending := len(backend.sessions[id].pending)
+		session := backend.sessions[id]
+		if session == nil {
+			return false
+		}
+		pending := len(session.pending)
 		return pending > 0 && pending <= (1<<20)
 	})
+	run.finish(0)
 }
 
 func TestBackendLargeOutputReachesHandler(t *testing.T) {
