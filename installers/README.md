@@ -1,12 +1,12 @@
-# Instaladores ssh05 0.3.16
+# Instaladores ssh05 0.3.17
 
 Los `.deb` para Ubuntu y Debian están en esta carpeta:
 
 ```text
-ssh05_0.3.16_ubuntu_amd64.deb
-ssh05_0.3.16_ubuntu_arm64.deb
-ssh05_0.3.16_debian_amd64.deb
-ssh05_0.3.16_debian_arm64.deb
+ssh05_0.3.17_ubuntu_amd64.deb
+ssh05_0.3.17_ubuntu_arm64.deb
+ssh05_0.3.17_debian_amd64.deb
+ssh05_0.3.17_debian_arm64.deb
 *.sha256
 ```
 
@@ -25,12 +25,12 @@ systemctl --user enable --now trssd
 Instalación:
 
 ```sh
-sudo apt install ./ssh05_0.3.16_ubuntu_amd64.deb
+sudo apt install ./ssh05_0.3.17_ubuntu_amd64.deb
 ```
 
 También están publicados en:
 
-https://github.com/lordpietre/ssh05/releases/tag/v0.3.16
+https://github.com/lordpietre/ssh05/releases/tag/v0.3.17
 
 Para regenerarlos:
 

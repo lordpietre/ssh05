@@ -679,3 +679,24 @@ func waitTransferState(t *testing.T, ctx context.Context, client *ipc.Client, id
 	}
 	t.Fatalf("transfer %s did not reach %s", id, want)
 }
+
+func TestServiceHostsListEmptyIsArray(t *testing.T) {
+	service := NewService(NewBackend(&fakeRunner{}, Options{}), nil)
+	socket := startServiceServer(t, service)
+	client, err := ipc.Dial(socket)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer client.Close()
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	result, err := ipc.CallTyped[contracts.HostsListParams, contracts.HostsListResult](
+		ctx, client, contracts.MethodHostsList, contracts.HostsListParams{},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Hosts == nil || len(result.Hosts) != 0 {
+		t.Fatalf("hosts = %#v", result.Hosts)
+	}
+}

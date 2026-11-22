@@ -1,3 +1,9 @@
+ssh05 (0.3.17) unstable; urgency=medium
+
+  * hosts.list devuelve siempre un array y evita el error de la UI vacía.
+
+ -- lordpietre <pietrelinux@gmail.com>  Sun, 22 Nov 2026 21:00:00 +0000
+
 ssh05 (0.3.16) unstable; urgency=medium
 
   * Servicio de usuario trssd y Docker desactivado por defecto en el supervisor.

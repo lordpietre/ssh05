@@ -1,4 +1,4 @@
-# Revisión funcional completa — ssh05 0.3.16
+# Revisión funcional completa — ssh05 0.3.17
 
 | Campo | Valor |
 |---|---|

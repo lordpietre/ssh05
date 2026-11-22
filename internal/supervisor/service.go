@@ -413,7 +413,7 @@ func (s *Service) unlockVault(ctx context.Context, req contracts.RPCRequest) (js
 
 func (s *Service) listHosts(ctx context.Context, req contracts.RPCRequest) (json.RawMessage, *contracts.RPCError) {
 	if s.hosts == nil {
-		return marshal(contracts.HostsListResult{})
+		return marshal(contracts.HostsListResult{Hosts: []contracts.HostProfile{}})
 	}
 	params, rpcError := decodeParams[contracts.HostsListParams](req)
 	if rpcError != nil {
@@ -422,6 +422,9 @@ func (s *Service) listHosts(ctx context.Context, req contracts.RPCRequest) (json
 	hosts, err := s.hosts.List(ctx)
 	if err != nil {
 		return nil, internalError(err)
+	}
+	if hosts == nil {
+		hosts = []contracts.HostProfile{}
 	}
 	if params.Query != "" {
 		needle := strings.ToLower(params.Query)

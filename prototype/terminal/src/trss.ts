@@ -1511,7 +1511,7 @@ async function loadVaultStatus(): Promise<void> {
 async function loadHosts(): Promise<void> {
   if (!client) return
   const result = await client.call("hosts.list", {}, { timeoutMs: 5000 })
-  hosts = [...result.hosts].sort((a, b) => {
+  hosts = [...(result.hosts ?? [])].sort((a, b) => {
     if (Boolean(a.favorite) !== Boolean(b.favorite)) return a.favorite ? -1 : 1
     return a.alias.localeCompare(b.alias)
   })
