@@ -3,8 +3,6 @@
 Los `.deb` para Ubuntu y Debian están en esta carpeta:
 
 ```text
-Incluye los binarios ssh05 y trssd.
-
 ssh05_0.3.14_ubuntu_amd64.deb
 ssh05_0.3.14_ubuntu_arm64.deb
 ssh05_0.3.14_debian_amd64.deb
@@ -17,9 +15,7 @@ Incluyen el cliente `ssh05` y el supervisor `trssd`.
 Instalación:
 
 ```sh
-sudo apt install ./Incluye los binarios ssh05 y trssd.
-
-ssh05_0.3.14_ubuntu_amd64.deb
+sudo apt install ./ssh05_0.3.14_ubuntu_amd64.deb
 ```
 
 También están publicados en:
