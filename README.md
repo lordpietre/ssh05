@@ -177,6 +177,10 @@ Línea base de rendimiento: `make bench` (ver `docs/performance.md`).
 El supervisor permite acotar `--max-sessions` y `--max-pending-bytes`, y la
 auditoría retiene `--audit-max-files` archivos rotados.
 
+El SDD 0.2 queda cubierto en P0, P1 y P2 funcional: sesiones, inventario,
+KeePass, FRP, rutas, diagnóstico, transferencias SCP/SFTP, workspaces y
+preferencias. Solo trzsz/Zmodem queda condicionado a compatibilidad remota.
+
 La paleta incluye «Escanear con Nmap» (optativo, con confirmación y solo en
 hosts del inventario) e «Información de red» (ASN por Team Cymru, RDAP y país
 orientativo con procedencia y precisión limitada).

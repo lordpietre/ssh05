@@ -5,7 +5,7 @@
 | Fecha | 22/11/2026 |
 | Commit base | `6e98b8d` |
 | Documento | `TRSS_SDD_v0.2.md` |
-| Fase actual | **P0 + P1 completadas**; DIA-01 adelantado; resto de P2 fuera del alcance |
+| Fase actual | **P0 + P1 cerrados**; **P2 funcional cerrado** salvo trzsz/Zmodem condicional |
 
 ## Hecho
 
@@ -83,8 +83,8 @@
 
 | Prioridad | Trabajo | Criterio de cierre |
 |---|---|---|
-| — | GeoIP de ciudad/precisión | No incluido; solo país de registro |
-| — | DAT-01: trzsz/Zmodem | Pendiente de compatibilidad remota |
+| — | DAT-01: trzsz/Zmodem | Condicionado a compatibilidad remota; SCP/SFTP ya operativos |
+| — | GeoIP de ciudad | No incluido; ASN/RDAP y país orientativo ya operativos |
 
 ## Invariantes que no se negocian
 
