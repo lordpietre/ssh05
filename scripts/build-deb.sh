@@ -62,5 +62,5 @@ chmod 0644 "$STAGE/DEBIAN/control"
 mkdir -p "$OUT"
 DEB="$OUT/ssh05_${VERSION}_${DISTRO}_${DEB_ARCH}.deb"
 dpkg-deb --root-owner-group --build "$STAGE" "$DEB" >/dev/null
-sha256sum "$DEB" > "${DEB}.sha256"
+(cd "$OUT" && sha256sum "$(basename "$DEB")" > "$(basename "$DEB").sha256")
 echo "built $DEB"
