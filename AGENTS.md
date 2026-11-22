@@ -9,6 +9,7 @@ go build -o ./bin/ ./cmd/tssh
 go test -v -count=1 ./tssh    # must run from repo root
 make test                      # same as above (prefers `gotest` on unix)
 make bench                     # benchmarks de IPC, backend y FRP
+make verify                    # tests, contratos y smoke completo P1/P2
 make install                   # copies ./bin/tssh to /usr/bin/tssh
 ```
 

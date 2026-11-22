@@ -15,6 +15,7 @@ CGO_ENABLED=0 go test -count=1 ./tssh ./contracts ./internal/ipc ./internal/supe
 cd prototype/terminal && bun run typecheck && bun test
 
 make p1-smoke          # host key + UI + FRP real del supervisor
+make verify            # tests + contratos + p1-smoke
 make trssd-frp-smoke   # solo frps/frpc reales a través de trssd
 ```
 
