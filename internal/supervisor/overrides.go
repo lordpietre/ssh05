@@ -36,6 +36,8 @@ func (i *Inventory) loadOverridesLocked() {
 	path := i.config.OverridesPath
 	if path == "" {
 		path = defaultOverridesPath()
+	} else {
+		path = expandHome(path)
 	}
 	data, err := os.ReadFile(path)
 	if os.IsNotExist(err) {
@@ -59,6 +61,8 @@ func (i *Inventory) saveOverridesLocked() error {
 	path := i.config.OverridesPath
 	if path == "" {
 		path = defaultOverridesPath()
+	} else {
+		path = expandHome(path)
 	}
 	data, err := json.MarshalIndent(overrideFile{Hosts: i.overrides}, "", "  ")
 	if err != nil {
