@@ -74,7 +74,7 @@ func getSSH05Version() string {
 			_, file, _, _ := runtime.Caller(0)
 			if strings.Contains(filepath.ToSlash(file), "/pkg/mod/github.com/lordpietre/ssh05@") {
 				name := filepath.Base(filepath.Dir(filepath.Dir(file)))
-				re := regexp.MustCompile(`^trzsz-ssh@[^-]+-[^-]+-([0-9a-f]{12,})$`)
+				re := regexp.MustCompile(`^ssh05@[^-]+-[^-]+-([0-9a-f]{12,})$`)
 				if match := re.FindStringSubmatch(name); len(match) == 2 {
 					hash := match[1]
 					version.WriteByte('.')
