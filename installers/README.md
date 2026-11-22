@@ -12,6 +12,9 @@ ssh05_0.3.14_debian_arm64.deb
 
 Incluyen el cliente `ssh05` y el supervisor `trssd`.
 
+La UI OpenTUI no está dentro del `.deb`; requiere Bun y se ejecuta desde el
+repositorio (`prototype/terminal`, `bun install && bun run ui`).
+
 Instalación:
 
 ```sh

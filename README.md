@@ -87,6 +87,10 @@ Cada push a `main` genera `.deb` para Ubuntu y Debian (amd64 y arm64)
 como artifacts de GitHub Actions. Los paquetes incluyen `ssh05` y `trssd`.
 Las etiquetas `v*` también los adjuntan al release.
 
+La UI OpenTUI no se incluye en el `.deb`: requiere Bun y dependencias nativas.
+Se ejecuta desde `prototype/terminal` con `bun install && bun run ui` contra un
+`trssd` en marcha.
+
 ### Compilar
 
 ```sh
