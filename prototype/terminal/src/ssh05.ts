@@ -18,7 +18,8 @@ import {
   TextRenderable,
   createCliRenderer,
 } from "@opentui/core"
-import { appendFileSync } from "node:fs"
+import { appendFileSync, existsSync } from "node:fs"
+import { join } from "node:path"
 import type {
   FrpEndpoint,
   FrpProxy,
@@ -2660,12 +2661,49 @@ function nextFRPFormType(value: string): string {
   }
 }
 
+/**
+ * Starts ssh05d when the control socket is missing. The packaged unit is
+ * enabled globally, but this covers the first run after installation and
+ * launches before the user session reloads systemd.
+ */
+async function ensureSupervisor(): Promise<void> {
+  if (existsSync(socketPath)) return
+  const candidates = [
+    envValue("SUPERVISOR_BIN"),
+    SUPERVISOR,
+    join(import.meta.dir, "../../../bin", SUPERVISOR),
+  ].filter((value): value is string => Boolean(value))
+  for (const candidate of candidates) {
+    try {
+      const child = Bun.spawn({
+        cmd: [candidate, "--socket", socketPath],
+        stdin: "ignore",
+        stdout: "ignore",
+        stderr: "ignore",
+        env: process.env,
+      })
+      child.unref()
+      debug(`supervisor: started ${candidate}`)
+    } catch (error) {
+      debug(`supervisor: ${candidate} failed: ${String(error)}`)
+      continue
+    }
+    for (let attempt = 0; attempt < 50; attempt++) {
+      if (existsSync(socketPath)) return
+      await Bun.sleep(100)
+    }
+    debug(`supervisor: ${candidate} did not create ${socketPath}`)
+    return
+  }
+}
+
 async function start(): Promise<void> {
   uiDirty()
+  await ensureSupervisor()
   try {
     client = await IpcClient.connect(socketPath)
   } catch (error) {
-    errorText = `No se pudo conectar a ${SUPERVISOR} en ${socketPath}: ${String(error)}. Arranca ./bin/${SUPERVISOR}`
+    errorText = `No se pudo conectar a ${SUPERVISOR} en ${socketPath}: ${String(error)}. Comprueba el servicio ssh05d`
     uiDirty()
     return
   }

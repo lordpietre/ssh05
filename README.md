@@ -1,4 +1,4 @@
-## ssh05 — fork de trzsz-ssh v0.3.19
+## ssh05 — fork de trzsz-ssh v0.3.20
 
 Cliente SSH con interfaz TUI ncurses, reemplazo directo de OpenSSH. Fork de [trzsz-ssh](https://github.com/trzsz/trzsz-ssh) con gestión visual de hosts, túneles y edición inline.
 
@@ -88,32 +88,42 @@ Descarga el `.deb` de tu arquitectura desde
 `amd64` o `arm64`):
 
 ```sh
-VERSION=0.3.19
+VERSION=0.3.20
 wget "https://github.com/lordpietre/ssh05/releases/download/v${VERSION}/ssh05_${VERSION}_ubuntu_amd64.deb"
 wget "https://github.com/lordpietre/ssh05/releases/download/v${VERSION}/ssh05_${VERSION}_ubuntu_amd64.deb.sha256"
 sha256sum -c "ssh05_${VERSION}_ubuntu_amd64.deb.sha256"
 sudo apt install "./ssh05_${VERSION}_ubuntu_amd64.deb"
 ```
 
-El paquete instala `ssh05` (cliente) y `ssh05d` (supervisor) y la unidad de
-usuario `ssh05d.service`:
+El paquete instala y deja listo todo lo necesario:
+
+- `ssh05`: cliente.
+- `ssh05d`: supervisor, habilitado globalmente como unidad de usuario
+  (`/etc/systemd/user/default.target.wants/ssh05d.service`), por lo que arranca
+  al iniciar sesión sin ejecutar `systemctl`.
+- `ssh05-ui`: frontend OpenTUI con su runtime Bun y dependencias incluidas.
+
+Uso:
 
 ```sh
-systemctl --user daemon-reload
-systemctl --user enable --now ssh05d
+ssh05 usuario@host    # cliente clásico
+ssh05-ui              # UI multipestaña; arranca ssh05d si aún no está vivo
 ```
 
-El cliente funciona por sí solo (`ssh05 usuario@host`). La UI OpenTUI no se
-incluye en el `.deb`: requiere Bun y dependencias nativas, y se ejecuta desde
-`prototype/terminal` con `bun install && bun run ui` contra el `ssh05d` en
-marcha.
+`ssh05-ui` inicia el supervisor automáticamente si el socket no existe, así que
+la primera ejecución tras instalar también funciona. Si quieres arrancarlo en
+la sesión actual sin abrir la UI:
+
+```sh
+systemctl --user start ssh05d
+```
 
 ### Construir el .deb localmente
 
 ```sh
 make deb
-sudo apt install ./dist/ssh05_0.3.19_ubuntu_amd64.deb
-# o ./dist/ssh05_0.3.19_debian_amd64.deb
+sudo apt install ./dist/ssh05_0.3.20_ubuntu_amd64.deb
+# o ./dist/ssh05_0.3.20_debian_amd64.deb
 ```
 
 Cada push a `main` genera `.deb` para Ubuntu y Debian (amd64 y arm64)

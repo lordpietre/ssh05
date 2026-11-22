@@ -75,7 +75,9 @@ make install                   # copies ./bin/ssh05 y ./bin/ssh05d to /usr/bin
 - Supervisor: `internal/supervisor/` (backend, SSH runner, IPC service)
 - Daemon: `cmd/ssh05d/` (`make ssh05d`)
 - UI IPC client / TabStore: `prototype/terminal/src/ipc/`, `src/tabs/`
-- UI OpenTUI: `prototype/terminal/src/ssh05.ts` (`bun run ui`)
+- UI OpenTUI: `prototype/terminal/src/ssh05.ts` (`bun run ui`). El `.deb`
+  instala `ssh05-ui` con su runtime Bun y dependencias, y arranca `ssh05d` si
+  el socket no existe.
   - `Ctrl+G` activa/desactiva tmux remoto antes de abrir un host.
   - `Ctrl+P` abre el selector de workspaces; `n` crea uno nuevo.
   - Barra de acciones visible (`Menú`, `Hosts`, `Nuevo`, `WS`, `Rutas`,

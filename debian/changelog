@@ -1,3 +1,13 @@
+ssh05 (0.3.20) unstable; urgency=medium
+
+  * El .deb incluye la UI OpenTUI (`ssh05-ui`) con su runtime Bun y las
+    dependencias de producción, sin pasos posteriores.
+  * ssh05d queda habilitado globalmente como unidad de usuario
+    (`/etc/systemd/user/default.target.wants`); no hace falta systemctl.
+  * La UI arranca ssh05d automaticamente si el socket no existe.
+
+ -- Dinámicas Electrónicas <dinamicas.electronicas@gmail.com>  Sun, 22 Nov 2026 23:00:00 +0000
+
 ssh05 (0.3.19) unstable; urgency=medium
 
   * DAT-01: trzsz (trz/tsz) y Zmodem (rz/sz) dentro de las sesiones del
