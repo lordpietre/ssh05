@@ -79,7 +79,7 @@
 | Barra de botones navegable | **Hecho** | `Menú`, acciones y ratón; `Tab`/flechas |
 | Identidad ssh05 reunificada | **Hecho** | `ssh05d`, `src/ssh05.ts`, rutas `~/.config/ssh05`, `SSH05_*` con respaldo `TRSS_*` |
 | Vendor y soporte en el producto | **Hecho** | `internal/identity/`, `--version` y ayuda; `Dinámicas Electrónicas` |
-| Publicación del release 0.3.18 | **Hecho** | `v0.3.18`: 4 `.deb` + checksums; `docs/releases/0.3.18.md` |
+| Publicación del release 0.3.18 | **Hecho** | `v0.3.18`: `.deb` Ubuntu/Debian + checksums, binarios Linux/macOS/Windows/FreeBSD/Android, rpm y win7; `docs/releases/0.3.18.md` |
 | Alta de hosts desde la UI | **Hecho** | `hosts.create`, `Ctrl+N` |
 | Servicio de usuario y Docker opt-in | **Hecho** | `ssh05d.service`, `--docker` |
 | tmux solo se reengancha si existe | **Hecho** | `TmuxCreate=false`, sonda `has-session`, prueba real |
