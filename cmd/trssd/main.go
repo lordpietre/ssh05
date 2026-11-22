@@ -18,6 +18,7 @@ import (
 	frpmanager "github.com/trzsz/trzsz-ssh/internal/frp"
 	"github.com/trzsz/trzsz-ssh/internal/ipc"
 	"github.com/trzsz/trzsz-ssh/internal/supervisor"
+	transfermanager "github.com/trzsz/trzsz-ssh/internal/transfer"
 )
 
 func defaultAuditPath() string {
@@ -55,6 +56,8 @@ func main() {
 	frpcBin := flag.String("frpc", "frpc", "frpc binary")
 	frpcSHA256 := flag.String("frpc-sha256", "", "pinned SHA-256 for frpc (verified before start)")
 	frpConfig := flag.String("frp-config", "", "FRP manager config path")
+	scpBin := flag.String("scp", "scp", "scp binary for file transfers")
+	sftpBin := flag.String("sftp", "sftp", "sftp binary for file transfers")
 	flag.Parse()
 
 	logger, err := audit.NewRotating(*auditPath, *auditMaxBytes, *auditMaxFiles)
@@ -101,8 +104,15 @@ func main() {
 		os.Exit(1)
 	}
 	defer frpManager.Close()
+	transferManager := transfermanager.NewManager(transfermanager.Options{
+		SSHConfig: *sshConfig,
+		ScpBin:    *scpBin,
+		SftpBin:   *sftpBin,
+	})
+	defer transferManager.Close()
 	service := supervisor.NewService(backend, inventory,
-		supervisor.WithAudit(logger), supervisor.WithFRP(frpManager))
+		supervisor.WithAudit(logger), supervisor.WithFRP(frpManager),
+		supervisor.WithTransfers(transferManager))
 	server, err := ipc.Listen(*socket, service)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "trssd: %v\n", err)

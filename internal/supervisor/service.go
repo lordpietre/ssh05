@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"syscall"
@@ -16,6 +17,7 @@ import (
 	"github.com/trzsz/trzsz-ssh/internal/audit"
 	frpmanager "github.com/trzsz/trzsz-ssh/internal/frp"
 	"github.com/trzsz/trzsz-ssh/internal/ipc"
+	transfermanager "github.com/trzsz/trzsz-ssh/internal/transfer"
 )
 
 // HostProvider supplies the current non-secret host inventory.
@@ -35,10 +37,11 @@ type HostInventory interface {
 
 // Service maps the typed IPC methods onto the supervisor backend.
 type Service struct {
-	backend *Backend
-	hosts   HostProvider
-	audit   *audit.Logger
-	frp     *frpmanager.Manager
+	backend   *Backend
+	hosts     HostProvider
+	audit     *audit.Logger
+	frp       *frpmanager.Manager
+	transfers *transfermanager.Manager
 }
 
 // ServiceOption configures optional service integrations.
@@ -52,6 +55,11 @@ func WithAudit(logger *audit.Logger) ServiceOption {
 // WithFRP enables the local FRP supervisor.
 func WithFRP(manager *frpmanager.Manager) ServiceOption {
 	return func(service *Service) { service.frp = manager }
+}
+
+// WithTransfers enables typed SCP/SFTP transfers.
+func WithTransfers(manager *transfermanager.Manager) ServiceOption {
+	return func(service *Service) { service.transfers = manager }
 }
 
 // NewService creates the IPC handler for a supervisor backend.
@@ -121,6 +129,12 @@ func (s *Service) Handle(ctx context.Context, conn *ipc.Conn, req contracts.RPCR
 			status = inventory.VaultStatus()
 		}
 		return marshal(status)
+	case contracts.MethodTransfersStart:
+		return s.startTransfer(ctx, req)
+	case contracts.MethodTransfersList:
+		return s.listTransfers()
+	case contracts.MethodTransfersCancel:
+		return s.cancelTransfer(req)
 	case contracts.MethodVaultUnlock:
 		return s.unlockVault(ctx, req)
 	case contracts.MethodDiagnosticsReport:
@@ -148,6 +162,86 @@ func (s *Service) setHostOverride(ctx context.Context, req contracts.RPCRequest)
 	}
 	s.log(audit.Event{Action: "host.override", HostProfileID: profile.ID, Result: "ok"})
 	return marshal(profile)
+}
+
+func (s *Service) startTransfer(ctx context.Context, req contracts.RPCRequest) (json.RawMessage, *contracts.RPCError) {
+	if s.transfers == nil {
+		return nil, notImplemented()
+	}
+	params, rpcError := decodeParams[contracts.TransfersStartParams](req)
+	if rpcError != nil {
+		return nil, rpcError
+	}
+	target, port := s.transferTarget(ctx, params.HostProfileID, params.RouteID)
+	info, err := s.transfers.Start(ctx, transfermanager.Request{
+		Protocol:   params.Protocol,
+		Direction:  params.Direction,
+		Target:     target,
+		Port:       port,
+		LocalPath:  params.LocalPath,
+		RemotePath: params.RemotePath,
+		Recursive:  params.Recursive,
+	})
+	if err != nil {
+		s.log(audit.Event{Action: "transfer.start", HostProfileID: params.HostProfileID, Result: "error", ErrorCode: "internal"})
+		return nil, internalError(err)
+	}
+	s.log(audit.Event{Action: "transfer.start", HostProfileID: params.HostProfileID, Result: "ok", Detail: info.ID})
+	return marshal(toTransferInfo(info))
+}
+
+func (s *Service) listTransfers() (json.RawMessage, *contracts.RPCError) {
+	if s.transfers == nil {
+		return marshal(contracts.TransfersListResult{Transfers: []contracts.TransferInfo{}})
+	}
+	items := s.transfers.List()
+	out := make([]contracts.TransferInfo, 0, len(items))
+	for _, item := range items {
+		out = append(out, toTransferInfo(item))
+	}
+	return marshal(contracts.TransfersListResult{Transfers: out})
+}
+
+func (s *Service) cancelTransfer(req contracts.RPCRequest) (json.RawMessage, *contracts.RPCError) {
+	if s.transfers == nil {
+		return nil, notImplemented()
+	}
+	params, rpcError := decodeParams[contracts.TransfersCancelParams](req)
+	if rpcError != nil {
+		return nil, rpcError
+	}
+	if err := s.transfers.Cancel(params.TransferID); err != nil {
+		s.log(audit.Event{Action: "transfer.cancel", Result: "error", ErrorCode: "internal", Detail: params.TransferID})
+		return nil, internalError(err)
+	}
+	s.log(audit.Event{Action: "transfer.cancel", Result: "ok", Detail: params.TransferID})
+	return json.RawMessage(`{}`), nil
+}
+
+func toTransferInfo(info transfermanager.Info) contracts.TransferInfo {
+	return contracts.TransferInfo{
+		ID: info.ID, Protocol: info.Protocol, Direction: info.Direction,
+		Target: info.Target, LocalPath: info.LocalPath, RemotePath: info.RemotePath,
+		Recursive: info.Recursive, State: string(info.State),
+		StartedAt: info.StartedAt, FinishedAt: info.FinishedAt,
+		ErrorCode: info.ErrorCode, ErrorLabel: info.ErrorLabel,
+	}
+}
+
+func (s *Service) transferTarget(ctx context.Context, hostProfileID, routeID string) (string, int) {
+	destination := s.destinationForRoute(ctx, hostProfileID, routeID)
+	user := ""
+	rest := destination
+	if at := strings.LastIndex(rest, "@"); at >= 0 {
+		user = rest[:at+1]
+		rest = rest[at+1:]
+	}
+	if host, port, err := net.SplitHostPort(rest); err == nil {
+		if number, convErr := strconv.Atoi(port); convErr == nil {
+			return user + host, number
+		}
+	}
+	return destination, 0
 }
 
 func (s *Service) diagnosticsHost(ctx context.Context, req contracts.RPCRequest) (json.RawMessage, *contracts.RPCError) {

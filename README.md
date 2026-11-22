@@ -177,6 +177,11 @@ Línea base de rendimiento: `make bench` (ver `docs/performance.md`).
 El supervisor permite acotar `--max-sessions` y `--max-pending-bytes`, y la
 auditoría retiene `--audit-max-files` archivos rotados.
 
+La paleta «Transferencias» permite subir/descargar con SCP o SFTP usando el
+mismo `ssh_config` y agente que las sesiones. Requiere autenticación no
+interactiva (`BatchMode`); no se ejecuta ninguna shell. Trzsz/Zmodem queda
+pendiente de compatibilidad remota.
+
 La paleta «Preferencias» ajusta ancho del panel, densidad y posición de las
 pestañas; `Ctrl+Shift+←/→` reordena la pestaña activa. Las preferencias se guardan en
 `~/.config/trss/preferences.json` (`TRSS_PREFERENCES`).

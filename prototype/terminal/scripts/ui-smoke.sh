@@ -111,6 +111,7 @@ assert_contains "Probar ruta" "route probe command listed"
 assert_contains "Exportar diagnóstico saneado" "diagnostics export command listed"
 assert_contains "Diagnosticar host" "host diagnostics command listed"
 assert_contains "Preferencias" "preferences command listed"
+assert_contains "Transferencias" "transfers command listed"
 send Escape
 sleep 0.3
 send C-f
@@ -311,6 +312,10 @@ send C-p
 send Down
 send Enter
 assert_contains "[1 ● trss-ui-2]" "switching to lab reuses its live tab"
+
+echo "== file transfers =="
+TRSS_SOCKET="$SOCKET" TRSS_TEST_SSH_ALIAS=trss-ui-1 \
+  "$BUN" "$HERE/scripts/transfers-smoke.ts" || fail "file transfers"
 
 echo "== host diagnostics =="
 TRSS_SOCKET="$SOCKET" TRSS_TEST_SSH_ALIAS=trss-ui-1 \

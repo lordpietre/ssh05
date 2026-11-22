@@ -40,6 +40,9 @@ const (
 	MethodFrpRotate          Method = "frp.tokens.rotate"
 	MethodFrpServerStart     Method = "frp.servers.start"
 	MethodFrpServerStop      Method = "frp.servers.stop"
+	MethodTransfersStart     Method = "transfers.start"
+	MethodTransfersList      Method = "transfers.list"
+	MethodTransfersCancel    Method = "transfers.cancel"
 	MethodVaultStatus        Method = "vault.status"
 	MethodVaultUnlock        Method = "vault.unlockRequest"
 	MethodDiagnosticsReport  Method = "diagnostics.report"
@@ -72,6 +75,9 @@ var validMethods = map[Method]struct{}{
 	MethodFrpRotate:          {},
 	MethodFrpServerStart:     {},
 	MethodFrpServerStop:      {},
+	MethodTransfersStart:     {},
+	MethodTransfersList:      {},
+	MethodTransfersCancel:    {},
 	MethodVaultStatus:        {},
 	MethodVaultUnlock:        {},
 	MethodDiagnosticsReport:  {},
@@ -279,6 +285,41 @@ type FrpRotateParams struct {
 
 type FrpServerParams struct {
 	EndpointID string `json:"endpointId"`
+}
+
+// --- transfers ---
+
+type TransferInfo struct {
+	ID         string    `json:"transferId"`
+	Protocol   string    `json:"protocol"`
+	Direction  string    `json:"direction"`
+	Target     string    `json:"target"`
+	LocalPath  string    `json:"localPath"`
+	RemotePath string    `json:"remotePath"`
+	Recursive  bool      `json:"recursive"`
+	State      string    `json:"state"`
+	StartedAt  time.Time `json:"startedAt"`
+	FinishedAt time.Time `json:"finishedAt,omitempty"`
+	ErrorCode  string    `json:"errorCode,omitempty"`
+	ErrorLabel string    `json:"errorLabel,omitempty"`
+}
+
+type TransfersStartParams struct {
+	HostProfileID string `json:"hostProfileId"`
+	RouteID       string `json:"routeId,omitempty"`
+	Protocol      string `json:"protocol"`
+	Direction     string `json:"direction"`
+	LocalPath     string `json:"localPath"`
+	RemotePath    string `json:"remotePath"`
+	Recursive     bool   `json:"recursive,omitempty"`
+}
+
+type TransfersListResult struct {
+	Transfers []TransferInfo `json:"transfers"`
+}
+
+type TransfersCancelParams struct {
+	TransferID string `json:"transferId"`
 }
 
 // --- vault ---

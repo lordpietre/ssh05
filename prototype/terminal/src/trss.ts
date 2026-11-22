@@ -29,6 +29,7 @@ import type {
   SessionPhase,
   SessionStatus,
   TabId,
+  TransferInfo,
   TabRecord,
   TabState,
   Workspace,
@@ -302,6 +303,22 @@ const prefsOverlay = new TextRenderable(renderer, {
 
 renderer.root.add(prefsOverlay)
 
+const transferOverlay = new TextRenderable(renderer, {
+  id: "transfer-overlay",
+  position: "absolute",
+  top: 0,
+  left: 0,
+  width: "100%",
+  height: "100%",
+  visible: false,
+  zIndex: 107,
+  content: "",
+  fg: RGBA.fromInts(219, 226, 238),
+  bg: RGBA.fromInts(16, 19, 26),
+})
+
+renderer.root.add(transferOverlay)
+
 const pendingPlaceholder = new TextRenderable(renderer, {
   id: "pending-view",
   position: "absolute",
@@ -354,6 +371,18 @@ let paletteVisible = false
 let paletteCursor = 0
 let closeDialogVisible = false
 let closeDialogCursor = 0
+let transferVisible = false
+let transferForm: {
+  direction: "upload" | "download"
+  protocol: "sftp" | "scp"
+  localPath: string
+  remotePath: string
+  recursive: boolean
+  field: number
+} | null = null
+let transfers: TransferInfo[] = []
+let transferCursor = 0
+let transferPoll: ReturnType<typeof setInterval> | undefined
 let preferencesVisible = false
 let diagVisible = false
 let diagContent = ""
@@ -386,6 +415,7 @@ const paletteCommands = [
   "Diagnosticar host",
   "Exportar diagnóstico saneado",
   "Preferencias",
+  "Transferencias",
   "FRP",
   "Salir de TRSS",
 ]
@@ -531,6 +561,7 @@ function uiDirty(): void {
   renderLabelsEditor()
   renderDiagnostics()
   renderPreferences()
+  renderTransfers()
   renderer.requestRender()
 }
 
@@ -667,9 +698,12 @@ function executePalette(index: number): void {
       preferencesVisible = true
       break
     case 9:
-      void openFRP()
+      void openTransfers()
       break
     case 10:
+      void openFRP()
+      break
+    case 11:
       void quit()
       break
   }
@@ -1212,6 +1246,11 @@ function handleHostKey(key: KeyEvent): void {
 
 renderer.keyInput.on("keypress", (key) => {
   const name = key.name.toLowerCase()
+  if (transferVisible) {
+    key.stopPropagation()
+    void handleTransferKey(key)
+    return
+  }
   if (preferencesVisible) {
     key.stopPropagation()
     handlePreferencesKey(key)
@@ -1562,6 +1601,186 @@ function handleWorkspaceKey(key: KeyEvent): void {
   uiDirty()
 }
 
+
+function renderTransfers(): void {
+  if (!transferVisible) {
+    transferOverlay.visible = false
+    return
+  }
+  transferOverlay.visible = true
+  if (transferForm) {
+    const form = transferForm
+    const lines = [
+      "",
+      `  ${form.direction === "upload" ? "Subir" : "Descargar"} · ${form.protocol}`,
+      "",
+      `  ${form.field === 0 ? ">" : " "} Local:  ${form.localPath}`,
+      `  ${form.field === 1 ? ">" : " "} Remoto: ${form.remotePath}`,
+      "",
+      `  p protocolo: ${form.protocol} · r recursivo: ${form.recursive ? "sí" : "no"}`,
+      "",
+      "  Tab/↑↓ campo · Enter iniciar · Esc cancelar",
+    ]
+    transferOverlay.content = lines.join("\n")
+    return
+  }
+  const lines = ["", "  Transferencias", ""]
+  if (transfers.length === 0) lines.push("  Sin transferencias")
+  for (let index = 0; index < Math.min(transfers.length, 8); index++) {
+    const item = transfers[index]
+    const marker = index === transferCursor ? ">" : " "
+    const arrow = item.direction === "upload" ? "→" : "←"
+    const error = item.errorLabel ? ` · ${item.errorLabel}` : ""
+    lines.push(
+      `  ${marker} ${item.state} ${item.protocol} ${item.localPath} ${arrow} ${item.remotePath}${error}`,
+    )
+  }
+  lines.push("", "  u subir · d descargar · c cancelar · Esc cerrar")
+  transferOverlay.content = lines.join("\n")
+}
+
+async function refreshTransfers(): Promise<void> {
+  if (!client) return
+  try {
+    const result = await client.call("transfers.list", {}, { timeoutMs: 5000 })
+    transfers = result.transfers ?? []
+    transferCursor = Math.min(transferCursor, Math.max(0, transfers.length - 1))
+  } catch (error) {
+    debug(`transfers.list: ${String(error)}`)
+  }
+  uiDirty()
+}
+
+async function openTransfers(): Promise<void> {
+  transferVisible = true
+  transferForm = null
+  transferCursor = 0
+  await refreshTransfers()
+  stopTransferPoll()
+  transferPoll = setInterval(() => void refreshTransfers(), 700)
+}
+
+function closeTransfers(): void {
+  transferVisible = false
+  transferForm = null
+  stopTransferPoll()
+  uiDirty()
+}
+
+function stopTransferPoll(): void {
+  if (transferPoll) {
+    clearInterval(transferPoll)
+    transferPoll = undefined
+  }
+}
+
+function openTransferForm(direction: "upload" | "download"): void {
+  const host = currentFormHost()
+  if (!host) {
+    transientText = "Transferencia: no hay host seleccionado"
+    uiDirty()
+    return
+  }
+  transferForm = {
+    direction,
+    protocol: "sftp",
+    localPath: direction === "upload" ? `${process.cwd()}/` : `${process.env.HOME ?? "~"}/`,
+    remotePath: "~/",
+    recursive: false,
+    field: 0,
+  }
+  uiDirty()
+}
+
+async function startTransferForm(): Promise<void> {
+  if (!client || !transferForm) return
+  const form = transferForm
+  const host = currentFormHost()
+  if (!host) {
+    transientText = "Transferencia: no hay host seleccionado"
+    return
+  }
+  try {
+    const plan = await client.call("routes.plan", { hostProfileId: host.id }, { timeoutMs: 3000 })
+    await client.call(
+      "transfers.start",
+      {
+        hostProfileId: host.id,
+        routeId: plan.selected,
+        protocol: form.protocol,
+        direction: form.direction,
+        localPath: form.localPath,
+        remotePath: form.remotePath,
+        recursive: form.recursive,
+      },
+      { timeoutMs: 15_000 },
+    )
+    transferForm = null
+    await refreshTransfers()
+  } catch (error) {
+    transientText = `Transferencia: ${String(error)}`
+    uiDirty()
+  }
+}
+
+async function handleTransferKey(key: KeyEvent): Promise<void> {
+  const name = key.name.toLowerCase()
+  if (transferForm) {
+    const form = transferForm
+    if (name === "escape") {
+      transferForm = null
+    } else if (name === "tab" || name === "down") {
+      form.field = (form.field + 1) % 2
+    } else if (name === "up") {
+      form.field = (form.field + 1) % 2
+    } else if (name === "p") {
+      form.protocol = form.protocol === "sftp" ? "scp" : "sftp"
+    } else if (name === "r") {
+      form.recursive = !form.recursive
+    } else if (name === "backspace" || name === "delete") {
+      if (form.field === 0) {
+        form.localPath = name === "delete" ? "" : form.localPath.slice(0, -1)
+      } else {
+        form.remotePath = name === "delete" ? "" : form.remotePath.slice(0, -1)
+      }
+    } else if (name === "return" || name === "enter") {
+      await startTransferForm()
+      return
+    } else if (!key.ctrl && !key.meta && key.sequence) {
+      const chars = Array.from(key.sequence)
+      if (chars.length === 1 && chars[0] >= " ") {
+        if (form.field === 0) form.localPath += chars[0]
+        else form.remotePath += chars[0]
+      }
+    }
+    uiDirty()
+    return
+  }
+
+  if (name === "escape") {
+    closeTransfers()
+  } else if (name === "u") {
+    openTransferForm("upload")
+  } else if (name === "d") {
+    openTransferForm("download")
+  } else if (name === "up") {
+    transferCursor = Math.max(0, transferCursor - 1)
+  } else if (name === "down") {
+    transferCursor = Math.min(Math.max(0, transfers.length - 1), transferCursor + 1)
+  } else if (name === "c" && transfers[transferCursor] && client) {
+    try {
+      await client.call(
+        "transfers.cancel",
+        { transferId: transfers[transferCursor].transferId },
+        { timeoutMs: 5000 },
+      )
+      await refreshTransfers()
+    } catch (error) {
+      transientText = `Cancelar transferencia: ${String(error)}`
+    }
+  }
+  uiDirty()
+}
 
 function renderPreferences(): void {
   if (!preferencesVisible) {

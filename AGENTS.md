@@ -117,6 +117,7 @@ make install                   # copies ./bin/tssh to /usr/bin/tssh
 - Auditoría saneada: `--audit-log /ruta/audit.log --audit-max-bytes N --audit-max-files N`.
 - Límites: `--max-sessions N`, `--max-pending-bytes N`.
 - Overrides de hosts: `--hosts-overrides /ruta/hosts.json`.
+- Transferencias: `--scp scp --sftp sftp`; panel «Transferencias» en la paleta.
 - FRP: `--frp-server`, `--frp-port`, `--frp-token`, `--frpc`, `--frpc-sha256`, `--frps-listen`, `--frps`, `--frps-sha256`, `--frp-token-force`, `--frp-config`; panel `Ctrl+F` (`s` inicia/para frps local).
 - KeePass opcional:
   `./bin/trssd --ssh-config ~/.ssh/config --keepass-db ~/db.kdbx --keepass-key-file ~/db.key`

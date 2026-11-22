@@ -18,6 +18,7 @@ import (
 	"github.com/trzsz/trzsz-ssh/internal/audit"
 	frpmanager "github.com/trzsz/trzsz-ssh/internal/frp"
 	"github.com/trzsz/trzsz-ssh/internal/ipc"
+	transfermanager "github.com/trzsz/trzsz-ssh/internal/transfer"
 )
 
 func startServiceServer(t *testing.T, service *Service) string {
@@ -588,4 +589,87 @@ func callHostDiagnostics(t *testing.T, ctx context.Context, service *Service, ho
 		t.Fatal(err)
 	}
 	return result
+}
+
+func TestServiceTransfers(t *testing.T) {
+	dir := t.TempDir()
+	log := filepath.Join(dir, "scp.log")
+	scp := filepath.Join(dir, "scp")
+	script := "#!/bin/sh\necho \"$*\" >> " + log + "\ncase \"$*\" in *slow*) sleep 30;; esac\nexit 0\n"
+	if err := os.WriteFile(scp, []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	sshConfig := filepath.Join(dir, "ssh_config")
+	if err := os.WriteFile(sshConfig, []byte("Host lab\n    HostName 10.0.0.9\n    Port 2222\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	manager := transfermanager.NewManager(transfermanager.Options{ScpBin: scp, SftpBin: scp})
+	t.Cleanup(manager.Close)
+	service := NewService(NewBackend(&fakeRunner{}, Options{}),
+		NewInventory(InventoryConfig{SSHConfigPath: sshConfig}), WithTransfers(manager))
+	socket := startServiceServer(t, service)
+	client, err := ipc.Dial(socket)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer client.Close()
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	local := filepath.Join(dir, "file.txt")
+	if err := os.WriteFile(local, []byte("hello"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	started, err := ipc.CallTyped[contracts.TransfersStartParams, contracts.TransferInfo](
+		ctx, client, contracts.MethodTransfersStart, contracts.TransfersStartParams{
+			HostProfileID: "lab", Protocol: "scp", Direction: "upload",
+			LocalPath: local, RemotePath: "/tmp/file.txt",
+		},
+	)
+	if err != nil {
+		t.Fatalf("transfers.start: %v", err)
+	}
+	if started.Target != "lab" || started.LocalPath != local {
+		t.Fatalf("started = %+v", started)
+	}
+	waitTransferState(t, ctx, client, started.ID, "completed")
+	data, _ := os.ReadFile(log)
+	if !strings.Contains(string(data), "lab:/tmp/file.txt") {
+		t.Fatalf("scp args = %s", data)
+	}
+
+	slow, err := ipc.CallTyped[contracts.TransfersStartParams, contracts.TransferInfo](
+		ctx, client, contracts.MethodTransfersStart, contracts.TransfersStartParams{
+			HostProfileID: "lab", Protocol: "scp", Direction: "download",
+			LocalPath: local, RemotePath: "/slow",
+		},
+	)
+	if err != nil {
+		t.Fatalf("slow start: %v", err)
+	}
+	if _, err := ipc.CallTyped[contracts.TransfersCancelParams, struct{}](
+		ctx, client, contracts.MethodTransfersCancel, contracts.TransfersCancelParams{TransferID: slow.ID},
+	); err != nil {
+		t.Fatalf("transfers.cancel: %v", err)
+	}
+	waitTransferState(t, ctx, client, slow.ID, "cancelled")
+}
+
+func waitTransferState(t *testing.T, ctx context.Context, client *ipc.Client, id, want string) {
+	t.Helper()
+	deadline := time.Now().Add(5 * time.Second)
+	for time.Now().Before(deadline) {
+		list, err := ipc.CallTyped[struct{}, contracts.TransfersListResult](
+			ctx, client, contracts.MethodTransfersList, struct{}{},
+		)
+		if err == nil {
+			for _, item := range list.Transfers {
+				if item.ID == id && item.State == want {
+					return
+				}
+			}
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	t.Fatalf("transfer %s did not reach %s", id, want)
 }

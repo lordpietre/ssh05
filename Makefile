@@ -81,7 +81,7 @@ clean:
 	$(RM) ${BIN_DIR}/tssh ${BIN_DIR}/tssh.exe ${BIN_DIR}/trssd ${BIN_DIR}/trssd.exe ${BIN_DIR}/frps ${BIN_DIR}/frpc 2>/dev/null; true
 
 test:
-	${GO_TEST} -v -count=1 ./tssh ./contracts ./internal/ipc ./internal/supervisor ./internal/audit ./internal/frp
+	${GO_TEST} -v -count=1 ./tssh ./contracts ./internal/ipc ./internal/supervisor ./internal/audit ./internal/frp ./internal/transfer
 
 trssd:
 	CGO_ENABLED=0 go build -o ${BIN_DIR}/ ./cmd/trssd
@@ -107,7 +107,7 @@ bench:
 	CGO_ENABLED=0 ${GO_TEST} -run '^$$' -bench . -benchmem ./internal/ipc ./internal/supervisor ./internal/frp
 
 contracts-check:
-	CGO_ENABLED=0 ${GO_TEST} -count=1 ./contracts ./internal/ipc ./internal/supervisor ./internal/audit ./internal/frp
+	CGO_ENABLED=0 ${GO_TEST} -count=1 ./contracts ./internal/ipc ./internal/supervisor ./internal/audit ./internal/frp ./internal/transfer
 	cd prototype/terminal && $(BUN) run typecheck:contracts
 
 install: all

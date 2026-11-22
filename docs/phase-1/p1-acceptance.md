@@ -56,6 +56,14 @@ Los binarios FRP se obtienen con `make download-frp`.
 | SEG-04 | Cumplido | `internal/audit` rota y sanea sin secretos; retención con `--audit-max-files` |
 | SEG-05 | Cumplido | Fuzz de framing, pruebas de inyección, host key estricta y reconexión adversarial |
 
+## Extra posterior: DAT-01 (P2 adelantado)
+
+`transfers.start/list/cancel` ejecuta `scp` y `sftp` reales sin shell, con
+`BatchMode=yes`, entorno de agente/claves y grupo de proceso cancelable. Las
+rutas SCP remotas se restringen a caracteres seguros; SFTP admite espacios.
+La confirmación no se delega a la shell remota. Trzsz/Zmodem no está habilitado
+en esta compilación.
+
 ## Extra posterior: preferencias de UI
 
 `~/.config/trss/preferences.json` (`TRSS_PREFERENCES`) guarda ancho del panel,

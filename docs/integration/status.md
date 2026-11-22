@@ -70,6 +70,7 @@
 | Retención de auditoría y buffers | **Hecho** | `--audit-max-files`, `--max-pending-bytes` |
 | DIA-01 DNS, puerto, banner y latencia | **Hecho** | `diagnostics.host` + paleta y smoke real |
 | Línea base de rendimiento | **Hecho** | `make bench`, `docs/performance.md` |
+| DAT-01 SCP/SFTP tipado | **Hecho** | `transfers.start/list/cancel`, UI y smoke real |
 | Preferencias de UI persistentes | **Hecho** | ancho, densidad, posición y reordenado |
 | tmux solo se reengancha si existe | **Hecho** | `TmuxCreate=false`, sonda `has-session`, prueba real |
 | FRP real de extremo a extremo | **Hecho** | `scripts/trssd-frp-smoke.sh`: TCP/UDP/STCP/XTCP |
@@ -81,7 +82,7 @@
 | Prioridad | Trabajo | Criterio de cierre |
 |---|---|---|
 | — | DIA-02/DIA-03: Nmap, GeoIP/ASN/RDAP | Fuera del alcance acordado |
-| — | DAT-01: SFTP/SCP/trzsz | Fuera del alcance acordado |
+| — | DAT-01: trzsz/Zmodem | Pendiente de compatibilidad remota |
 
 ## Invariantes que no se negocian
 

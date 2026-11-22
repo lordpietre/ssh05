@@ -426,6 +426,39 @@ export interface FrpServerParams {
   endpointId: string
 }
 
+export interface TransferInfo {
+  transferId: string
+  protocol: string
+  direction: "upload" | "download"
+  target: string
+  localPath: string
+  remotePath: string
+  recursive: boolean
+  state: "running" | "completed" | "failed" | "cancelled"
+  startedAt: string
+  finishedAt?: string
+  errorCode?: string
+  errorLabel?: string
+}
+
+export interface TransfersStartParams {
+  hostProfileId: string
+  routeId?: string
+  protocol: "scp" | "sftp"
+  direction: "upload" | "download"
+  localPath: string
+  remotePath: string
+  recursive?: boolean
+}
+
+export interface TransfersListResult {
+  transfers: TransferInfo[]
+}
+
+export interface TransfersCancelParams {
+  transferId: string
+}
+
 export interface VaultStatusResult {
   provider: string
   locked: boolean
@@ -535,6 +568,9 @@ export interface MethodContracts {
   "frp.tokens.rotate": { params: FrpRotateParams; result: void }
   "frp.servers.start": { params: FrpServerParams; result: FrpEndpoint }
   "frp.servers.stop": { params: FrpServerParams; result: void }
+  "transfers.start": { params: TransfersStartParams; result: TransferInfo }
+  "transfers.list": { params: Record<string, never>; result: TransfersListResult }
+  "transfers.cancel": { params: TransfersCancelParams; result: void }
   "vault.status": { params: Record<string, never>; result: VaultStatusResult }
   "vault.unlockRequest": { params: VaultUnlockParams; result: VaultStatusResult }
   "diagnostics.report": { params: Record<string, never>; result: DiagnosticsReport }
@@ -571,6 +607,9 @@ export const IPC_METHODS = [
   "frp.tokens.rotate",
   "frp.servers.start",
   "frp.servers.stop",
+  "transfers.start",
+  "transfers.list",
+  "transfers.cancel",
   "vault.status",
   "vault.unlockRequest",
   "diagnostics.report",
