@@ -34,6 +34,8 @@ type HostInventory interface {
 	Import(ctx context.Context, source string, path string) (contracts.HostsImportResult, error)
 	SetOverride(ctx context.Context, patch contracts.HostOverridePatch) (contracts.HostProfile, error)
 	CreateHost(ctx context.Context, params contracts.HostCreateParams) (contracts.HostProfile, error)
+	UpdateHost(ctx context.Context, params contracts.HostUpdateParams) (contracts.HostProfile, error)
+	DeleteHost(ctx context.Context, params contracts.HostDeleteParams) error
 }
 
 // Service maps the typed IPC methods onto the supervisor backend.
@@ -91,6 +93,10 @@ func (s *Service) Handle(ctx context.Context, conn *ipc.Conn, req contracts.RPCR
 		return s.setHostOverride(ctx, req)
 	case contracts.MethodHostsCreate:
 		return s.createHost(ctx, req)
+	case contracts.MethodHostsUpdate:
+		return s.updateHost(ctx, req)
+	case contracts.MethodHostsDelete:
+		return s.deleteHost(ctx, req)
 	case contracts.MethodSessionsOpen:
 		return s.openSession(ctx, conn, req)
 	case contracts.MethodSessionsWrite:
@@ -175,6 +181,41 @@ func (s *Service) createHost(ctx context.Context, req contracts.RPCRequest) (jso
 	}
 	s.log(audit.Event{Action: "host.create", HostProfileID: profile.ID, Result: "ok"})
 	return marshal(profile)
+}
+
+func (s *Service) updateHost(ctx context.Context, req contracts.RPCRequest) (json.RawMessage, *contracts.RPCError) {
+	inventory, ok := s.hosts.(HostInventory)
+	if !ok {
+		return nil, notImplemented()
+	}
+	params, rpcError := decodeParams[contracts.HostUpdateParams](req)
+	if rpcError != nil {
+		return nil, rpcError
+	}
+	profile, err := inventory.UpdateHost(ctx, params)
+	if err != nil {
+		s.log(audit.Event{Action: "host.update", HostProfileID: params.Alias, Result: "error", ErrorCode: "internal"})
+		return nil, internalError(err)
+	}
+	s.log(audit.Event{Action: "host.update", HostProfileID: profile.ID, Result: "ok"})
+	return marshal(profile)
+}
+
+func (s *Service) deleteHost(ctx context.Context, req contracts.RPCRequest) (json.RawMessage, *contracts.RPCError) {
+	inventory, ok := s.hosts.(HostInventory)
+	if !ok {
+		return nil, notImplemented()
+	}
+	params, rpcError := decodeParams[contracts.HostDeleteParams](req)
+	if rpcError != nil {
+		return nil, rpcError
+	}
+	if err := inventory.DeleteHost(ctx, params); err != nil {
+		s.log(audit.Event{Action: "host.delete", HostProfileID: params.Alias, Result: "error", ErrorCode: "internal"})
+		return nil, internalError(err)
+	}
+	s.log(audit.Event{Action: "host.delete", HostProfileID: params.Alias, Result: "ok"})
+	return marshal(map[string]bool{"deleted": true})
 }
 
 func (s *Service) setHostOverride(ctx context.Context, req contracts.RPCRequest) (json.RawMessage, *contracts.RPCError) {

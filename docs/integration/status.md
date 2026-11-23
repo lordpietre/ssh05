@@ -94,6 +94,9 @@
 | Agrupación por origen | **Hecho** | `Hosts SSH` y `Contenedores` según `sourceRefs.kind` |
 | Bienvenida con controles | **Hecho** | splash inicial; `Enter`/`Esc`; `SSH05_NO_WELCOME=1` |
 | Comandos `/` | **Hecho** | `/connect`, `/conn`, `/new`, `/hosts`, `/frp`, `/transfers`, `/help`… |
+| Alias normalizado y errores inline | **Hecho** | `normalizeAlias`, formulario permanece abierto |
+| Cursor parpadeante | **Hecho** | campo activo de búsqueda/formularios |
+| Menú contextual del host | **Hecho** | `→`: Conectar, Editar, Eliminar; `hosts.update/delete` atómicos |
 | Alta de hosts desde la UI | **Hecho** | `hosts.create`, `Ctrl+N` |
 | Servicio de usuario y Docker opt-in | **Hecho** | `ssh05d.service`, `--docker` |
 | tmux solo se reengancha si existe | **Hecho** | `TmuxCreate=false`, sonda `has-session`, prueba real |
@@ -106,10 +109,11 @@
 | Prioridad | Trabajo | Criterio de cierre |
 |---|---|---|
 | — | GeoIP de ciudad | No incluido; ASN/RDAP y país orientativo ya operativos |
+| P2 | Publicar release 0.3.29 | alias, cursor, menú contextual y edición/borrado; notas en `docs/releases/0.3.29.md` |
 
 Releases publicados: <https://github.com/lordpietre/ssh05/releases> (`v0.3.18`
 identidad, `v0.3.19` trzsz/Zmodem, `v0.3.20` paquete autosuficiente,
-`v0.3.21` Docker opt-in, `v0.3.22` flechas, `v0.3.23` overlays opacos, `v0.3.24` solo flechas, `v0.3.25` pegado, `v0.3.26` contraseña enc, `v0.3.27` UI por defecto, `v0.3.28` menú/agrupación/bienvenida/`/connect`).
+`v0.3.21` Docker opt-in, `v0.3.22` flechas, `v0.3.23` overlays opacos, `v0.3.24` solo flechas, `v0.3.25` pegado, `v0.3.26` contraseña enc, `v0.3.27` UI por defecto, `v0.3.28` menú/agrupación/bienvenida/`/connect`, `v0.3.29` edición/borrado).
 
 ## Invariantes que no se negocian
 

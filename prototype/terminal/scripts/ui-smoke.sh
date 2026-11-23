@@ -104,8 +104,12 @@ sleep 0.3
 assert_contains "Hosts SSH (3)" "hosts are grouped by category"
 assert_contains "Hosts (3)" "UI loads the real host inventory"
 send Right
+assert_contains "Conectar" "right arrow opens the host actions menu"
+send Escape
+sleep 0.2
+send Left
 send Enter
-assert_contains "Acciones" "right arrow focuses the action bar"
+assert_contains "Acciones" "left arrow focuses the action bar"
 send Escape
 sleep 0.3
 send /
@@ -115,6 +119,31 @@ send n
 send n
 send Enter
 assert_contains "Nuevo host" "slash command /conn opens a new host"
+send "vuigram server"
+send Tab
+send "127.0.0.1"
+send C-s
+sleep 0.6
+assert_contains "vuigram-server" "alias with spaces is normalized"
+send vuigram
+assert_contains "vuigram-server" "new host can be filtered"
+send Right
+assert_contains "Conectar" "right arrow opens the host actions menu"
+assert_contains "Editar" "host actions menu offers edit"
+assert_contains "Eliminar" "host actions menu offers delete"
+send Down
+send Enter
+assert_contains "Editar host" "edit action opens the host form"
+send Escape
+sleep 0.3
+send Right
+send Down
+send Down
+send Enter
+assert_contains "Eliminar host" "delete action asks for confirmation"
+send Enter
+sleep 0.6
+assert_contains "Sin resultados" "delete removes the host"
 send Escape
 sleep 0.3
 assert_contains "Menú" "action bar is visible"

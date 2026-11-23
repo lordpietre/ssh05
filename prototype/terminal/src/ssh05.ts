@@ -37,6 +37,7 @@ import type {
 } from "../../../contracts/ts/index.ts"
 import { loadKeybindings, matchesAction } from "./config/keybindings.ts"
 import { exportDiagnostics } from "./diagnostics/export.ts"
+import { isValidAlias, normalizeAlias } from "./hosts/alias.ts"
 import { envValue, resolveSocketPath, SUPERVISOR } from "./identity.ts"
 import {
   loadPreferences,
@@ -329,6 +330,38 @@ const welcomeOverlay = new TextRenderable(renderer, {
 
 renderer.root.add(welcomeOverlay)
 
+const hostMenuOverlay = new TextRenderable(renderer, {
+  id: "host-menu-overlay",
+  position: "absolute",
+  top: 0,
+  left: 0,
+  width: "100%",
+  height: "100%",
+  visible: false,
+  zIndex: 130,
+  content: "",
+  fg: RGBA.fromInts(219, 226, 238),
+  bg: RGBA.fromInts(15, 18, 25),
+})
+
+renderer.root.add(hostMenuOverlay)
+
+const deleteConfirmOverlay = new TextRenderable(renderer, {
+  id: "delete-confirm-overlay",
+  position: "absolute",
+  top: 0,
+  left: 0,
+  width: "100%",
+  height: "100%",
+  visible: false,
+  zIndex: 131,
+  content: "",
+  fg: RGBA.fromInts(219, 226, 238),
+  bg: RGBA.fromInts(15, 18, 25),
+})
+
+renderer.root.add(deleteConfirmOverlay)
+
 const nmapOverlay = new TextRenderable(renderer, {
   id: "nmap-overlay",
   position: "absolute",
@@ -431,6 +464,9 @@ let closeDialogVisible = false
 let closeDialogCursor = 0
 let newHostVisible = false
 let newHostForm: {
+  mode: "new" | "edit"
+  editingAlias?: string
+  error: string
   field: number
   alias: string
   hostname: string
@@ -477,8 +513,14 @@ let frpForm: {
   bindPort: string
 } | null = null
 let welcomeVisible = envValue("NO_WELCOME") !== "1"
+let caretOn = true
 let commandMode = false
 let commandInput = ""
+let hostMenuVisible = false
+let hostMenuCursor = 0
+let hostMenuAlias = ""
+let deleteConfirmVisible = false
+let deleteConfirmAlias = ""
 let actionBarFocused = false
 let actionBarCursor = 0
 let actionsMenuVisible = false
@@ -631,6 +673,57 @@ function slashMatches(input: string): SlashCommand[] {
   return slashCommands.filter((command) => command.name.startsWith(query))
 }
 
+function renderHostMenu(): void {
+  if (!hostMenuVisible) {
+    hostMenuOverlay.visible = false
+    return
+  }
+  hostMenuOverlay.visible = true
+  const items = ["Conectar", "Editar", "Eliminar"]
+  hostMenuOverlay.content = padOverlay([
+    "",
+    `  Host · ${hostMenuAlias}`,
+    "",
+    ...items.map((item, index) => `  ${index === hostMenuCursor ? ">" : " "} ${item}`),
+    "",
+    "  ↑↓←→ elegir · Enter aceptar · Esc volver",
+  ])
+}
+
+function renderDeleteConfirm(): void {
+  if (!deleteConfirmVisible) {
+    deleteConfirmOverlay.visible = false
+    return
+  }
+  deleteConfirmOverlay.visible = true
+  deleteConfirmOverlay.content = padOverlay([
+    "",
+    "  Eliminar host",
+    "",
+    `  ¿Eliminar “${deleteConfirmAlias}” de ssh_config?`,
+    "",
+    "  Enter confirma · Esc cancela",
+  ])
+}
+
+function editingFieldActive(): boolean {
+  return (
+    newHostVisible ||
+    commandMode ||
+    labelsEditing ||
+    (transferVisible && transferForm !== null) ||
+    (frpVisible && frpForm !== null) ||
+    (workspacePickerVisible && workspaceNewMode) ||
+    nmapConfirmVisible
+  )
+}
+
+setInterval(() => {
+  if (!editingFieldActive()) return
+  caretOn = !caretOn
+  uiDirty()
+}, 500)
+
 function renderWelcome(): void {
   if (!welcomeVisible) {
     welcomeOverlay.visible = false
@@ -717,7 +810,7 @@ function renderHosts(): void {
   hostTitle.content = ` Hosts (${all.length}${query ? `/${hosts.length}` : ""})${conflicts > 0 ? ` !${conflicts}` : ""}`
 
   if (commandMode) {
-    hostQuery.content = ` /${commandInput}`
+    hostQuery.content = ` /${commandInput}${caretOn ? "▌" : ""}`
     hostHint.content = " /connect crea un host · Enter ejecutar · Esc cancelar"
     const matches = slashMatches(commandInput)
     const lines = ["", "  Comandos"]
@@ -865,6 +958,8 @@ function uiDirty(): void {
   renderNmapConfirm()
   renderHelp()
   renderNewHost()
+  renderHostMenu()
+  renderDeleteConfirm()
   renderWelcome()
   renderer.requestRender()
 }
@@ -1528,6 +1623,74 @@ async function handleLabelsKey(key: KeyEvent): Promise<void> {
   uiDirty()
 }
 
+function openHostMenu(host: HostProfile): void {
+  hostMenuAlias = host.alias
+  hostMenuCursor = 0
+  hostMenuVisible = true
+  actionBarFocused = false
+  uiDirty()
+}
+
+function closeHostMenu(): void {
+  hostMenuVisible = false
+  uiDirty()
+}
+
+function openDeleteConfirm(host: HostProfile): void {
+  hostMenuVisible = false
+  deleteConfirmAlias = host.alias
+  deleteConfirmVisible = true
+  uiDirty()
+}
+
+async function deleteHostAlias(alias: string): Promise<void> {
+  if (!client) return
+  try {
+    await client.call("hosts.delete", { alias }, { timeoutMs: 8000 })
+    await loadHosts()
+    transientText = `Host ${alias} eliminado`
+  } catch (error) {
+    transientText = `No se pudo eliminar ${alias}: ${String(error)}`
+  }
+  deleteConfirmVisible = false
+  uiDirty()
+}
+
+function handleHostMenuKey(key: KeyEvent): void {
+  const name = key.name.toLowerCase()
+  if (name === "escape" || name === "left") {
+    closeHostMenu()
+    return
+  }
+  if (name === "up") hostMenuCursor = Math.max(0, hostMenuCursor - 1)
+  else if (name === "down") hostMenuCursor = Math.min(2, hostMenuCursor + 1)
+  else if (name === "return" || name === "enter") {
+    const host = hosts.find((item) => item.alias === hostMenuAlias)
+    hostMenuVisible = false
+    if (!host) {
+      uiDirty()
+      return
+    }
+    if (hostMenuCursor === 0) void connectHost(host)
+    else if (hostMenuCursor === 1) openHostEditor(host)
+    else openDeleteConfirm(host)
+    return
+  }
+  uiDirty()
+}
+
+function handleDeleteConfirmKey(key: KeyEvent): void {
+  const name = key.name.toLowerCase()
+  if (name === "escape") {
+    deleteConfirmVisible = false
+    uiDirty()
+    return
+  }
+  if (name === "return" || name === "enter") {
+    void deleteHostAlias(deleteConfirmAlias)
+  }
+}
+
 function handleHostKey(key: KeyEvent): void {
   const name = key.name.toLowerCase()
   const all = filteredHosts()
@@ -1535,9 +1698,18 @@ function handleHostKey(key: KeyEvent): void {
   if (matchesAction(key, keybindings, "favorite")) void toggleFavorite()
   else if (matchesAction(key, keybindings, "color")) void cycleHostColor()
   else if (matchesAction(key, keybindings, "labels")) openLabelsEditor()
-  else if (name === "left" || name === "right") {
+  else if (name === "left") {
     actionBarFocused = true
-    actionBarCursor = name === "right" ? 0 : actionBarButtons.length - 1
+    actionBarCursor = 0
+    uiDirty()
+    return
+  } else if (name === "right") {
+    const host = all[cursor]
+    if (host) openHostMenu(host)
+    else {
+      actionBarFocused = true
+      actionBarCursor = 0
+    }
     uiDirty()
     return
   } else if (name === "up") cursor = Math.max(0, cursor - 1)
@@ -1653,11 +1825,14 @@ renderer.keyInput.on("keypress", (key) => {
     uiDirty()
     return
   }
-  if (hostFocused && name === "tab") {
+  if (hostMenuVisible) {
     key.stopPropagation()
-    actionBarFocused = true
-    actionBarCursor = 0
-    uiDirty()
+    handleHostMenuKey(key)
+    return
+  }
+  if (deleteConfirmVisible) {
+    key.stopPropagation()
+    handleDeleteConfirmKey(key)
     return
   }
   if (commandMode) {
@@ -1801,6 +1976,13 @@ renderer.keyInput.on("keypress", (key) => {
       return
     }
   }
+  if (hostFocused && name === "tab") {
+    key.stopPropagation()
+    actionBarFocused = true
+    actionBarCursor = 0
+    uiDirty()
+    return
+  }
   if (hostFocused) {
     key.stopPropagation()
     handleHostKey(key)
@@ -1862,7 +2044,8 @@ renderer.keyInput.on("paste", (event: { bytes: Uint8Array }) => {
   }
   if (
     helpVisible || diagVisible || preferencesVisible || paletteVisible || actionsMenuVisible ||
-    closeDialogVisible || transferVisible || frpVisible || workspacePickerVisible
+    closeDialogVisible || transferVisible || frpVisible || workspacePickerVisible ||
+    hostMenuVisible || deleteConfirmVisible
   ) {
     return
   }
@@ -2190,26 +2373,30 @@ function renderNewHost(): void {
   newHostOverlay.visible = true
   const form = newHostForm
   const marker = (index: number) => (index === form.field ? ">" : " ")
+  const cursor = (index: number) => (form.field === index && caretOn ? "▌" : "")
   const masked = form.password ? "•".repeat(Math.min(form.password.length, 24)) : ""
+  const aliasLabel = form.mode === "edit" ? `${form.alias} (fijo)` : form.alias
   newHostOverlay.content = padOverlay([
     "",
-    "  Nuevo host",
+    form.mode === "edit" ? `  Editar host · ${form.editingAlias ?? form.alias}` : "  Nuevo host",
     "",
-    `  ${marker(0)} Alias:        ${form.alias}`,
-    `  ${marker(1)} HostName:    ${form.hostname}`,
-    `  ${marker(2)} Puerto:      ${form.port}`,
-    `  ${marker(3)} Usuario:     ${form.username}`,
-    `  ${marker(4)} IdentityFile: ${form.identityFile}`,
-    `  ${marker(5)} Contraseña:   ${masked}`,
+    `  ${marker(0)} Alias:        ${aliasLabel}`,
+    `  ${marker(1)} HostName:    ${form.hostname}${cursor(1)}`,
+    `  ${marker(2)} Puerto:      ${form.port}${cursor(2)}`,
+    `  ${marker(3)} Usuario:     ${form.username}${cursor(3)}`,
+    `  ${marker(4)} IdentityFile: ${form.identityFile}${cursor(4)}`,
+    `  ${marker(5)} Contraseña:   ${masked}${cursor(5)}`,
     "",
-    "  La contraseña se guarda codificada (#!! encPassword) en ssh_config",
-    "  ↑↓←→/Tab cambiar campo · Enter guardar y conectar · Esc cancelar",
+    form.error ? `  ⚠ ${form.error}` : "  La contraseña se guarda codificada (#!! encPassword) en ssh_config",
+    "  ↑↓←→/Tab cambiar campo · Enter guardar · Ctrl+S guardar sin conectar · Esc cancelar",
   ])
 }
 
 function openNewHost(alias = ""): void {
   newHostVisible = true
   newHostForm = {
+    mode: "new",
+    error: "",
     field: 0,
     alias,
     hostname: "",
@@ -2221,6 +2408,27 @@ function openNewHost(alias = ""): void {
   uiDirty()
 }
 
+function openHostEditor(host: HostProfile): void {
+  newHostVisible = true
+  newHostForm = {
+    mode: "edit",
+    editingAlias: host.alias,
+    error: "",
+    field: 1,
+    alias: host.alias,
+    hostname: host.target.hostname,
+    port: String(host.target.port || 22),
+    username: host.target.username ?? "",
+    identityFile: "",
+    password: "",
+  }
+  uiDirty()
+}
+
+function hostFormFields(form: NonNullable<typeof newHostForm>): number[] {
+  return form.mode === "edit" ? [1, 2, 3, 4, 5] : [0, 1, 2, 3, 4, 5]
+}
+
 async function handleNewHostKey(key: KeyEvent): Promise<void> {
   if (!newHostForm) return
   const form = newHostForm
@@ -2229,15 +2437,24 @@ async function handleNewHostKey(key: KeyEvent): Promise<void> {
     newHostVisible = false
     newHostForm = null
   } else if (name === "tab" || name === "down" || name === "right") {
-    form.field = (form.field + 1) % 6
+    const fields = hostFormFields(form)
+    const position = fields.indexOf(form.field)
+    form.field = fields[(position + 1) % fields.length]
+    form.error = ""
   } else if (name === "up" || name === "left" || name === "backtab") {
-    form.field = (form.field + 5) % 6
+    const fields = hostFormFields(form)
+    const position = fields.indexOf(form.field)
+    form.field = fields[(position + fields.length - 1) % fields.length]
+    form.error = ""
+  } else if (key.ctrl && name === "s") {
+    await saveNewHost(false)
+    return
   } else if (name === "return" || name === "enter") {
-    await saveNewHost(true)
+    await saveNewHost(form.mode === "new")
     return
   } else if (name === "backspace" || name === "delete") {
     const clear = name === "delete"
-    if (form.field === 0) form.alias = clear ? "" : form.alias.slice(0, -1)
+    if (form.field === 0 && form.mode === "new") form.alias = clear ? "" : form.alias.slice(0, -1)
     else if (form.field === 1) form.hostname = clear ? "" : form.hostname.slice(0, -1)
     else if (form.field === 2) form.port = clear ? "" : form.port.slice(0, -1)
     else if (form.field === 3) form.username = clear ? "" : form.username.slice(0, -1)
@@ -2246,7 +2463,7 @@ async function handleNewHostKey(key: KeyEvent): Promise<void> {
   } else if (!key.ctrl && !key.meta && key.sequence) {
     const chars = Array.from(key.sequence)
     if (chars.length === 1 && chars[0] >= " ") {
-      if (form.field === 0) form.alias += chars[0]
+      if (form.field === 0 && form.mode === "new") form.alias += chars[0]
       else if (form.field === 1) form.hostname += chars[0]
       else if (form.field === 2 && /[0-9]/.test(chars[0])) form.port += chars[0]
       else if (form.field === 3) form.username += chars[0]
@@ -2261,37 +2478,51 @@ async function saveNewHost(connect: boolean): Promise<void> {
   if (!client || !newHostForm) return
   const form = newHostForm
   const port = Number.parseInt(form.port, 10)
-  if (!form.alias.trim() || !form.hostname.trim()) {
-    transientText = "Host: alias y HostName son obligatorios"
+  if (form.mode === "new") {
+    form.alias = normalizeAlias(form.alias)
+  }
+  if (!isValidAlias(form.alias)) {
+    form.error = "El alias no puede contener espacios ni símbolos; usa letras, números, punto, guion o _"
+    uiDirty()
+    return
+  }
+  if (!form.hostname.trim()) {
+    form.error = "HostName es obligatorio"
+    uiDirty()
+    return
+  }
+  if (/\s/.test(form.hostname.trim())) {
+    form.error = "HostName no puede contener espacios"
     uiDirty()
     return
   }
   if (!Number.isFinite(port) || port < 1 || port > 65535) {
-    transientText = "Host: puerto inválido"
+    form.error = "Puerto inválido (1–65535)"
     uiDirty()
     return
   }
   try {
-    const profile = await client.call(
-      "hosts.create",
-      {
-        alias: form.alias,
-        hostname: form.hostname,
-        port,
-        username: form.username,
-        identityFile: form.identityFile,
-        password: form.password,
-      },
-      { timeoutMs: 8000 },
-    )
+    const payload = {
+      alias: form.alias,
+      hostname: form.hostname.trim(),
+      port,
+      username: form.username.trim(),
+      identityFile: form.identityFile.trim(),
+      password: form.password,
+    }
+    const profile =
+      form.mode === "edit"
+        ? await client.call("hosts.update", payload, { timeoutMs: 8000 })
+        : await client.call("hosts.create", payload, { timeoutMs: 8000 })
     await loadHosts()
     newHostVisible = false
     newHostForm = null
-    transientText = `Host ${profile.alias} guardado`
-    if (connect) await connectHost(profile)
+    transientText =
+      form.mode === "edit" ? `Host ${profile.alias} actualizado` : `Host ${profile.alias} guardado`
+    if (connect && form.mode === "new") await connectHost(profile)
     else uiDirty()
   } catch (error) {
-    transientText = `No se pudo guardar el host: ${String(error)}`
+    form.error = `No se pudo guardar: ${String(error)}`
     uiDirty()
   }
 }
@@ -2310,15 +2541,18 @@ function renderHelp(): void {
     "  Ctrl+N nuevo host   Ctrl+G tmux          Ctrl+I KeePass       Ctrl+W cerrar",
     "  Ctrl+Tab pestaña    Ctrl+1..9 pestaña    Ctrl+Shift+←/→ mover",
     "  F2 favorito         F3 color             F4 etiquetas",
-    "  F10 salir           F1 ayuda            F6 barra de acciones",
+    "  F10 salir           F1 ayuda             F6 barra de acciones",
     "",
-    "  En hosts: ↑↓ mover · ←/→ menú superior · Enter conectar · escribir busca",
+    "  En hosts: ↑↓ mover · ← menú superior · → acciones del host",
+    "  Acciones del host (→): Conectar · Editar · Eliminar",
+    "  Enter conecta · escribir busca · / comandos (/connect, /conn, /help)",
+    "  El alta/edición admite contraseña; se guarda como #!! encPassword",
     "  Pegar (Ctrl+Shift+V) en búsqueda, formularios y terminal según el foco",
     "  En menús y formularios: ↑↓←→ mover · Enter aceptar · Esc volver",
-    "  /connect o /conn crea un host · /help comandos · F1 esta ayuda",
     "  En FRP (Ctrl+F): ↑↓←→ proxy · n crear · d parar · x eliminar · s frps · r rotar",
     "  En transferencias: ↑↓←→ mover · Espacio cambia · u subir · d descargar · c cancelar",
     "  En Nmap: Enter confirma el escaneo · Esc cancela",
+    "  La bienvenida se cierra con Enter; SSH05_NO_WELCOME=1 la omite",
     "",
     "  Esc/Enter cerrar",
   ])
@@ -2455,7 +2689,9 @@ function renderTransfers(): void {
       "",
       `  ${form.direction === "upload" ? "Subir" : "Descargar"} archivo`,
       "",
-      ...rows.map(([label, value], index) => `  ${form.field === index ? ">" : " "} ${label}: ${value}`),
+      ...rows.map(([label, value], index) =>
+        `  ${form.field === index ? ">" : " "} ${label}: ${value}${form.field === index && caretOn ? "▌" : ""}`,
+      ),
       "",
       "  ↑↓←→ campo · Espacio cambia · Enter iniciar · Esc cancelar",
       "  Ctrl+P protocolo · Ctrl+R recursivo",
@@ -2758,7 +2994,9 @@ function renderFRP(): void {
       `  Exposición: ${form.type === "tcp" || form.type === "udp" ? "PÚBLICA en frps" : "privada (visitor)"}`,
     ]
     const lines = ["", "  Nuevo proxy FRP", ""]
-    fields.forEach((line, index) => lines.push(`  ${index === form.field ? ">" : " "}${line}`))
+    fields.forEach((line, index) =>
+      lines.push(`  ${index === form.field ? ">" : " "}${line}${index === form.field && caretOn ? "▌" : ""}`),
+    )
     lines.push("", "  ↑↓←→ campo · Espacio cambia tipo · Enter aplicar · Esc cancelar")
     frpOverlay.content = padOverlay(lines)
     return

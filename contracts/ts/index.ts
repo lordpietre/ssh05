@@ -314,6 +314,19 @@ export interface HostCreateParams {
   password?: string
 }
 
+export interface HostUpdateParams {
+  alias: string
+  hostname: string
+  port?: number
+  username?: string
+  identityFile?: string
+  password?: string
+}
+
+export interface HostDeleteParams {
+  alias: string
+}
+
 export interface HostOverridePatch {
   hostProfileId: string
   labels?: string[]
@@ -616,6 +629,8 @@ export interface MethodContracts {
   "hosts.import": { params: HostsImportParams; result: HostsImportResult }
   "hosts.overrides.set": { params: HostOverridePatch; result: HostProfile }
   "hosts.create": { params: HostCreateParams; result: HostProfile }
+  "hosts.update": { params: HostUpdateParams; result: HostProfile }
+  "hosts.delete": { params: HostDeleteParams; result: void }
   "hosts.resolve": { params: HostsListParams; result: RoutesPlanResult }
   "sessions.open": { params: SessionsOpenParams; result: SessionsOpenResult }
   "sessions.write": { params: SessionsWriteParams; result: void }

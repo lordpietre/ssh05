@@ -1,3 +1,15 @@
+ssh05 (0.3.29) unstable; urgency=medium
+
+  * El alias del alta de host se normaliza: "vuigram server" pasa a
+    "vuigram-server"; los errores se muestran en el propio formulario.
+  * Cursor parpadeante en el campo activo de formularios.
+  * Menú contextual del host con derecha: Conectar, Editar y Eliminar;
+    editar y eliminar actualizan ssh_config de forma atómica.
+  * Ctrl+S guarda el host sin conectar.
+  * Ayuda revisada con todos los atajos y el nuevo flujo.
+
+ -- Dinámicas Electrónicas <dinamicas.electronicas@gmail.com>  Mon, 23 Nov 2026 18:30:00 +0100
+
 ssh05 (0.3.28) unstable; urgency=medium
 
   * La barra superior se alcanza con izquierda/derecha desde la lista de

@@ -22,6 +22,8 @@ const (
 	MethodHostsResolve       Method = "hosts.resolve"
 	MethodHostsOverridesSet  Method = "hosts.overrides.set"
 	MethodHostsCreate        Method = "hosts.create"
+	MethodHostsUpdate        Method = "hosts.update"
+	MethodHostsDelete        Method = "hosts.delete"
 	MethodSessionsOpen       Method = "sessions.open"
 	MethodSessionsWrite      Method = "sessions.write"
 	MethodSessionsResize     Method = "sessions.resize"
@@ -60,6 +62,8 @@ var validMethods = map[Method]struct{}{
 	MethodHostsResolve:       {},
 	MethodHostsOverridesSet:  {},
 	MethodHostsCreate:        {},
+	MethodHostsUpdate:        {},
+	MethodHostsDelete:        {},
 	MethodSessionsOpen:       {},
 	MethodSessionsWrite:      {},
 	MethodSessionsResize:     {},
@@ -180,6 +184,19 @@ type HostCreateParams struct {
 	Username     string `json:"username,omitempty"`
 	IdentityFile string `json:"identityFile,omitempty"`
 	Password     string `json:"password,omitempty"`
+}
+
+type HostUpdateParams struct {
+	Alias        string `json:"alias"`
+	Hostname     string `json:"hostname"`
+	Port         int    `json:"port,omitempty"`
+	Username     string `json:"username,omitempty"`
+	IdentityFile string `json:"identityFile,omitempty"`
+	Password     string `json:"password,omitempty"`
+}
+
+type HostDeleteParams struct {
+	Alias string `json:"alias"`
 }
 
 type HostOverridePatch struct {
