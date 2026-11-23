@@ -84,6 +84,7 @@
 | Paquete autosuficiente | **Hecho** | `.deb` con `ssh05`, `ssh05d`, `ssh05-ui`, Bun y dependencias de producción |
 | Supervisor por defecto | **Hecho** | `default.target.wants` global + arranque bajo demanda desde `ssh05-ui` |
 | Docker opt-in en el servicio | **Hecho** | unidad sin `*_DISABLE_DOCKER`; `--docker` en ExecStart lista contenedores |
+| Navegación completa con flechas | **Hecho** | menús, submenús, listas y formularios; `make ui-smoke` |
 | Alta de hosts desde la UI | **Hecho** | `hosts.create`, `Ctrl+N` |
 | Servicio de usuario y Docker opt-in | **Hecho** | `ssh05d.service`, `--docker` |
 | tmux solo se reengancha si existe | **Hecho** | `TmuxCreate=false`, sonda `has-session`, prueba real |
@@ -96,10 +97,11 @@
 | Prioridad | Trabajo | Criterio de cierre |
 |---|---|---|
 | — | GeoIP de ciudad | No incluido; ASN/RDAP y país orientativo ya operativos |
+| P2 | Publicar release 0.3.22 | navegación con flechas; notas en `docs/releases/0.3.22.md` |
 
 Releases publicados: <https://github.com/lordpietre/ssh05/releases> (`v0.3.18`
 identidad, `v0.3.19` trzsz/Zmodem, `v0.3.20` paquete autosuficiente,
-`v0.3.21` Docker opt-in).
+`v0.3.21` Docker opt-in, `v0.3.22` flechas).
 
 ## Invariantes que no se negocian
 

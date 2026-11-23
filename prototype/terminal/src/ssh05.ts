@@ -129,7 +129,7 @@ const hostTitle = new TextRenderable(renderer, {
 
 const hostQuery = new TextRenderable(renderer, {
   id: "host-query",
-  content: " ↑↓ seleccionar",
+  content: " ↑↓←→ seleccionar",
   fg: RGBA.fromInts(125, 135, 150),
   bg: RGBA.fromInts(22, 25, 33),
   height: 1,
@@ -438,6 +438,7 @@ let transfers: TransferInfo[] = []
 let transferCursor = 0
 let transferPoll: ReturnType<typeof setInterval> | undefined
 let preferencesVisible = false
+let preferencesCursor = 0
 let diagVisible = false
 let diagContent = ""
 let labelsEditing = false
@@ -486,6 +487,7 @@ function addActionButton(label: string, run: () => void): void {
       actionBarFocused = true
       actionBarCursor = index
       run()
+      actionBarFocused = false
       uiDirty()
     },
   })
@@ -501,7 +503,7 @@ addActionButton("Rutas", () => void probeCurrentHost())
 addActionButton("Diag", () => void diagnoseCurrentHost())
 addActionButton("Transferir", () => void openTransfers())
 addActionButton("FRP", () => void openFRP())
-addActionButton("Prefs", () => { preferencesVisible = true })
+addActionButton("Prefs", () => openPreferences())
 addActionButton("Ayuda", () => { helpVisible = true })
 addActionButton("Salir", () => void quit())
 
@@ -517,7 +519,7 @@ const actionsMenuItems: { label: string; run: () => void }[] = [
   { label: "Escanear con Nmap", run: openNmapConfirm },
   { label: "Información de red", run: () => void showNetworkInfo() },
   { label: "Exportar diagnóstico saneado", run: () => void exportDiagnosticsReport() },
-  { label: "Preferencias", run: () => { preferencesVisible = true } },
+  { label: "Preferencias", run: () => openPreferences() },
   { label: "Transferencias", run: () => void openTransfers() },
   { label: "Subir archivo", run: () => void openTransferQuick("upload") },
   { label: "Descargar archivo", run: () => void openTransferQuick("download") },
@@ -639,7 +641,7 @@ function pendingHostFor(host: HostProfile): HostProfile | undefined {
 function renderHosts(): void {
   const all = filteredHosts()
   hostTitle.content = ` Hosts (${all.length}${query ? `/${hosts.length}` : ""})${conflicts > 0 ? ` !${conflicts}` : ""}`
-  hostQuery.content = query ? ` /${truncate(query, 24)}` : " ↑↓ seleccionar"
+  hostQuery.content = query ? ` /${truncate(query, 24)}` : " ↑↓←→ seleccionar"
   hostHint.content =
     hosts.length === 0
       ? " Ctrl+N nuevo host · Ctrl+I KeePass"
@@ -703,7 +705,7 @@ function renderStatus(): void {
   }
   if (hostFocused) {
     status.content =
-      ` Hosts · ↑↓ Enter conectar · Ctrl+N nuevo · F2 favorito · F3 color · F4 etiquetas` +
+      ` Hosts · ↑↓←→ Enter conectar · Ctrl+N nuevo · F2 favorito · F3 color · F4 etiquetas` +
       ` · tmux:${tmuxMode ? "on" : "off"} · F10 salir`
     return
   }
@@ -805,8 +807,8 @@ function executeCloseDialog(): void {
 
 function handleCloseDialogKey(key: KeyEvent): void {
   const name = key.name.toLowerCase()
-  if (name === "up") closeDialogCursor = Math.max(0, closeDialogCursor - 1)
-  else if (name === "down") {
+  if (name === "up" || name === "left") closeDialogCursor = Math.max(0, closeDialogCursor - 1)
+  else if (name === "down" || name === "right") {
     closeDialogCursor = Math.min(closeChoices().length - 1, closeDialogCursor + 1)
   } else if (name === "escape") {
     closeCloseDialog()
@@ -829,7 +831,7 @@ function renderPalette(): void {
     const marker = index === paletteCursor ? ">" : " "
     lines.push(`  ${marker} ${paletteCommands[index]}`)
   }
-  lines.push("", "  Enter ejecutar · Esc cerrar")
+  lines.push("", "  ↑↓←→ mover · Enter ejecutar · Esc cerrar")
   paletteOverlay.content = lines.join("\n")
 }
 
@@ -883,7 +885,7 @@ function executePalette(index: number): void {
       void exportDiagnosticsReport()
       break
     case 11:
-      preferencesVisible = true
+      openPreferences()
       break
     case 12:
       void openTransfers()
@@ -902,8 +904,8 @@ function executePalette(index: number): void {
 
 function handlePaletteKey(key: KeyEvent): void {
   const name = key.name.toLowerCase()
-  if (name === "up") paletteCursor = Math.max(0, paletteCursor - 1)
-  else if (name === "down") paletteCursor = Math.min(paletteCommands.length - 1, paletteCursor + 1)
+  if (name === "up" || name === "left") paletteCursor = Math.max(0, paletteCursor - 1)
+  else if (name === "down" || name === "right") paletteCursor = Math.min(paletteCommands.length - 1, paletteCursor + 1)
   else if (name === "escape") {
     closePalette()
     return
@@ -1405,8 +1407,8 @@ function handleHostKey(key: KeyEvent): void {
   if (matchesAction(key, keybindings, "favorite")) void toggleFavorite()
   else if (matchesAction(key, keybindings, "color")) void cycleHostColor()
   else if (matchesAction(key, keybindings, "labels")) openLabelsEditor()
-  else if (name === "up") cursor = Math.max(0, cursor - 1)
-  else if (name === "down") cursor = Math.min(Math.max(0, all.length - 1), cursor + 1)
+  else if (name === "up" || name === "left") cursor = Math.max(0, cursor - 1)
+  else if (name === "down" || name === "right") cursor = Math.min(Math.max(0, all.length - 1), cursor + 1)
   else if (name === "pageup") cursor = Math.max(0, cursor - 10)
   else if (name === "pagedown") cursor = Math.min(Math.max(0, all.length - 1), cursor + 10)
   else if (name === "home") cursor = 0
@@ -1452,6 +1454,7 @@ renderer.keyInput.on("keypress", (key) => {
   if (name === "f6") {
     key.stopPropagation()
     actionBarFocused = !actionBarFocused
+    if (actionBarFocused) actionBarCursor = 0
     uiDirty()
     return
   }
@@ -1460,7 +1463,11 @@ renderer.keyInput.on("keypress", (key) => {
     if (name === "left" || name === "backtab") actionBarCursor = (actionBarCursor + actionBarButtons.length - 1) % actionBarButtons.length
     else if (name === "right" || name === "tab") actionBarCursor = (actionBarCursor + 1) % actionBarButtons.length
     else if (name === "escape") actionBarFocused = false
-    else if (name === "return" || name === "enter") actionBarButtons[actionBarCursor]?.run()
+    else if (name === "return" || name === "enter") {
+      const button = actionBarButtons[actionBarCursor]
+      actionBarFocused = false
+      button?.run()
+    }
     uiDirty()
     return
   }
@@ -1772,7 +1779,7 @@ function renderWorkspacePicker(): void {
       lines.push(`  ${marker} ${workspaceNames[index]}${current}`)
     }
     const marker = workspacePickerCursor === workspaceNames.length ? ">" : " "
-    lines.push(`  ${marker} + Nuevo workspace…`, "", "  Enter abrir · n nuevo · Esc cerrar")
+    lines.push(`  ${marker} + Nuevo workspace…`, "", "  ↑↓←→ mover · Enter abrir · n nuevo · Esc cerrar")
   }
   workspaceOverlay.content = lines.join("\n")
 }
@@ -1836,8 +1843,8 @@ function handleWorkspaceKey(key: KeyEvent): void {
     return
   }
 
-  if (name === "up") workspacePickerCursor = Math.max(0, workspacePickerCursor - 1)
-  else if (name === "down") {
+  if (name === "up" || name === "left") workspacePickerCursor = Math.max(0, workspacePickerCursor - 1)
+  else if (name === "down" || name === "right") {
     workspacePickerCursor = Math.min(workspaceNames.length, workspacePickerCursor + 1)
   } else if (name === "escape") {
     closeWorkspacePicker()
@@ -1903,8 +1910,8 @@ function executeActionsMenu(): void {
 function handleActionsMenuKey(key: KeyEvent): void {
   const name = key.name.toLowerCase()
   if (name === "escape") closeActionsMenu()
-  else if (name === "up") actionsMenuCursor = Math.max(0, actionsMenuCursor - 1)
-  else if (name === "down") actionsMenuCursor = Math.min(actionsMenuItems.length - 1, actionsMenuCursor + 1)
+  else if (name === "up" || name === "left") actionsMenuCursor = Math.max(0, actionsMenuCursor - 1)
+  else if (name === "down" || name === "right") actionsMenuCursor = Math.min(actionsMenuItems.length - 1, actionsMenuCursor + 1)
   else if (name === "home") actionsMenuCursor = 0
   else if (name === "end") actionsMenuCursor = actionsMenuItems.length - 1
   else if (name === "return" || name === "enter") executeActionsMenu()
@@ -1935,7 +1942,7 @@ function renderNewHost(): void {
     `  ${marker(3)} Usuario:     ${form.username}`,
     `  ${marker(4)} IdentityFile: ${form.identityFile}`,
     "",
-    "  Tab/↑↓ cambiar campo · Enter guardar y conectar · Esc cancelar",
+    "  ↑↓←→/Tab cambiar campo · Enter guardar y conectar · Esc cancelar",
   ].join("\n")
 }
 
@@ -1959,9 +1966,9 @@ async function handleNewHostKey(key: KeyEvent): Promise<void> {
   if (name === "escape") {
     newHostVisible = false
     newHostForm = null
-  } else if (name === "tab" || name === "down") {
+  } else if (name === "tab" || name === "down" || name === "right") {
     form.field = (form.field + 1) % 5
-  } else if (name === "up") {
+  } else if (name === "up" || name === "left" || name === "backtab") {
     form.field = (form.field + 4) % 5
   } else if (name === "return" || name === "enter") {
     await saveNewHost(true)
@@ -2040,9 +2047,10 @@ function renderHelp(): void {
     "  F2 favorito         F3 color             F4 etiquetas",
     "  F10 salir           F1 ayuda            F6 barra de acciones",
     "",
-    "  En hosts: ↑↓ mover · Enter conectar · escribir busca",
-    "  En FRP (Ctrl+F): n crear · d parar · x eliminar · s frps · r rotar",
-    "  En transferencias: u subir · d descargar · c cancelar",
+    "  En hosts: ↑↓←→ mover · Enter conectar · escribir busca",
+    "  En menús y formularios: ↑↓←→ mover · Enter aceptar · Esc volver",
+    "  En FRP (Ctrl+F): ↑↓←→ proxy · n crear · d parar · x eliminar · s frps · r rotar",
+    "  En transferencias: ↑↓←→ mover · Espacio cambia · u subir · d descargar · c cancelar",
     "  En Nmap: Enter confirma el escaneo · Esc cancela",
     "",
     "  Esc/Enter cerrar",
@@ -2170,16 +2178,20 @@ function renderTransfers(): void {
   transferOverlay.visible = true
   if (transferForm) {
     const form = transferForm
+    const rows = [
+      ["Local", form.localPath],
+      ["Remoto", form.remotePath],
+      ["Protocolo", form.protocol],
+      ["Recursivo", form.recursive ? "sí" : "no"],
+    ]
     const lines = [
       "",
-      `  ${form.direction === "upload" ? "Subir" : "Descargar"} · ${form.protocol}`,
+      `  ${form.direction === "upload" ? "Subir" : "Descargar"} archivo`,
       "",
-      `  ${form.field === 0 ? ">" : " "} Local:  ${form.localPath}`,
-      `  ${form.field === 1 ? ">" : " "} Remoto: ${form.remotePath}`,
+      ...rows.map(([label, value], index) => `  ${form.field === index ? ">" : " "} ${label}: ${value}`),
       "",
-      `  Ctrl+P protocolo: ${form.protocol} · Ctrl+R recursivo: ${form.recursive ? "sí" : "no"}`,
-      "",
-      "  Tab/↑↓ campo · Enter iniciar · Esc cancelar",
+      "  ↑↓←→ campo · Espacio cambia · Enter iniciar · Esc cancelar",
+      "  Ctrl+P protocolo · Ctrl+R recursivo",
     ]
     transferOverlay.content = lines.join("\n")
     return
@@ -2195,7 +2207,7 @@ function renderTransfers(): void {
       `  ${marker} ${item.state} ${item.protocol} ${item.localPath} ${arrow} ${item.remotePath}${error}`,
     )
   }
-  lines.push("", "  u subir · d descargar · c cancelar · Esc cerrar")
+  lines.push("", "  ↑↓←→ mover · u subir · d descargar · c cancelar · Esc cerrar")
   transferOverlay.content = lines.join("\n")
 }
 
@@ -2285,14 +2297,19 @@ async function startTransferForm(): Promise<void> {
 
 async function handleTransferKey(key: KeyEvent): Promise<void> {
   const name = key.name.toLowerCase()
+  const space = name === "space" || key.sequence === " "
   if (transferForm) {
     const form = transferForm
     if (name === "escape") {
       transferForm = null
-    } else if (name === "tab" || name === "down") {
-      form.field = (form.field + 1) % 2
-    } else if (name === "up") {
-      form.field = (form.field + 1) % 2
+    } else if (name === "tab" || name === "down" || name === "right") {
+      form.field = (form.field + 1) % 4
+    } else if (name === "up" || name === "left" || name === "backtab") {
+      form.field = (form.field + 3) % 4
+    } else if (space && form.field === 2) {
+      form.protocol = form.protocol === "sftp" ? "scp" : "sftp"
+    } else if (space && form.field === 3) {
+      form.recursive = !form.recursive
     } else if (key.ctrl && name === "p") {
       form.protocol = form.protocol === "sftp" ? "scp" : "sftp"
     } else if (key.ctrl && name === "r") {
@@ -2300,17 +2317,19 @@ async function handleTransferKey(key: KeyEvent): Promise<void> {
     } else if (name === "backspace" || name === "delete") {
       if (form.field === 0) {
         form.localPath = name === "delete" ? "" : form.localPath.slice(0, -1)
-      } else {
+      } else if (form.field === 1) {
         form.remotePath = name === "delete" ? "" : form.remotePath.slice(0, -1)
       }
     } else if (name === "return" || name === "enter") {
-      await startTransferForm()
+      if (form.field === 2) form.protocol = form.protocol === "sftp" ? "scp" : "sftp"
+      else if (form.field === 3) form.recursive = !form.recursive
+      else await startTransferForm()
       return
     } else if (!key.ctrl && !key.meta && key.sequence) {
       const chars = Array.from(key.sequence)
       if (chars.length === 1 && chars[0] >= " ") {
         if (form.field === 0) form.localPath += chars[0]
-        else form.remotePath += chars[0]
+        else if (form.field === 1) form.remotePath += chars[0]
       }
     }
     uiDirty()
@@ -2323,9 +2342,9 @@ async function handleTransferKey(key: KeyEvent): Promise<void> {
     openTransferForm("upload")
   } else if (name === "d") {
     openTransferForm("download")
-  } else if (name === "up") {
+  } else if (name === "up" || name === "left") {
     transferCursor = Math.max(0, transferCursor - 1)
-  } else if (name === "down") {
+  } else if (name === "down" || name === "right") {
     transferCursor = Math.min(Math.max(0, transfers.length - 1), transferCursor + 1)
   } else if (name === "c" && transfers[transferCursor] && client) {
     try {
@@ -2342,21 +2361,28 @@ async function handleTransferKey(key: KeyEvent): Promise<void> {
   uiDirty()
 }
 
+function openPreferences(): void {
+  preferencesCursor = 0
+  preferencesVisible = true
+  uiDirty()
+}
+
 function renderPreferences(): void {
   if (!preferencesVisible) {
     prefsOverlay.visible = false
     return
   }
   prefsOverlay.visible = true
+  const marker = (index: number) => (index === preferencesCursor ? ">" : " ")
   prefsOverlay.content = [
     "",
     "  Preferencias",
     "",
-    `  w/←/→  ancho del panel: ${preferences.hostPanelWidth}`,
-    `  d      densidad: ${preferences.density}`,
-    `  t      posición de pestañas: ${preferences.tabPosition}`,
+    `  ${marker(0)} Ancho del panel: ${preferences.hostPanelWidth}  (←/→)`,
+    `  ${marker(1)} Densidad: ${preferences.density}  (←/→)`,
+    `  ${marker(2)} Posición de pestañas: ${preferences.tabPosition}  (←/→)`,
     "",
-    "  Esc/Enter cerrar",
+    "  ↑↓←→ mover y ajustar · w ancho · d densidad · t pestañas · Enter/Esc cerrar",
   ].join("\n")
 }
 
@@ -2382,29 +2408,43 @@ function resizeTerminals(): void {
   }
 }
 
+function adjustPreferences(cursorIndex: number, delta: number): void {
+  if (cursorIndex === 0) {
+    preferences.hostPanelWidth = nextPanelWidth(preferences.hostPanelWidth, delta)
+    hostPanelWidth = preferences.hostPanelWidth
+    hostPanel.width = hostPanelWidth
+    persistPreferences()
+    resizeTerminals()
+    return
+  }
+  if (cursorIndex === 1) {
+    preferences.density = preferences.density === "compact" ? "comfortable" : "compact"
+    persistPreferences()
+    return
+  }
+  preferences.tabPosition = preferences.tabPosition === "top" ? "bottom" : "top"
+  applyTabPosition()
+  persistPreferences()
+}
+
 function handlePreferencesKey(key: KeyEvent): void {
   const name = key.name.toLowerCase()
   if (name === "escape" || name === "return" || name === "enter") {
     preferencesVisible = false
-  } else if (name === "w" || name === "right") {
-    preferences.hostPanelWidth = nextPanelWidth(preferences.hostPanelWidth, 1)
-    hostPanelWidth = preferences.hostPanelWidth
-    hostPanel.width = hostPanelWidth
-    persistPreferences()
-    resizeTerminals()
+  } else if (name === "up") {
+    preferencesCursor = (preferencesCursor + 2) % 3
+  } else if (name === "down") {
+    preferencesCursor = (preferencesCursor + 1) % 3
   } else if (name === "left") {
-    preferences.hostPanelWidth = nextPanelWidth(preferences.hostPanelWidth, -1)
-    hostPanelWidth = preferences.hostPanelWidth
-    hostPanel.width = hostPanelWidth
-    persistPreferences()
-    resizeTerminals()
+    adjustPreferences(preferencesCursor, -1)
+  } else if (name === "right") {
+    adjustPreferences(preferencesCursor, 1)
+  } else if (name === "w") {
+    adjustPreferences(0, 1)
   } else if (name === "d") {
-    preferences.density = preferences.density === "compact" ? "comfortable" : "compact"
-    persistPreferences()
+    adjustPreferences(1, 1)
   } else if (name === "t") {
-    preferences.tabPosition = preferences.tabPosition === "top" ? "bottom" : "top"
-    applyTabPosition()
-    persistPreferences()
+    adjustPreferences(2, 1)
   }
   uiDirty()
 }
@@ -2444,7 +2484,7 @@ function renderFRP(): void {
     const form = frpForm
     const fields = [
       `  Nombre: ${form.name}`,
-      `  Tipo: ${form.type}  (t/←/→)`,
+      `  Tipo: ${form.type}  (Espacio/t)`,
       `  Service port: ${form.servicePort}`,
       `  Remote port: ${form.remotePort}`,
       `  Bind port (visitor STCP/XTCP): ${form.bindPort}`,
@@ -2452,7 +2492,7 @@ function renderFRP(): void {
     ]
     const lines = ["", "  Nuevo proxy FRP", ""]
     fields.forEach((line, index) => lines.push(`  ${index === form.field ? ">" : " "}${line}`))
-    lines.push("", "  Tab/↑↓ campo · t tipo · Enter aplicar · Esc cancelar")
+    lines.push("", "  ↑↓←→ campo · Espacio cambia tipo · Enter aplicar · Esc cancelar")
     frpOverlay.content = lines.join("\n")
     return
   }
@@ -2481,7 +2521,7 @@ function renderFRP(): void {
     const error = proxy.lastErrorLabel ? ` · ${proxy.lastErrorLabel}` : ""
     lines.push(`  ${marker} ${proxy.state} ${proxy.name} [${proxy.type}] ${target}${stats}${error}`)
   }
-  lines.push("", "  n nuevo · d parar · x eliminar · s iniciar/parar frps · r rotar token · Esc cerrar")
+  lines.push("", "  ↑↓←→ mover · n nuevo · d parar · x eliminar · s iniciar/parar frps · r rotar token · Esc cerrar")
   frpOverlay.content = lines.join("\n")
 }
 
@@ -2549,15 +2589,16 @@ async function applyFrpForm(): Promise<void> {
 
 async function handleFRPKey(key: KeyEvent): Promise<void> {
   const name = key.name.toLowerCase()
+  const space = name === "space" || key.sequence === " "
   if (frpForm) {
     const form = frpForm
     if (name === "escape") {
       frpForm = null
-    } else if (name === "tab" || name === "down") {
+    } else if (name === "tab" || name === "down" || name === "right") {
       form.field = (form.field + 1) % 5
-    } else if (name === "up") {
+    } else if (name === "up" || name === "left" || name === "backtab") {
       form.field = (form.field + 4) % 5
-    } else if (name === "t" || name === "left" || name === "right") {
+    } else if (name === "t" || (space && form.field === 1)) {
       form.type = nextFRPFormType(form.type)
     } else if (name === "backspace") {
       if (form.field === 0) form.name = form.name.slice(0, -1)
@@ -2565,8 +2606,12 @@ async function handleFRPKey(key: KeyEvent): Promise<void> {
       else if (form.field === 3) form.remotePort = form.remotePort.slice(0, -1)
       else if (form.field === 4) form.bindPort = form.bindPort.slice(0, -1)
     } else if (name === "return" || name === "enter") {
-      await applyFrpForm()
-      return
+      if (form.field === 1) {
+        form.type = nextFRPFormType(form.type)
+      } else {
+        await applyFrpForm()
+        return
+      }
     } else if (!key.ctrl && !key.meta && key.sequence) {
       const chars = Array.from(key.sequence)
       if (chars.length === 1 && chars[0] >= " ") {
@@ -2582,10 +2627,10 @@ async function handleFRPKey(key: KeyEvent): Promise<void> {
 
   if (name === "escape") {
     closeFRP()
-  } else if (name === "up") {
+  } else if (name === "up" || name === "left") {
     frpCursor = Math.max(0, frpCursor - 1)
     frpDeleteArmed = ""
-  } else if (name === "down") {
+  } else if (name === "down" || name === "right") {
     frpCursor = Math.min(Math.max(0, frpProxies.length - 1), frpCursor + 1)
     frpDeleteArmed = ""
   } else if (name === "n") {

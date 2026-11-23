@@ -1,3 +1,15 @@
+ssh05 (0.3.22) unstable; urgency=medium
+
+  * Navegación completa con flechas en menús, submenús, listas y
+    formularios: izquierda/arriba y derecha/abajo mueven la selección.
+  * Preferencias con cursor de ajuste; transferencias y FRP permiten elegir
+    y cambiar opciones sin memorizar atajos.
+  * La barra de acciones reinicia el cursor y libera el foco al ejecutar.
+  * ui-smoke cubre la navegación con flechas en menu, preferencias, FRP y
+    transferencias.
+
+ -- Dinámicas Electrónicas <dinamicas.electronicas@gmail.com>  Mon, 23 Nov 2026 02:00:00 +0100
+
 ssh05 (0.3.21) unstable; urgency=medium
 
   * La unidad ssh05d ya no fuerza SSH05_DISABLE_DOCKER; `--docker` vuelve a

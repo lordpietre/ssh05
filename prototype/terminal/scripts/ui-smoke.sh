@@ -128,15 +128,68 @@ send F1
 assert_contains "Ayuda · atajos" "help overlay opens"
 send Escape
 sleep 0.3
+send F6
+send Enter
+assert_contains "Acciones" "actions menu opens from the action bar with Enter"
+send Down
+send Enter
+assert_contains "Nuevo host" "submenu opens with arrow selection"
+send Right
+send Right
+send Left
+send Up
+send Escape
+sleep 0.3
+assert_contains "Hosts (3)" "new host form closes with Esc"
+send F6
+send Right Right Right Right Right Right Right Right
+send Enter
+assert_contains "Preferencias" "preferences opens through action bar arrows"
+send Down
+send Right
+send Left
+send Down
+send Left
+send Right
+send Up
+send Up
+send Right
+send Left
+send Enter
+sleep 0.3
+assert_contains "Hosts (3)" "preferences closes with Enter"
 send C-f
 assert_contains "FRP · endpoints" "FRP panel opens"
 send n
 assert_contains "Nuevo proxy FRP" "FRP proxy form opens"
+send Down
+send Space
+assert_contains "Tipo: udp" "space changes the proxy type"
+send Right
+send Left
+send Up
+send Space
 send Escape
 sleep 0.2
 send Escape
 sleep 0.5
 assert_contains "Hosts (3)" "FRP panel closes"
+send F6
+send Enter
+send Down Down Down Down Down Down Down Down Down Down Down Down
+send Enter
+assert_contains "Transferencias" "transfers panel opens through menu arrows"
+send u
+assert_contains "Subir archivo" "transfer form opens with u"
+send Down Down
+send Space
+assert_contains "Protocolo: scp" "space changes the transfer protocol"
+send Up Up
+send Escape
+sleep 0.2
+send Escape
+sleep 0.3
+assert_contains "Hosts (3)" "transfers panel closes"
 send Enter
 assert_contains "[1 ● ssh05-ui-1]" "tab 1 opens through ssh05d"
 assert_contains "x@x:" "SSH prompt is visible"

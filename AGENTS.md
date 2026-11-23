@@ -84,6 +84,8 @@ make install                   # copies ./bin/ssh05 y ./bin/ssh05d to /usr/bin
     `Diag`, `Transferir`, `FRP`, `Prefs`, `Ayuda`, `Salir`). `Tab` la enfoca,
     `←/→` navega, `Enter` activa, `Esc` sale; también acepta ratón.
   - `Menú` abre la lista completa de acciones navegable y clicable.
+  - Menús, submenús, listas y formularios se navegan con `↑↓←→` (`←/↑`
+    anterior, `→/↓` siguiente); `Espacio` cambia opciones y `Enter` acepta.
   - `Ctrl+K` abre la paleta de comandos; incluye diagnosticar host y exportar
     un informe saneado.
   - `Ctrl+N` en la lista de hosts abre el alta de un host y lo guarda en
