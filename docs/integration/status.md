@@ -89,6 +89,7 @@
 | Navegación solo con flechas | **Hecho** | `j`/`k` no mueven; se escriben en búsqueda; `TestHostModelVimKeysDoNotNavigate` |
 | Pegado en la app | **Hecho** | bracketed paste en búsqueda, formularios y terminal; `ui-smoke` |
 | Contraseña en alta de host | **Hecho** | campo en la UI; `hosts.create` escribe `#!! encPassword`; test de ida y vuelta |
+| `ssh05` abre la UI por defecto | **Hecho** | sin argumentos ejecuta `ssh05-ui`; `SSH05_NO_UI=1` fuerza el gestor clásico |
 | Alta de hosts desde la UI | **Hecho** | `hosts.create`, `Ctrl+N` |
 | Servicio de usuario y Docker opt-in | **Hecho** | `ssh05d.service`, `--docker` |
 | tmux solo se reengancha si existe | **Hecho** | `TmuxCreate=false`, sonda `has-session`, prueba real |
@@ -101,11 +102,12 @@
 | Prioridad | Trabajo | Criterio de cierre |
 |---|---|---|
 | — | GeoIP de ciudad | No incluido; ASN/RDAP y país orientativo ya operativos |
+| P2 | Publicar release 0.3.27 | `ssh05` sin argumentos abre OpenTUI; notas en `docs/releases/0.3.27.md` |
 | P2 | Publicar release 0.3.26 | contraseña codificada en el alta; notas en `docs/releases/0.3.26.md` |
 
 Releases publicados: <https://github.com/lordpietre/ssh05/releases> (`v0.3.18`
 identidad, `v0.3.19` trzsz/Zmodem, `v0.3.20` paquete autosuficiente,
-`v0.3.21` Docker opt-in, `v0.3.22` flechas, `v0.3.23` overlays opacos, `v0.3.24` solo flechas, `v0.3.25` pegado, `v0.3.26` contraseña enc).
+`v0.3.21` Docker opt-in, `v0.3.22` flechas, `v0.3.23` overlays opacos, `v0.3.24` solo flechas, `v0.3.25` pegado, `v0.3.26` contraseña enc, `v0.3.27` UI por defecto).
 
 ## Invariantes que no se negocian
 

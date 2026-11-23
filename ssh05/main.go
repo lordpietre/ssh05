@@ -264,6 +264,14 @@ func execDockerExec(container, shell string) {
 
 // Ssh05Main is the main function of the ssh05 program.
 func Ssh05Main(argv []string) int {
+	// Without arguments the packaged OpenTUI frontend is the default entry
+	// point. Set SSH05_NO_UI=1 to force the classic host manager.
+	if len(argv) == 0 && isTerminal && !strings.EqualFold(os.Getenv("SSH05_NO_UI"), "1") {
+		if handled, code := launchOpenTUI(); handled {
+			return code
+		}
+	}
+
 	// parse ssh args
 	var args sshArgs
 	parser, err := arg.NewParser(arg.Config{HideLongOptions: true, Out: os.Stderr, Exit: os.Exit}, &args)

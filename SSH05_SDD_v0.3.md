@@ -716,7 +716,7 @@ Navegación completa por teclado, foco visible, mensajes legibles sin color, sop
   romper scripts, servicios ni sesiones de desarrollo.
 - El informe de diagnóstico pasa a `ssh05-diagnostics-*.json` y los nombres de
   sesión tmux generados usan el prefijo `ssh05-`.
-- Versión del cliente: **0.3.26**. Se mantiene la compatibilidad con
+- Versión del cliente: **0.3.27**. Se mantiene la compatibilidad con
   `~/.tssh.conf`, `TSSH_*` y `~/.tssh/` heredada de `trzsz-ssh`.
 - **DAT-01 completado:** `trz`/`tsz` (y Zmodem opcional con `--zmodem`) se
   integran en el flujo de la sesión del supervisor, con `--download-path` para
@@ -747,3 +747,6 @@ Navegación completa por teclado, foco visible, mensajes legibles sin color, sop
 - **0.3.26:** el alta de host admite contraseña opcional y la guarda como
   `#!! encPassword` (esquema `enc` heredado), nunca en claro ni en perfiles;
   la sesión la descodifica al conectar.
+- **0.3.27:** `ssh05` sin argumentos abre directamente la interfaz OpenTUI
+  cuando `ssh05-ui` está instalada; `ssh05 host` conserva el cliente clásico y
+  `SSH05_NO_UI=1` fuerza el gestor clásico.

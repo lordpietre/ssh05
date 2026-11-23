@@ -1,3 +1,12 @@
+ssh05 (0.3.27) unstable; urgency=medium
+
+  * `ssh05` sin argumentos abre la interfaz OpenTUI si `ssh05-ui` está
+    instalada; `ssh05 host` mantiene el cliente clásico y SSH05_NO_UI=1
+    fuerza el gestor clásico.
+  * ssh05-ui sigue disponible como alias/compatibilidad.
+
+ -- Dinámicas Electrónicas <dinamicas.electronicas@gmail.com>  Mon, 23 Nov 2026 16:30:00 +0100
+
 ssh05 (0.3.26) unstable; urgency=medium
 
   * El alta de host de la UI incluye contraseña opcional; se guarda como

@@ -1,4 +1,4 @@
-## ssh05 — fork de trzsz-ssh v0.3.26
+## ssh05 — fork de trzsz-ssh v0.3.27
 
 Cliente SSH con interfaz TUI ncurses, reemplazo directo de OpenSSH. Fork de [trzsz-ssh](https://github.com/trzsz/trzsz-ssh) con gestión visual de hosts, túneles y edición inline.
 
@@ -88,7 +88,7 @@ Descarga el `.deb` de tu arquitectura desde
 `amd64` o `arm64`):
 
 ```sh
-VERSION=0.3.26
+VERSION=0.3.27
 wget "https://github.com/lordpietre/ssh05/releases/download/v${VERSION}/ssh05_${VERSION}_ubuntu_amd64.deb"
 wget "https://github.com/lordpietre/ssh05/releases/download/v${VERSION}/ssh05_${VERSION}_ubuntu_amd64.deb.sha256"
 sha256sum -c "ssh05_${VERSION}_ubuntu_amd64.deb.sha256"
@@ -106,8 +106,9 @@ El paquete instala y deja listo todo lo necesario:
 Uso:
 
 ```sh
-ssh05 usuario@host    # cliente clásico
-ssh05-ui              # UI multipestaña; arranca ssh05d si aún no está vivo
+ssh05                 # UI OpenTUI por defecto (equivale a ssh05-ui)
+ssh05 usuario@host    # conexión directa con el cliente clásico
+SSH05_NO_UI=1 ssh05   # fuerza el gestor de hosts clásico
 ```
 
 `ssh05-ui` inicia el supervisor automáticamente si el socket no existe, así que
@@ -122,8 +123,8 @@ systemctl --user start ssh05d
 
 ```sh
 make deb
-sudo apt install ./dist/ssh05_0.3.26_ubuntu_amd64.deb
-# o ./dist/ssh05_0.3.26_debian_amd64.deb
+sudo apt install ./dist/ssh05_0.3.27_ubuntu_amd64.deb
+# o ./dist/ssh05_0.3.27_debian_amd64.deb
 ```
 
 Cada push a `main` genera `.deb` para Ubuntu y Debian (amd64 y arm64)
