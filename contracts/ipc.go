@@ -179,6 +179,7 @@ type HostCreateParams struct {
 	Port         int    `json:"port,omitempty"`
 	Username     string `json:"username,omitempty"`
 	IdentityFile string `json:"identityFile,omitempty"`
+	Password     string `json:"password,omitempty"`
 }
 
 type HostOverridePatch struct {

@@ -1,3 +1,13 @@
+ssh05 (0.3.26) unstable; urgency=medium
+
+  * El alta de host de la UI incluye contraseña opcional; se guarda como
+    #!! encPassword en ssh_config, nunca en claro ni en los perfiles.
+  * hosts.create acepta password y lo codifica con el mismo esquema enc que
+    el cliente clásico; la sesion lo lee al conectar.
+  * Pruebas de escritura codificada y de la UI.
+
+ -- Dinámicas Electrónicas <dinamicas.electronicas@gmail.com>  Mon, 23 Nov 2026 16:00:00 +0100
+
 ssh05 (0.3.25) unstable; urgency=medium
 
   * Pegar texto funciona en la búsqueda y formularios del TUI clásico y de

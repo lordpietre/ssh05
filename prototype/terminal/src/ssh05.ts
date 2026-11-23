@@ -421,6 +421,7 @@ let newHostForm: {
   port: string
   username: string
   identityFile: string
+  password: string
 } | null = null
 let helpVisible = false
 let nmapConfirmVisible = false
@@ -1638,6 +1639,7 @@ renderer.keyInput.on("paste", (event: { bytes: Uint8Array }) => {
     else if (form.field === 1) form.hostname += oneLine
     else if (form.field === 3) form.username += oneLine
     else if (form.field === 4) form.identityFile += oneLine
+    else if (form.field === 5) form.password += oneLine
     uiDirty()
     return
   }
@@ -2000,6 +2002,7 @@ function renderNewHost(): void {
   newHostOverlay.visible = true
   const form = newHostForm
   const marker = (index: number) => (index === form.field ? ">" : " ")
+  const masked = form.password ? "•".repeat(Math.min(form.password.length, 24)) : ""
   newHostOverlay.content = padOverlay([
     "",
     "  Nuevo host",
@@ -2009,7 +2012,9 @@ function renderNewHost(): void {
     `  ${marker(2)} Puerto:      ${form.port}`,
     `  ${marker(3)} Usuario:     ${form.username}`,
     `  ${marker(4)} IdentityFile: ${form.identityFile}`,
+    `  ${marker(5)} Contraseña:   ${masked}`,
     "",
+    "  La contraseña se guarda codificada (#!! encPassword) en ssh_config",
     "  ↑↓←→/Tab cambiar campo · Enter guardar y conectar · Esc cancelar",
   ])
 }
@@ -2023,6 +2028,7 @@ function openNewHost(): void {
     port: "22",
     username: process.env.USER ?? "",
     identityFile: "",
+    password: "",
   }
   uiDirty()
 }
@@ -2035,9 +2041,9 @@ async function handleNewHostKey(key: KeyEvent): Promise<void> {
     newHostVisible = false
     newHostForm = null
   } else if (name === "tab" || name === "down" || name === "right") {
-    form.field = (form.field + 1) % 5
+    form.field = (form.field + 1) % 6
   } else if (name === "up" || name === "left" || name === "backtab") {
-    form.field = (form.field + 4) % 5
+    form.field = (form.field + 5) % 6
   } else if (name === "return" || name === "enter") {
     await saveNewHost(true)
     return
@@ -2048,6 +2054,7 @@ async function handleNewHostKey(key: KeyEvent): Promise<void> {
     else if (form.field === 2) form.port = clear ? "" : form.port.slice(0, -1)
     else if (form.field === 3) form.username = clear ? "" : form.username.slice(0, -1)
     else if (form.field === 4) form.identityFile = clear ? "" : form.identityFile.slice(0, -1)
+    else if (form.field === 5) form.password = clear ? "" : form.password.slice(0, -1)
   } else if (!key.ctrl && !key.meta && key.sequence) {
     const chars = Array.from(key.sequence)
     if (chars.length === 1 && chars[0] >= " ") {
@@ -2056,6 +2063,7 @@ async function handleNewHostKey(key: KeyEvent): Promise<void> {
       else if (form.field === 2 && /[0-9]/.test(chars[0])) form.port += chars[0]
       else if (form.field === 3) form.username += chars[0]
       else if (form.field === 4) form.identityFile += chars[0]
+      else if (form.field === 5) form.password += chars[0]
     }
   }
   uiDirty()
@@ -2084,6 +2092,7 @@ async function saveNewHost(connect: boolean): Promise<void> {
         port,
         username: form.username,
         identityFile: form.identityFile,
+        password: form.password,
       },
       { timeoutMs: 8000 },
     )

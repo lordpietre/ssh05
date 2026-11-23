@@ -903,6 +903,17 @@ func getAllExOptionConfig(args *sshArgs, option string) []string {
 
 var secretEncodeKey = []byte("THE_UNSAFE_KEY_FOR_ENCODING_ONLY")
 
+// EncodeSecret encodes a secret for a `#!! encPassword` configuration entry.
+// It matches the classic client format so both frontends can read it.
+func EncodeSecret(secret string) (string, error) {
+	return encodeSecret([]byte(secret))
+}
+
+// DecodeSecret decodes a `#!! encPassword` value written by EncodeSecret.
+func DecodeSecret(secret string) (string, error) {
+	return decodeSecret(secret)
+}
+
 func encodeSecret(secret []byte) (string, error) {
 	aesCipher, err := aes.NewCipher(secretEncodeKey)
 	if err != nil {

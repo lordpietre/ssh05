@@ -716,7 +716,7 @@ Navegación completa por teclado, foco visible, mensajes legibles sin color, sop
   romper scripts, servicios ni sesiones de desarrollo.
 - El informe de diagnóstico pasa a `ssh05-diagnostics-*.json` y los nombres de
   sesión tmux generados usan el prefijo `ssh05-`.
-- Versión del cliente: **0.3.25**. Se mantiene la compatibilidad con
+- Versión del cliente: **0.3.26**. Se mantiene la compatibilidad con
   `~/.tssh.conf`, `TSSH_*` y `~/.tssh/` heredada de `trzsz-ssh`.
 - **DAT-01 completado:** `trz`/`tsz` (y Zmodem opcional con `--zmodem`) se
   integran en el flujo de la sesión del supervisor, con `--download-path` para
@@ -744,3 +744,6 @@ Navegación completa por teclado, foco visible, mensajes legibles sin color, sop
 - **0.3.25:** pegado con bracketed paste en búsqueda, formularios y PTY de
   ambos frontends, con límites de tamaño y sin saltos de línea en campos
   simples.
+- **0.3.26:** el alta de host admite contraseña opcional y la guarda como
+  `#!! encPassword` (esquema `enc` heredado), nunca en claro ni en perfiles;
+  la sesión la descodifica al conectar.

@@ -20,7 +20,7 @@ const (
 	// Supervisor is the name of the local supervisor daemon.
 	Supervisor = "ssh05d"
 	// Version is the client and supervisor version.
-	Version = "0.3.25"
+	Version = "0.3.26"
 	// Vendor owns this distribution.
 	Vendor = "Dinámicas Electrónicas"
 	// SupportEmail is the public support contact.

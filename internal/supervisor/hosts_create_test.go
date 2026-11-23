@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/lordpietre/ssh05/contracts"
+	"github.com/lordpietre/ssh05/ssh05"
 )
 
 func TestInventoryCreateHostAppendsAndReloads(t *testing.T) {
@@ -36,5 +37,33 @@ func TestInventoryCreateHostAppendsAndReloads(t *testing.T) {
 	}
 	if _, err := inventory.CreateHost(context.Background(), contracts.HostCreateParams{Alias: "bad alias", Hostname: "x"}); err == nil {
 		t.Fatal("invalid alias must fail")
+	}
+}
+
+func TestInventoryCreateHostStoresEncodedPassword(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "ssh_config")
+	inventory := NewInventory(InventoryConfig{SSHConfigPath: path, OverridesPath: filepath.Join(dir, "hosts.json")})
+	const password = "s3cret-pass"
+	if _, err := inventory.CreateHost(context.Background(), contracts.HostCreateParams{
+		Alias: "web", Hostname: "10.0.0.3", Password: password,
+	}); err != nil {
+		t.Fatalf("CreateHost: %v", err)
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	config := string(data)
+	if !strings.Contains(config, "#!! encPassword ") || !strings.Contains(config, "#!! encQuestionAnswer1 ") {
+		t.Fatalf("encoded entries missing:\n%s", config)
+	}
+	if strings.Contains(config, password) {
+		t.Fatalf("plaintext password written:\n%s", config)
+	}
+	encoded := strings.TrimSpace(strings.SplitN(strings.SplitN(config, "#!! encPassword ", 2)[1], "\n", 2)[0])
+	decoded, err := ssh05.DecodeSecret(encoded)
+	if err != nil || decoded != password {
+		t.Fatalf("decode = %q, %v", decoded, err)
 	}
 }

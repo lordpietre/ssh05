@@ -139,6 +139,7 @@ assert_contains "Acciones" "actions menu opens from the action bar with Enter"
 send Down
 send Enter
 assert_contains "Nuevo host" "submenu opens with arrow selection"
+assert_contains "Contraseña:" "new host form offers an encoded password field"
 send Right
 send Right
 send Left

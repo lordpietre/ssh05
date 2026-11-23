@@ -9,12 +9,14 @@ import (
 	"strings"
 
 	"github.com/lordpietre/ssh05/contracts"
+	"github.com/lordpietre/ssh05/ssh05"
 )
 
 var hostAliasPattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$`)
 
 // CreateHost appends a Host block to the configured ssh_config and reloads the
-// inventory. It never writes passwords or private key material.
+// inventory. An optional password is stored as an encoded `#!! encPassword`
+// entry (same format as the classic client); private keys are never written.
 func (i *Inventory) CreateHost(ctx context.Context, params contracts.HostCreateParams) (contracts.HostProfile, error) {
 	i.ensureLoaded(ctx)
 	params.Alias = strings.TrimSpace(params.Alias)
@@ -29,6 +31,9 @@ func (i *Inventory) CreateHost(ctx context.Context, params contracts.HostCreateP
 	}
 	if strings.ContainsAny(params.Username, " \t\r\n\x00") || strings.ContainsAny(params.IdentityFile, "\r\n\x00") {
 		return contracts.HostProfile{}, fmt.Errorf("invalid user or identity file")
+	}
+	if strings.ContainsAny(params.Password, "\r\n\x00") {
+		return contracts.HostProfile{}, fmt.Errorf("invalid password")
 	}
 	if params.Port == 0 {
 		params.Port = 22
@@ -52,7 +57,10 @@ func (i *Inventory) CreateHost(ctx context.Context, params contracts.HostCreateP
 	if err := os.MkdirAll(dir, 0o700); err != nil {
 		return contracts.HostProfile{}, err
 	}
-	block := renderHostBlock(params)
+	block, err := renderHostBlock(params)
+	if err != nil {
+		return contracts.HostProfile{}, err
+	}
 	file, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o600)
 	if err != nil {
 		return contracts.HostProfile{}, err
@@ -92,7 +100,7 @@ func (i *Inventory) sshConfigPath() string {
 	return expandHome(path)
 }
 
-func renderHostBlock(params contracts.HostCreateParams) string {
+func renderHostBlock(params contracts.HostCreateParams) (string, error) {
 	var builder strings.Builder
 	fmt.Fprintf(&builder, "Host %s\n", params.Alias)
 	fmt.Fprintf(&builder, "    HostName %s\n", params.Hostname)
@@ -103,5 +111,13 @@ func renderHostBlock(params contracts.HostCreateParams) string {
 	if params.IdentityFile != "" {
 		fmt.Fprintf(&builder, "    IdentityFile %s\n", params.IdentityFile)
 	}
-	return builder.String()
+	if params.Password != "" {
+		secret, err := ssh05.EncodeSecret(params.Password)
+		if err != nil {
+			return "", fmt.Errorf("encode password: %w", err)
+		}
+		fmt.Fprintf(&builder, "    #!! encPassword %s\n", secret)
+		fmt.Fprintf(&builder, "    #!! encQuestionAnswer1 %s\n", secret)
+	}
+	return builder.String(), nil
 }

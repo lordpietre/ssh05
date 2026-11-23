@@ -1,4 +1,4 @@
-## ssh05 — fork de trzsz-ssh v0.3.25
+## ssh05 — fork de trzsz-ssh v0.3.26
 
 Cliente SSH con interfaz TUI ncurses, reemplazo directo de OpenSSH. Fork de [trzsz-ssh](https://github.com/trzsz/trzsz-ssh) con gestión visual de hosts, túneles y edición inline.
 
@@ -88,7 +88,7 @@ Descarga el `.deb` de tu arquitectura desde
 `amd64` o `arm64`):
 
 ```sh
-VERSION=0.3.25
+VERSION=0.3.26
 wget "https://github.com/lordpietre/ssh05/releases/download/v${VERSION}/ssh05_${VERSION}_ubuntu_amd64.deb"
 wget "https://github.com/lordpietre/ssh05/releases/download/v${VERSION}/ssh05_${VERSION}_ubuntu_amd64.deb.sha256"
 sha256sum -c "ssh05_${VERSION}_ubuntu_amd64.deb.sha256"
@@ -122,8 +122,8 @@ systemctl --user start ssh05d
 
 ```sh
 make deb
-sudo apt install ./dist/ssh05_0.3.25_ubuntu_amd64.deb
-# o ./dist/ssh05_0.3.25_debian_amd64.deb
+sudo apt install ./dist/ssh05_0.3.26_ubuntu_amd64.deb
+# o ./dist/ssh05_0.3.26_debian_amd64.deb
 ```
 
 Cada push a `main` genera `.deb` para Ubuntu y Debian (amd64 y arm64)
@@ -259,9 +259,11 @@ pestañas; `Ctrl+Shift+←/→` reordena la pestaña activa. Las preferencias se
 `F1` muestra la ayuda con todos los atajos.
 
 La barra superior tiene botones navegables (`Tab`, flechas, `Enter`, ratón) y
-el botón `Menú` abre todas las acciones. `Ctrl+N` en la lista de hosts abre el alta de un host (alias, HostName,
-puerto, usuario, IdentityFile) y lo guarda en `ssh_config`; Enter guarda y
-conecta.
+el botón `Menú` abre todas las acciones. `Ctrl+N` en la lista de hosts abre el
+alta de un host (alias, HostName, puerto, usuario, IdentityFile y contraseña
+opcional) y lo guarda en `ssh_config`; Enter guarda y conecta. La contraseña se
+escribe como `#!! encPassword` (esquema `enc`, nunca en claro) y la sesión la
+usa al conectar.
 
 Desde la lista de hosts, `F2` marca favorito, `F3` cicla el color y `F4` edita
 etiquetas. Los cambios se guardan en `~/.config/ssh05/hosts.json` sin tocar

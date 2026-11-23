@@ -311,6 +311,7 @@ export interface HostCreateParams {
   port?: number
   username?: string
   identityFile?: string
+  password?: string
 }
 
 export interface HostOverridePatch {
