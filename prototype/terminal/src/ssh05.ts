@@ -514,6 +514,7 @@ let frpForm: {
 } | null = null
 let welcomeVisible = envValue("NO_WELCOME") !== "1"
 let caretOn = true
+let caretPos = 0
 let commandMode = false
 let commandInput = ""
 let hostMenuVisible = false
@@ -810,7 +811,7 @@ function renderHosts(): void {
   hostTitle.content = ` Hosts (${all.length}${query ? `/${hosts.length}` : ""})${conflicts > 0 ? ` !${conflicts}` : ""}`
 
   if (commandMode) {
-    hostQuery.content = ` /${commandInput}${caretOn ? "▌" : ""}`
+    hostQuery.content = ` /${withCaret(commandInput, true)}`
     hostHint.content = " /connect crea un host · Enter ejecutar · Esc cancelar"
     const matches = slashMatches(commandInput)
     const lines = ["", "  Comandos"]
@@ -1735,6 +1736,7 @@ function handleHostKey(key: KeyEvent): void {
   } else if (name === "/") {
     commandMode = true
     commandInput = ""
+    caretPos = 0
     query = ""
     cursor = 0
   } else if (!key.ctrl && !key.meta && key.sequence) {
@@ -1749,17 +1751,35 @@ function handleHostKey(key: KeyEvent): void {
 
 function handleCommandKey(key: KeyEvent): void {
   const name = key.name.toLowerCase()
+  const position = Math.max(0, Math.min(caretPos, commandInput.length))
   if (name === "escape") {
     commandMode = false
     commandInput = ""
-  } else if (name === "backspace" || name === "delete") {
-    commandInput = name === "delete" ? "" : commandInput.slice(0, -1)
+  } else if (name === "left") {
+    caretPos = Math.max(0, position - 1)
+  } else if (name === "right") {
+    caretPos = Math.min(commandInput.length, position + 1)
+  } else if (name === "home") {
+    caretPos = 0
+  } else if (name === "end") {
+    caretPos = commandInput.length
+  } else if (name === "backspace") {
+    if (position > 0) {
+      commandInput = commandInput.slice(0, position - 1) + commandInput.slice(position)
+      caretPos = position - 1
+    }
+  } else if (name === "delete") {
+    commandInput = commandInput.slice(0, position) + commandInput.slice(position + 1)
+    caretPos = position
   } else if (name === "return" || name === "enter") {
     runSlashCommand()
     return
   } else if (!key.ctrl && !key.meta && key.sequence) {
     const chars = Array.from(key.sequence)
-    if (chars.length === 1 && chars[0] >= " ") commandInput += chars[0]
+    if (chars.length === 1 && chars[0] >= " ") {
+      commandInput = commandInput.slice(0, position) + chars[0] + commandInput.slice(position)
+      caretPos = position + 1
+    }
   }
   uiDirty()
 }
@@ -2365,6 +2385,12 @@ async function openTransferQuick(direction: "upload" | "download"): Promise<void
   openTransferForm(direction)
 }
 
+function withCaret(value: string, active: boolean): string {
+  if (!active || !caretOn) return value
+  const position = Math.max(0, Math.min(caretPos, value.length))
+  return value.slice(0, position) + "▌" + value.slice(position)
+}
+
 function renderNewHost(): void {
   if (!newHostVisible || !newHostForm) {
     newHostOverlay.visible = false
@@ -2373,22 +2399,20 @@ function renderNewHost(): void {
   newHostOverlay.visible = true
   const form = newHostForm
   const marker = (index: number) => (index === form.field ? ">" : " ")
-  const cursor = (index: number) => (form.field === index && caretOn ? "▌" : "")
   const masked = form.password ? "•".repeat(Math.min(form.password.length, 24)) : ""
-  const aliasLabel = form.mode === "edit" ? `${form.alias} (fijo)` : form.alias
   newHostOverlay.content = padOverlay([
     "",
     form.mode === "edit" ? `  Editar host · ${form.editingAlias ?? form.alias}` : "  Nuevo host",
     "",
-    `  ${marker(0)} Alias:        ${aliasLabel}`,
-    `  ${marker(1)} HostName:    ${form.hostname}${cursor(1)}`,
-    `  ${marker(2)} Puerto:      ${form.port}${cursor(2)}`,
-    `  ${marker(3)} Usuario:     ${form.username}${cursor(3)}`,
-    `  ${marker(4)} IdentityFile: ${form.identityFile}${cursor(4)}`,
-    `  ${marker(5)} Contraseña:   ${masked}${cursor(5)}`,
+    `  ${marker(0)} Alias:        ${withCaret(form.alias, form.field === 0)}`,
+    `  ${marker(1)} HostName:    ${withCaret(form.hostname, form.field === 1)}`,
+    `  ${marker(2)} Puerto:      ${withCaret(form.port, form.field === 2)}`,
+    `  ${marker(3)} Usuario:     ${withCaret(form.username, form.field === 3)}`,
+    `  ${marker(4)} IdentityFile: ${withCaret(form.identityFile, form.field === 4)}`,
+    `  ${marker(5)} Contraseña:   ${withCaret(masked, form.field === 5)}`,
     "",
     form.error ? `  ⚠ ${form.error}` : "  La contraseña se guarda codificada (#!! encPassword) en ssh_config",
-    "  ↑↓←→/Tab cambiar campo · Enter guardar · Ctrl+S guardar sin conectar · Esc cancelar",
+    "  ↑↓/Tab campo · ←→ mover cursor · Enter guardar · Ctrl+S sin conectar · Esc cancelar",
   ])
 }
 
@@ -2414,7 +2438,7 @@ function openHostEditor(host: HostProfile): void {
     mode: "edit",
     editingAlias: host.alias,
     error: "",
-    field: 1,
+    field: 0,
     alias: host.alias,
     hostname: host.target.hostname,
     port: String(host.target.port || 22),
@@ -2422,30 +2446,80 @@ function openHostEditor(host: HostProfile): void {
     identityFile: "",
     password: "",
   }
+  caretPos = newHostForm.alias.length
   uiDirty()
 }
 
-function hostFormFields(form: NonNullable<typeof newHostForm>): number[] {
-  return form.mode === "edit" ? [1, 2, 3, 4, 5] : [0, 1, 2, 3, 4, 5]
+function hostFormFields(_form: NonNullable<typeof newHostForm>): number[] {
+  return [0, 1, 2, 3, 4, 5]
+}
+
+function newHostValue(form: NonNullable<typeof newHostForm>, field: number): string {
+  switch (field) {
+    case 0:
+      return form.alias
+    case 1:
+      return form.hostname
+    case 2:
+      return form.port
+    case 3:
+      return form.username
+    case 4:
+      return form.identityFile
+    default:
+      return form.password
+  }
+}
+
+function setNewHostValue(form: NonNullable<typeof newHostForm>, field: number, value: string): void {
+  switch (field) {
+    case 0:
+      form.alias = value
+      break
+    case 1:
+      form.hostname = value
+      break
+    case 2:
+      form.port = value
+      break
+    case 3:
+      form.username = value
+      break
+    case 4:
+      form.identityFile = value
+      break
+    default:
+      form.password = value
+  }
 }
 
 async function handleNewHostKey(key: KeyEvent): Promise<void> {
   if (!newHostForm) return
   const form = newHostForm
   const name = key.name.toLowerCase()
+  const fields = hostFormFields(form)
+  const position = fields.indexOf(form.field)
+  const moveField = (delta: number) => {
+    form.field = fields[(position + delta + fields.length) % fields.length]
+    form.error = ""
+    caretPos = newHostValue(form, form.field).length
+  }
+  const value = newHostValue(form, form.field)
   if (name === "escape") {
     newHostVisible = false
     newHostForm = null
-  } else if (name === "tab" || name === "down" || name === "right") {
-    const fields = hostFormFields(form)
-    const position = fields.indexOf(form.field)
-    form.field = fields[(position + 1) % fields.length]
-    form.error = ""
-  } else if (name === "up" || name === "left" || name === "backtab") {
-    const fields = hostFormFields(form)
-    const position = fields.indexOf(form.field)
-    form.field = fields[(position + fields.length - 1) % fields.length]
-    form.error = ""
+  } else if (name === "tab" || name === "down") {
+    moveField(1)
+  } else if (name === "up" || name === "backtab") {
+    moveField(-1)
+  } else if (name === "left") {
+    caretPos = Math.max(0, caretPos - 1)
+  } else if (name === "right") {
+    caretPos = Math.min(value.length, caretPos + 1)
+  } else if (name === "home") {
+    caretPos = 0
+  } else if (name === "end") {
+    caretPos = value.length
   } else if (key.ctrl && name === "s") {
     await saveNewHost(false)
     return
@@ -2453,22 +2527,24 @@ async function handleNewHostKey(key: KeyEvent): Promise<void> {
     await saveNewHost(form.mode === "new")
     return
   } else if (name === "backspace" || name === "delete") {
-    const clear = name === "delete"
-    if (form.field === 0 && form.mode === "new") form.alias = clear ? "" : form.alias.slice(0, -1)
-    else if (form.field === 1) form.hostname = clear ? "" : form.hostname.slice(0, -1)
-    else if (form.field === 2) form.port = clear ? "" : form.port.slice(0, -1)
-    else if (form.field === 3) form.username = clear ? "" : form.username.slice(0, -1)
-    else if (form.field === 4) form.identityFile = clear ? "" : form.identityFile.slice(0, -1)
-    else if (form.field === 5) form.password = clear ? "" : form.password.slice(0, -1)
+    const pos = Math.max(0, Math.min(caretPos, value.length))
+    if (name === "delete") {
+      setNewHostValue(form, form.field, value.slice(0, pos) + value.slice(pos + 1))
+      caretPos = pos
+    } else if (pos > 0) {
+      setNewHostValue(form, form.field, value.slice(0, pos - 1) + value.slice(pos))
+      caretPos = pos - 1
+    }
   } else if (!key.ctrl && !key.meta && key.sequence) {
     const chars = Array.from(key.sequence)
     if (chars.length === 1 && chars[0] >= " ") {
-      if (form.field === 0 && form.mode === "new") form.alias += chars[0]
-      else if (form.field === 1) form.hostname += chars[0]
-      else if (form.field === 2 && /[0-9]/.test(chars[0])) form.port += chars[0]
-      else if (form.field === 3) form.username += chars[0]
-      else if (form.field === 4) form.identityFile += chars[0]
-      else if (form.field === 5) form.password += chars[0]
+      const pos = Math.max(0, Math.min(caretPos, value.length))
+      if (form.field === 2 && !/[0-9]/.test(chars[0])) {
+        uiDirty()
+        return
+      }
+      setNewHostValue(form, form.field, value.slice(0, pos) + chars[0] + value.slice(pos))
+      caretPos = pos + 1
     }
   }
   uiDirty()
@@ -2478,9 +2554,7 @@ async function saveNewHost(connect: boolean): Promise<void> {
   if (!client || !newHostForm) return
   const form = newHostForm
   const port = Number.parseInt(form.port, 10)
-  if (form.mode === "new") {
-    form.alias = normalizeAlias(form.alias)
-  }
+  form.alias = normalizeAlias(form.alias)
   if (!isValidAlias(form.alias)) {
     form.error = "El alias no puede contener espacios ni símbolos; usa letras, números, punto, guion o _"
     uiDirty()
@@ -2504,6 +2578,7 @@ async function saveNewHost(connect: boolean): Promise<void> {
   try {
     const payload = {
       alias: form.alias,
+      previousAlias: form.mode === "edit" ? form.editingAlias : undefined,
       hostname: form.hostname.trim(),
       port,
       username: form.username.trim(),

@@ -124,3 +124,38 @@ func TestInventoryUpdateAndDeleteHost(t *testing.T) {
 		t.Fatal("deleting a missing host must fail")
 	}
 }
+
+func TestInventoryUpdateHostRenamesAlias(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "ssh_config")
+	inventory := NewInventory(InventoryConfig{SSHConfigPath: path, OverridesPath: filepath.Join(dir, "hosts.json")})
+	if _, err := inventory.CreateHost(context.Background(), contracts.HostCreateParams{
+		Alias: "old", Hostname: "10.0.0.3",
+	}); err != nil {
+		t.Fatalf("CreateHost: %v", err)
+	}
+	if _, err := inventory.CreateHost(context.Background(), contracts.HostCreateParams{
+		Alias: "taken", Hostname: "10.0.0.4",
+	}); err != nil {
+		t.Fatalf("CreateHost taken: %v", err)
+	}
+	profile, err := inventory.UpdateHost(context.Background(), contracts.HostUpdateParams{
+		PreviousAlias: "old", Alias: "renamed", Hostname: "10.0.0.3",
+	})
+	if err != nil {
+		t.Fatalf("UpdateHost rename: %v", err)
+	}
+	if profile.Alias != "renamed" {
+		t.Fatalf("profile alias = %q", profile.Alias)
+	}
+	data, _ := os.ReadFile(path)
+	config := string(data)
+	if !strings.Contains(config, "Host renamed") || strings.Contains(config, "Host old") {
+		t.Fatalf("config after rename:\n%s", config)
+	}
+	if _, err := inventory.UpdateHost(context.Background(), contracts.HostUpdateParams{
+		PreviousAlias: "renamed", Alias: "taken", Hostname: "10.0.0.3",
+	}); err == nil {
+		t.Fatal("renaming to an existing alias must fail")
+	}
+}

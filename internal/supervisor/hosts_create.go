@@ -89,10 +89,14 @@ func (i *Inventory) CreateHost(ctx context.Context, params contracts.HostCreateP
 // keeps the encoded secret already present in the block.
 func (i *Inventory) UpdateHost(ctx context.Context, params contracts.HostUpdateParams) (contracts.HostProfile, error) {
 	params.Alias = strings.TrimSpace(params.Alias)
+	previousAlias := strings.TrimSpace(params.PreviousAlias)
+	if previousAlias == "" {
+		previousAlias = params.Alias
+	}
 	params.Hostname = strings.TrimSpace(params.Hostname)
 	params.Username = strings.TrimSpace(params.Username)
 	params.IdentityFile = strings.TrimSpace(params.IdentityFile)
-	if !hostAliasPattern.MatchString(params.Alias) {
+	if !hostAliasPattern.MatchString(params.Alias) || !hostAliasPattern.MatchString(previousAlias) {
 		return contracts.HostProfile{}, fmt.Errorf("invalid alias %q", params.Alias)
 	}
 	if params.Hostname == "" || strings.ContainsAny(params.Hostname, " \t\r\n\x00") {
@@ -117,12 +121,19 @@ func (i *Inventory) UpdateHost(ctx context.Context, params contracts.HostUpdateP
 
 	i.mu.Lock()
 	defer i.mu.Unlock()
+	if params.Alias != previousAlias {
+		for _, profile := range i.profiles {
+			if profile.Alias == params.Alias {
+				return contracts.HostProfile{}, fmt.Errorf("host %q already exists", params.Alias)
+			}
+		}
+	}
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return contracts.HostProfile{}, err
 	}
 	lines := strings.Split(string(data), "\n")
-	start, end := findHostBlock(lines, params.Alias)
+	start, end := findHostBlock(lines, previousAlias)
 	if start < 0 {
 		return contracts.HostProfile{}, fmt.Errorf("host %q not found", params.Alias)
 	}

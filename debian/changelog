@@ -1,3 +1,13 @@
+ssh05 (0.3.30) unstable; urgency=medium
+
+  * El alias se puede renombrar desde Editar; hosts.update acepta
+    previousAlias y reescribe el bloque Host.
+  * Cursor editable en cualquier posición del campo en alta/edición y en
+    comandos: izquierda/derecha, Home/End, Backspace/Delete.
+  * Se eliminan los límites de renombrado y edición al final del texto.
+
+ -- Dinámicas Electrónicas <dinamicas.electronicas@gmail.com>  Mon, 23 Nov 2026 19:30:00 +0100
+
 ssh05 (0.3.29) unstable; urgency=medium
 
   * El alias del alta de host se normaliza: "vuigram server" pasa a

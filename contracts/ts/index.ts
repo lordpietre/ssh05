@@ -316,6 +316,7 @@ export interface HostCreateParams {
 
 export interface HostUpdateParams {
   alias: string
+  previousAlias?: string
   hostname: string
   port?: number
   username?: string

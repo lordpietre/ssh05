@@ -134,8 +134,11 @@ assert_contains "Eliminar" "host actions menu offers delete"
 send Down
 send Enter
 assert_contains "Editar host" "edit action opens the host form"
-send Escape
-sleep 0.3
+send Home
+send "z-"
+send C-s
+sleep 0.6
+assert_contains "z-vuigram-server" "alias rename and middle-of-field edit work"
 send Right
 send Down
 send Down
