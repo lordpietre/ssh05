@@ -770,7 +770,7 @@ func (m *hostModel) handleTunnel(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 func (m *hostModel) handleTunnelMenu(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	s := msg.String()
 	switch s {
-	case "up", "k":
+	case "up":
 		if m.tunnel.tunnelDelMode {
 			if m.tunnel.tunnelCursor > 0 {
 				m.tunnel.tunnelCursor--
@@ -780,7 +780,7 @@ func (m *hostModel) handleTunnelMenu(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 				m.tunnel.formField--
 			}
 		}
-	case "down", "j":
+	case "down":
 		if m.tunnel.tunnelDelMode {
 			if m.tunnel.tunnelCursor < len(m.tunnel.tunnels)-1 {
 				m.tunnel.tunnelCursor++
@@ -839,10 +839,10 @@ func (m *hostModel) handleTunnelManualForm(msg tea.KeyPressMsg) (tea.Model, tea.
 	s := msg.String()
 	txt := msg.Key().Text
 	switch s {
-	case "tab", "down", "j":
+	case "tab", "down":
 		m.tunnel.formField = (m.tunnel.formField + 1) % 3
 		return m, nil
-	case "shift+tab", "up", "k":
+	case "shift+tab", "up":
 		m.tunnel.formField = (m.tunnel.formField + 2) % 3
 		return m, nil
 	case "enter":
@@ -913,11 +913,11 @@ func (m *hostModel) handleTunnelAutoResults(msg tea.KeyPressMsg) (tea.Model, tea
 	s := msg.String()
 	visible := m.tunnel.visibleItems
 	switch s {
-	case "up", "k":
+	case "up":
 		if m.tunnel.scanCursor > 0 {
 			m.tunnel.scanCursor--
 		}
-	case "down", "j":
+	case "down":
 		if m.tunnel.scanCursor < visible-1 {
 			m.tunnel.scanCursor++
 		}
@@ -1046,12 +1046,12 @@ func (m *hostModel) handleNormal(s string) (tea.Model, tea.Cmd) {
 	if m.showContextMenu {
 		ctxItems := m.getContextItems()
 		switch s {
-		case "up", "k":
+		case "up":
 			if m.contextCursor > 0 {
 				m.contextCursor--
 			}
 			return m, nil
-		case "down", "j":
+		case "down":
 			if m.contextCursor < len(ctxItems)-1 {
 				m.contextCursor++
 			}
@@ -1083,14 +1083,14 @@ func (m *hostModel) handleNormal(s string) (tea.Model, tea.Cmd) {
 				m.actionCursor++
 			}
 			return m, nil
-		case "up", "k", "shift+tab":
+		case "up", "shift+tab":
 			m.actionCursor = -1
 			m.cursor = len(m.filtered) - 1
 			if m.cursor < 0 {
 				m.cursor = 0
 			}
 			return m, nil
-		case "down", "j", "tab":
+		case "down", "tab":
 			m.actionCursor = -1
 			return m, nil
 		case "enter":
@@ -1106,11 +1106,11 @@ func (m *hostModel) handleNormal(s string) (tea.Model, tea.Cmd) {
 
 	// Host list mode
 	switch s {
-	case "up", "k", "shift+tab":
+	case "up", "shift+tab":
 		if m.cursor > 0 {
 			m.cursor--
 		}
-	case "down", "j", "tab":
+	case "down", "tab":
 		if m.cursor < len(m.filtered)-1 {
 			m.cursor++
 		} else {
@@ -1858,7 +1858,7 @@ func (m *hostModel) renderActions(b *strings.Builder) {
 func (m *hostModel) renderHelp(b *strings.Builder, maxLines int) {
 	helpLines := []string{
 		"  ↑/↓  Navigate list               ←/→  Navigate actions",
-		"  j/k  Navigate (vim)              g/G  First/Last",
+		"  g/G  First/Last                 PgUp/PgDn  Page",
 		"  /    Search filter                Esc  Clear search",
 		"  Enter  Select host                n    Add new host",
 		"  Space  Toggle select              ?    Toggle help",
@@ -2820,12 +2820,12 @@ func (m *hostModel) handleConfig(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	s := msg.String()
 	txt := msg.Key().Text
 	switch s {
-	case "up", "k", "shift+tab":
+	case "up", "shift+tab":
 		if m.config.cursor > 0 {
 			m.config.cursor--
 		}
 		return m, nil
-	case "down", "j", "tab":
+	case "down", "tab":
 		if m.config.cursor < len(m.config.fields)-1 {
 			m.config.cursor++
 		}
@@ -2983,12 +2983,12 @@ func (m *hostModel) handleDownload(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	s := msg.String()
 	txt := msg.Key().Text
 	switch s {
-	case "up", "k", "shift+tab":
+	case "up", "shift+tab":
 		if m.download.cursor > 0 {
 			m.download.cursor--
 		}
 		return m, nil
-	case "down", "j", "tab":
+	case "down", "tab":
 		if m.download.cursor < len(m.download.fields)-1 {
 			m.download.cursor++
 		}
@@ -3074,12 +3074,12 @@ func (m *hostModel) handleUpload(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	s := msg.String()
 	txt := msg.Key().Text
 	switch s {
-	case "up", "k", "shift+tab":
+	case "up", "shift+tab":
 		if m.upload.cursor > 0 {
 			m.upload.cursor--
 		}
 		return m, nil
-	case "down", "j", "tab":
+	case "down", "tab":
 		if m.upload.cursor < len(m.upload.fields)-1 {
 			m.upload.cursor++
 		}
@@ -3165,12 +3165,12 @@ func (m *hostModel) handleEdit(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	s := msg.String()
 	txt := msg.Key().Text
 	switch s {
-	case "up", "k", "shift+tab":
+	case "up", "shift+tab":
 		if m.edit.cursor > 0 {
 			m.edit.cursor--
 		}
 		return m, nil
-	case "down", "j", "tab":
+	case "down", "tab":
 		if m.edit.cursor < len(m.edit.fields)-1 {
 			m.edit.cursor++
 		}
@@ -3217,11 +3217,11 @@ func (m *hostModel) handleNewHost(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	s := msg.String()
 	txt := msg.Key().Text
 	switch s {
-	case "up", "k", "shift+tab":
+	case "up", "shift+tab":
 		if m.newHost.cursor > 0 {
 			m.newHost.cursor--
 		}
-	case "down", "j", "tab":
+	case "down", "tab":
 		if m.newHost.cursor < len(m.newHost.fields)-1 {
 			m.newHost.cursor++
 		}
@@ -3939,11 +3939,11 @@ func (m *hostModel) handleGroupsMenu(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	s := msg.String()
 	items := []string{"New", "Edit"}
 	switch s {
-	case "up", "k":
+	case "up":
 		if m.groups.cursor > 0 {
 			m.groups.cursor--
 		}
-	case "down", "j":
+	case "down":
 		if m.groups.cursor < len(items)-1 {
 			m.groups.cursor++
 		}
@@ -4024,11 +4024,11 @@ func (m *hostModel) handleGroupsEditGroup(msg tea.KeyPressMsg) (tea.Model, tea.C
 	s := msg.String()
 	groups := m.groups.groupHosts
 	switch s {
-	case "up", "k":
+	case "up":
 		if m.groups.cursor > 0 {
 			m.groups.cursor--
 		}
-	case "down", "j":
+	case "down":
 		if m.groups.cursor < len(groups)-1 {
 			m.groups.cursor++
 		}
@@ -4070,11 +4070,11 @@ func (m *hostModel) handleGroupsHostList(msg tea.KeyPressMsg, isNew bool) (tea.M
 	s := msg.String()
 	hosts := m.groups.groupHosts
 	switch s {
-	case "up", "k":
+	case "up":
 		if m.groups.cursor > 0 {
 			m.groups.cursor--
 		}
-	case "down", "j":
+	case "down":
 		if m.groups.cursor < len(hosts)-1 {
 			m.groups.cursor++
 		}
@@ -4211,12 +4211,12 @@ func (m *hostModel) handleGroupPicker(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) 
 
 	if m.groupPicker.mode == "select" {
 		switch s {
-		case "up", "k":
+		case "up":
 			if m.groupPicker.cursor > 0 {
 				m.groupPicker.cursor--
 			}
 			return m, nil
-		case "down", "j":
+		case "down":
 			total := len(m.groupPicker.groups) + 1 // +1 for "New..."
 			if m.groupPicker.cursor < total-1 {
 				m.groupPicker.cursor++

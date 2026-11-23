@@ -90,11 +90,11 @@ func (m *menuModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "ctrl+c", "esc", "q":
 			m.quitting = true
 			return m, tea.Quit
-		case "up", "k", "left":
+		case "up", "left":
 			if m.cursor > 0 {
 				m.cursor--
 			}
-		case "down", "j", "right":
+		case "down", "right":
 			if m.cursor < len(m.items)-1 {
 				m.cursor++
 			}

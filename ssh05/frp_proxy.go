@@ -1313,7 +1313,7 @@ func (m *hostModel) handleFrp(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 func (m *hostModel) handleFrpMenu(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	s := msg.String()
 	switch s {
-	case "up", "k":
+	case "up":
 		if m.frp.delMode {
 			if m.frp.cursor > 0 {
 				m.frp.cursor--
@@ -1323,7 +1323,7 @@ func (m *hostModel) handleFrpMenu(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 				m.frp.cursor--
 			}
 		}
-	case "down", "j":
+	case "down":
 		if m.frp.delMode {
 			if m.frp.cursor < len(m.frp.entries)-1 {
 				m.frp.cursor++
@@ -1374,11 +1374,11 @@ func (m *hostModel) handleFrpMenu(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 func (m *hostModel) handleFrpDirection(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	s := msg.String()
 	switch s {
-	case "up", "k":
+	case "up":
 		if m.frp.cursor > 0 {
 			m.frp.cursor--
 		}
-	case "down", "j":
+	case "down":
 		if m.frp.cursor < 1 {
 			m.frp.cursor++
 		}
@@ -1409,11 +1409,11 @@ func (m *hostModel) handleFrpScanResults(msg tea.KeyPressMsg) (tea.Model, tea.Cm
 	s := msg.String()
 	visible := m.frp.visibleItems
 	switch s {
-	case "up", "k":
+	case "up":
 		if m.frp.scanCursor > 0 {
 			m.frp.scanCursor--
 		}
-	case "down", "j":
+	case "down":
 		if m.frp.scanCursor < visible-1 {
 			m.frp.scanCursor++
 		}
@@ -1465,9 +1465,9 @@ func (m *hostModel) handleFrpManualSetup(msg tea.KeyPressMsg) (tea.Model, tea.Cm
 	s := msg.String()
 	txt := msg.Key().Text
 	switch s {
-	case "tab", "down", "j":
+	case "tab", "down":
 		m.frp.cursor = (m.frp.cursor + 1) % 3
-	case "shift+tab", "up", "k":
+	case "shift+tab", "up":
 		m.frp.cursor = (m.frp.cursor + 2) % 3
 	case "enter":
 		m.frp.setupErr = ""
@@ -1573,9 +1573,9 @@ func (m *hostModel) handleFrpConfirm(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	s := msg.String()
 	txt := msg.Key().Text
 	switch s {
-	case "tab", "down", "j":
+	case "tab", "down":
 		m.frp.cursor = (m.frp.cursor + 1) % 3
-	case "shift+tab", "up", "k":
+	case "shift+tab", "up":
 		m.frp.cursor = (m.frp.cursor + 2) % 3
 	case "enter":
 		m.frp.setupErr = ""
@@ -1670,11 +1670,11 @@ func (m *hostModel) handleFrpConfirm(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 func (m *hostModel) handleFrpList(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	s := msg.String()
 	switch s {
-	case "up", "k":
+	case "up":
 		if m.frp.cursor > 0 {
 			m.frp.cursor--
 		}
-	case "down", "j":
+	case "down":
 		if m.frp.cursor < len(m.frp.entries)-1 {
 			m.frp.cursor++
 		}

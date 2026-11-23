@@ -453,12 +453,12 @@ func (m *listModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "q", "ctrl+c":
 			m.quit = true
 			return m, tea.Quit
-		case "j", "tab", "down", "right":
+		case "tab", "down", "right":
 			m.cursor++
 			if m.cursor >= len(m.items) {
 				m.cursor = 0
 			}
-		case "k", "shift+tab", "up", "left":
+		case "shift+tab", "up", "left":
 			m.cursor--
 			if m.cursor < 0 {
 				m.cursor = len(m.items) - 1
@@ -489,7 +489,7 @@ func (m *listModel) View() tea.View {
 		}
 	}
 	builder.WriteString(lipgloss.NewStyle().Faint(true).
-		Render("Use ↓ ↑ j k or tab to navigate, Enter to choose.") + "\n")
+		Render("Use ↓ ↑ or tab to navigate, Enter to choose.") + "\n")
 	return tea.NewView(builder.String())
 }
 

@@ -121,7 +121,7 @@ func (m *attachModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.chosen = -1
 			m.quitting = true
 			return m, tea.Quit
-		case "up", "k", "shift+tab":
+		case "up", "shift+tab":
 			if m.cursor > 0 {
 				m.cursor--
 			} else {
@@ -129,7 +129,7 @@ func (m *attachModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			m.preview = "Loading..."
 			return m, m.fetchPreviewCmd(m.cursor)
-		case "down", "j", "tab":
+		case "down", "tab":
 			if m.cursor < len(m.items) {
 				m.cursor++
 			} else {

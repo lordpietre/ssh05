@@ -31,6 +31,40 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func TestHostModelVimKeysDoNotNavigate(t *testing.T) {
+	assert := assert.New(t)
+	userConfig = &ssh05Config{promptDefaultMode: "list"}
+
+	hosts := []*sshHost{
+		{Alias: "janus", Host: "1.1.1.1"},
+		{Alias: "kube", Host: "2.2.2.2"},
+		{Alias: "web", Host: "3.3.3.3"},
+	}
+	m := newHostModel("", hosts, nil)
+	m.cursor = 1
+
+	sendKey := func(k tea.Key) { m.Update(tea.KeyPressMsg(k)) }
+
+	// j/k must not move the cursor; only arrow keys do.
+	sendKey(tea.Key{Text: "j"})
+	assert.Equal(1, m.cursor)
+	sendKey(tea.Key{Text: "k"})
+	assert.Equal(1, m.cursor)
+
+	sendKey(tea.Key{Code: tea.KeyDown})
+	assert.Equal(2, m.cursor)
+	sendKey(tea.Key{Code: tea.KeyUp})
+	assert.Equal(1, m.cursor)
+
+	// In search mode the letters type into the filter instead of navigating.
+	m.search = true
+	m.filter = []byte("/")
+	m.applyFilter()
+	sendKey(tea.Key{Text: "j"})
+	assert.Equal("/j", string(m.filter))
+	assert.Equal(0, m.cursor)
+}
+
 func TestHostModelSearchKeyHandling(t *testing.T) {
 	assert := assert.New(t)
 	userConfig = &ssh05Config{}

@@ -50,7 +50,7 @@ var english = map[string]string{
 	"console/clipboard":       "Toggle clipboard (OSC 52) integration ( c : Clipboard )",
 	"console/cbstat_enabled":  "Clipboard (OSC 52) : ON",
 	"console/cbstat_disabled": "Clipboard (OSC 52) : OFF",
-	"console/notes":           "↑/↓/j/k Move • Enter Select • q Quit",
+	"console/notes":           "↑/↓ Move • Enter Select • q Quit",
 }
 
 var chinese = map[string]string{
@@ -73,7 +73,7 @@ var chinese = map[string]string{
 	"console/clipboard":       "切换剪贴板集成 ( c : Clipboard )",
 	"console/cbstat_enabled":  "剪贴板集成 : 已开启",
 	"console/cbstat_disabled": "剪贴板集成 : 已关闭",
-	"console/notes":           "↑/↓/j/k 移动 • Enter 选择 • q 退出",
+	"console/notes":           "↑/↓ 移动 • Enter 选择 • q 退出",
 }
 
 func getText(key string) string {
