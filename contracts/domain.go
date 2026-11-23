@@ -13,6 +13,7 @@ const (
 	SourceManual    SourceKind = "manual"
 	SourceSSHConfig SourceKind = "ssh_config"
 	SourceKeePass   SourceKind = "keepass"
+	SourceDocker    SourceKind = "docker"
 )
 
 // HostProfile is the canonical host record. It never contains passwords or

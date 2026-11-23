@@ -50,6 +50,7 @@ type HostEntry struct {
 	Color       string
 	Favorite    bool
 	System      bool
+	IsDocker    bool
 }
 
 // ListHostEntries loads ~/.ssh/config (or configPath) and returns the visible
@@ -79,6 +80,7 @@ func ListHostEntries(configPath string) ([]HostEntry, error) {
 			Color:       host.Color,
 			Favorite:    host.Favorite,
 			System:      host.System,
+			IsDocker:    host.IsDocker,
 		})
 	}
 	return entries, nil

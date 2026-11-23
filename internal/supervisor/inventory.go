@@ -301,6 +301,13 @@ func targetLabel(target contracts.HostTarget) string {
 	return fmt.Sprintf("%s%s:%d", user, target.Hostname, target.Port)
 }
 
+func sourceKind(entry ssh05.HostEntry) contracts.SourceKind {
+	if entry.IsDocker {
+		return contracts.SourceDocker
+	}
+	return contracts.SourceSSHConfig
+}
+
 func sshProfile(entry ssh05.HostEntry) contracts.HostProfile {
 	port := 22
 	if parsed, err := strconv.Atoi(entry.Port); err == nil && parsed > 0 && parsed <= 65535 {
@@ -319,7 +326,7 @@ func sshProfile(entry ssh05.HostEntry) contracts.HostProfile {
 			Username: entry.User,
 		},
 		SourceRefs: []contracts.SourceReference{{
-			Kind:    contracts.SourceSSHConfig,
+			Kind:    sourceKind(entry),
 			EntryID: entry.Alias,
 		}},
 		Color:            entry.Color,

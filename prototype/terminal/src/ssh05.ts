@@ -313,6 +313,22 @@ const transferOverlay = new TextRenderable(renderer, {
 
 renderer.root.add(transferOverlay)
 
+const welcomeOverlay = new TextRenderable(renderer, {
+  id: "welcome-overlay",
+  position: "absolute",
+  top: 0,
+  left: 0,
+  width: "100%",
+  height: "100%",
+  visible: false,
+  zIndex: 140,
+  content: "",
+  fg: RGBA.fromInts(219, 226, 238),
+  bg: RGBA.fromInts(13, 16, 22),
+})
+
+renderer.root.add(welcomeOverlay)
+
 const nmapOverlay = new TextRenderable(renderer, {
   id: "nmap-overlay",
   position: "absolute",
@@ -460,6 +476,9 @@ let frpForm: {
   remotePort: string
   bindPort: string
 } | null = null
+let welcomeVisible = envValue("NO_WELCOME") !== "1"
+let commandMode = false
+let commandInput = ""
 let actionBarFocused = false
 let actionBarCursor = 0
 let actionsMenuVisible = false
@@ -592,6 +611,51 @@ const paletteCommands = [
   "Ayuda",
 ]
 
+type SlashCommand = { name: string; help: string; run: (arg: string) => void }
+
+const slashCommands: SlashCommand[] = [
+  { name: "connect", help: "Crear y conectar un host", run: (arg) => openNewHost(arg) },
+  { name: "new", help: "Crear un host", run: (arg) => openNewHost(arg) },
+  { name: "hosts", help: "Ir a la lista de hosts", run: () => focusHosts() },
+  { name: "workspaces", help: "Cambiar de workspace", run: () => openWorkspacePicker() },
+  { name: "transfers", help: "Ver transferencias", run: () => void openTransfers() },
+  { name: "frp", help: "Abrir el panel FRP", run: () => void openFRP() },
+  { name: "preferences", help: "Ajustar preferencias", run: () => openPreferences() },
+  { name: "help", help: "Mostrar la ayuda", run: () => { helpVisible = true } },
+  { name: "quit", help: "Salir de ssh05", run: () => void quit() },
+]
+
+function slashMatches(input: string): SlashCommand[] {
+  const query = input.trim().split(/\s+/)[0]?.toLowerCase() ?? ""
+  if (!query) return slashCommands
+  return slashCommands.filter((command) => command.name.startsWith(query))
+}
+
+function renderWelcome(): void {
+  if (!welcomeVisible) {
+    welcomeOverlay.visible = false
+    return
+  }
+  welcomeOverlay.visible = true
+  welcomeOverlay.content = padOverlay([
+    "",
+    "  ssh05 · Dinámicas Electrónicas",
+    "",
+    "  Bienvenido",
+    "",
+    "  ↑/↓        mover por los hosts",
+    "  ←/→        ir a la barra superior de menús",
+    "  Enter      conectar / abrir el menú seleccionado",
+    "  /          comandos: /connect crea un host",
+    "  Ctrl+N     nuevo host     Ctrl+K  paleta     Ctrl+P  workspaces",
+    "  F1 ayuda   F2 favorito    F3 color           F4 etiquetas",
+    "  F10 salir",
+    "",
+    "  Pulsa Enter para continuar",
+  ])
+}
+
+
 function truncate(value: string, max: number): string {
   if (value.length <= max) return value
   return `${value.slice(0, Math.max(0, max - 1))}…`
@@ -607,10 +671,19 @@ function tmuxSessionName(alias: string): string {
   return `ssh05-${safe || "host"}`
 }
 
+function isDockerHost(host: HostProfile): boolean {
+  if ((host.sourceRefs ?? []).some((ref) => ref.kind === "docker")) return true
+  return (host.labels ?? []).some((label) => label.toLowerCase() === "docker")
+}
+
+function groupedHosts(list: HostProfile[]): HostProfile[] {
+  return [...list].sort((a, b) => Number(isDockerHost(a)) - Number(isDockerHost(b)))
+}
+
 function filteredHosts(): HostProfile[] {
   const needle = query.trim().toLowerCase()
-  if (!needle) return hosts
-  return hosts.filter((host) =>
+  if (!needle) return groupedHosts(hosts)
+  return groupedHosts(hosts.filter((host) =>
     [
       host.alias,
       host.target.hostname,
@@ -622,7 +695,7 @@ function filteredHosts(): HostProfile[] {
       .join(" ")
       .toLowerCase()
       .includes(needle),
-  )
+  ))
 }
 
 function sessionForHost(host: HostProfile): SessionView | undefined {
@@ -642,17 +715,36 @@ function pendingHostFor(host: HostProfile): HostProfile | undefined {
 function renderHosts(): void {
   const all = filteredHosts()
   hostTitle.content = ` Hosts (${all.length}${query ? `/${hosts.length}` : ""})${conflicts > 0 ? ` !${conflicts}` : ""}`
-  hostQuery.content = query ? ` /${truncate(query, 24)}` : " ↑↓←→ seleccionar"
+
+  if (commandMode) {
+    hostQuery.content = ` /${commandInput}`
+    hostHint.content = " /connect crea un host · Enter ejecutar · Esc cancelar"
+    const matches = slashMatches(commandInput)
+    const lines = ["", "  Comandos"]
+    if (matches.length === 0) {
+      lines.push("", `  Sin comandos para /${commandInput}`)
+    } else {
+      lines.push("")
+      for (const command of matches) {
+        lines.push(`  > /${command.name}  ${command.help}`)
+      }
+    }
+    lines.push("", "  Enter ejecutar · Esc cancelar")
+    hostList.content = lines.join("\n")
+    return
+  }
+
+  hostQuery.content = query ? ` /${truncate(query, 24)}` : " ↑↓ hosts · ←→ menú"
   hostHint.content =
     hosts.length === 0
-      ? " Ctrl+N nuevo host · Ctrl+I KeePass"
-      : " Enter conectar · Ctrl+N nuevo · Ctrl+I KeePass"
+      ? " Ctrl+N nuevo host · /connect · Ctrl+I KeePass"
+      : " Enter conectar · ←/→ menú · / comandos · Ctrl+N nuevo"
 
   if (hosts.length === 0) {
     hostList.content =
       `\n No hay hosts disponibles.\n\n` +
       ` ${SUPERVISOR}: ${socketPath}\n\n` +
-      " Ctrl+N crea un host; también lee ~/.ssh/config.\n" +
+      " Ctrl+N o /connect crea un host; también lee ~/.ssh/config.\n" +
       " Contenedores Docker: añade --docker al servicio\n" +
       "   (systemctl --user edit ssh05d.service)\n"
     return
@@ -668,20 +760,49 @@ function renderHosts(): void {
     return
   }
   cursor = Math.max(0, Math.min(cursor, all.length - 1))
-  if (cursor < scroll) scroll = cursor
-  if (cursor >= scroll + rows) scroll = cursor - rows + 1
+
+  type DisplayRow =
+    | { kind: "header"; label: string }
+    | { kind: "host"; host: HostProfile; index: number }
+  const display: DisplayRow[] = []
+  let lastDocker: boolean | undefined
+  const dockerCount = all.filter(isDockerHost).length
+  const sshCount = all.length - dockerCount
+  for (let index = 0; index < all.length; index++) {
+    const host = all[index]
+    const docker = isDockerHost(host)
+    if (docker !== lastDocker) {
+      const label = docker ? `Contenedores (${dockerCount})` : `Hosts SSH (${sshCount})`
+      display.push({ kind: "header", label })
+      lastDocker = docker
+    }
+    display.push({ kind: "host", host, index })
+  }
+
+  const cursorRow = Math.max(
+    0,
+    display.findIndex((row) => row.kind === "host" && row.index === cursor),
+  )
+  if (cursorRow < scroll) scroll = cursorRow
+  if (cursorRow >= scroll + rows) scroll = cursorRow - rows + 1
+  scroll = Math.max(0, Math.min(scroll, Math.max(0, display.length - rows)))
 
   const lines: string[] = []
-  for (let index = scroll; index < Math.min(all.length, scroll + rows); index++) {
-    const host = all[index]
-    const session = sessionForHost(host)
-    const tab = session ? store.list().find((item) => item.sessionId === session.sessionId) : undefined
-    const pending = !session && pendingHostFor(host) !== undefined
-    const state = tab ? phaseIcon(tab.phase) : pending ? "○" : " "
-    const favorite = host.favorite ? "★" : " "
-    const group = host.labels && host.labels.length > 0 ? ` (${host.labels[0]})` : ""
-    const label = `${favorite}${host.alias}${group}`
-    lines.push(`${index === cursor ? ">" : " "} ${state} ${truncate(label, hostPanelWidth - 4)}`)
+  for (let row = scroll; row < Math.min(display.length, scroll + rows); row++) {
+    const entry = display[row]
+    if (entry.kind === "header") {
+      lines.push(`  ── ${entry.label} ──`)
+    } else {
+      const host = entry.host
+      const session = sessionForHost(host)
+      const tab = session ? store.list().find((item) => item.sessionId === session.sessionId) : undefined
+      const pending = !session && pendingHostFor(host) !== undefined
+      const state = tab ? phaseIcon(tab.phase) : pending ? "○" : " "
+      const favorite = host.favorite ? "★" : " "
+      const group = host.labels && host.labels.length > 0 ? ` (${host.labels[0]})` : ""
+      const label = `${favorite}${host.alias}${group}`
+      lines.push(`${entry.index === cursor ? ">" : " "} ${state} ${truncate(label, hostPanelWidth - 4)}`)
+    }
     if (preferences.density === "comfortable") lines.push("")
   }
   hostList.content = lines.join("\n")
@@ -744,6 +865,7 @@ function uiDirty(): void {
   renderNmapConfirm()
   renderHelp()
   renderNewHost()
+  renderWelcome()
   renderer.requestRender()
 }
 
@@ -1413,8 +1535,13 @@ function handleHostKey(key: KeyEvent): void {
   if (matchesAction(key, keybindings, "favorite")) void toggleFavorite()
   else if (matchesAction(key, keybindings, "color")) void cycleHostColor()
   else if (matchesAction(key, keybindings, "labels")) openLabelsEditor()
-  else if (name === "up" || name === "left") cursor = Math.max(0, cursor - 1)
-  else if (name === "down" || name === "right") cursor = Math.min(Math.max(0, all.length - 1), cursor + 1)
+  else if (name === "left" || name === "right") {
+    actionBarFocused = true
+    actionBarCursor = name === "right" ? 0 : actionBarButtons.length - 1
+    uiDirty()
+    return
+  } else if (name === "up") cursor = Math.max(0, cursor - 1)
+  else if (name === "down") cursor = Math.min(Math.max(0, all.length - 1), cursor + 1)
   else if (name === "pageup") cursor = Math.max(0, cursor - 10)
   else if (name === "pagedown") cursor = Math.min(Math.max(0, all.length - 1), cursor + 10)
   else if (name === "home") cursor = 0
@@ -1433,6 +1560,11 @@ function handleHostKey(key: KeyEvent): void {
   } else if (name === "backspace" || name === "delete") {
     query = name === "delete" ? "" : query.slice(0, -1)
     cursor = 0
+  } else if (name === "/") {
+    commandMode = true
+    commandInput = ""
+    query = ""
+    cursor = 0
   } else if (!key.ctrl && !key.meta && key.sequence) {
     const chars = Array.from(key.sequence)
     if (chars.length === 1 && chars[0] >= " ") {
@@ -1443,8 +1575,52 @@ function handleHostKey(key: KeyEvent): void {
   uiDirty()
 }
 
+function handleCommandKey(key: KeyEvent): void {
+  const name = key.name.toLowerCase()
+  if (name === "escape") {
+    commandMode = false
+    commandInput = ""
+  } else if (name === "backspace" || name === "delete") {
+    commandInput = name === "delete" ? "" : commandInput.slice(0, -1)
+  } else if (name === "return" || name === "enter") {
+    runSlashCommand()
+    return
+  } else if (!key.ctrl && !key.meta && key.sequence) {
+    const chars = Array.from(key.sequence)
+    if (chars.length === 1 && chars[0] >= " ") commandInput += chars[0]
+  }
+  uiDirty()
+}
+
+function runSlashCommand(): void {
+  const raw = commandInput.trim()
+  commandMode = false
+  commandInput = ""
+  if (!raw) {
+    uiDirty()
+    return
+  }
+  const [name, ...rest] = raw.split(/\s+/)
+  const match = slashCommands.find((command) => command.name.startsWith(name.toLowerCase()))
+  if (!match) {
+    transientText = `Comando no encontrado: /${name}`
+    uiDirty()
+    return
+  }
+  match.run(rest.join(" "))
+  uiDirty()
+}
+
 renderer.keyInput.on("keypress", (key) => {
   const name = key.name.toLowerCase()
+  if (welcomeVisible) {
+    key.stopPropagation()
+    if (name === "return" || name === "enter" || name === "escape") {
+      welcomeVisible = false
+      uiDirty()
+    }
+    return
+  }
   if (name === "f1") {
     key.stopPropagation()
     helpVisible = !helpVisible
@@ -1482,6 +1658,11 @@ renderer.keyInput.on("keypress", (key) => {
     actionBarFocused = true
     actionBarCursor = 0
     uiDirty()
+    return
+  }
+  if (commandMode) {
+    key.stopPropagation()
+    handleCommandKey(key)
     return
   }
   if (actionsMenuVisible) {
@@ -1627,9 +1808,16 @@ renderer.keyInput.on("keypress", (key) => {
 })
 
 renderer.keyInput.on("paste", (event: { bytes: Uint8Array }) => {
+  if (welcomeVisible) return
   const raw = new TextDecoder().decode(event.bytes).slice(0, 64 * 1024)
   if (!raw) return
   const oneLine = raw.replace(/\r/g, "").replace(/\n/g, " ").slice(0, 4096)
+
+  if (commandMode) {
+    commandInput += oneLine
+    uiDirty()
+    return
+  }
 
   if (newHostVisible && newHostForm) {
     const form = newHostForm
@@ -2019,11 +2207,11 @@ function renderNewHost(): void {
   ])
 }
 
-function openNewHost(): void {
+function openNewHost(alias = ""): void {
   newHostVisible = true
   newHostForm = {
     field: 0,
-    alias: "",
+    alias,
     hostname: "",
     port: "22",
     username: process.env.USER ?? "",
@@ -2124,9 +2312,10 @@ function renderHelp(): void {
     "  F2 favorito         F3 color             F4 etiquetas",
     "  F10 salir           F1 ayuda            F6 barra de acciones",
     "",
-    "  En hosts: ↑↓←→ mover · Enter conectar · escribir busca",
+    "  En hosts: ↑↓ mover · ←/→ menú superior · Enter conectar · escribir busca",
     "  Pegar (Ctrl+Shift+V) en búsqueda, formularios y terminal según el foco",
     "  En menús y formularios: ↑↓←→ mover · Enter aceptar · Esc volver",
+    "  /connect o /conn crea un host · /help comandos · F1 esta ayuda",
     "  En FRP (Ctrl+F): ↑↓←→ proxy · n crear · d parar · x eliminar · s frps · r rotar",
     "  En transferencias: ↑↓←→ mover · Espacio cambia · u subir · d descargar · c cancelar",
     "  En Nmap: Enter confirma el escaneo · Esc cancela",

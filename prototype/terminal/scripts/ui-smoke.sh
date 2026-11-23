@@ -98,7 +98,25 @@ done
 "$TMUX" new-session -d -s "$SESSION" -x 120 -y 36 \
   "cd $(printf '%q' "$HERE") && TERM=xterm-256color SSH05_PREFERENCES=$(printf '%q' "$SOCKET_DIR/preferences.json") SSH05_SOCKET=$(printf '%q' "$SOCKET") SSH05_WORKSPACE=$(printf '%q' "$SOCKET_DIR/workspace.json") SSH05_UI_DEBUG=$(printf '%q' "$LOG") $(printf '%q' "$BUN") run src/ssh05.ts"
 
+assert_contains "Bienvenido" "welcome message appears"
+send Enter
+sleep 0.3
+assert_contains "Hosts SSH (3)" "hosts are grouped by category"
 assert_contains "Hosts (3)" "UI loads the real host inventory"
+send Right
+send Enter
+assert_contains "Acciones" "right arrow focuses the action bar"
+send Escape
+sleep 0.3
+send /
+send c
+send o
+send n
+send n
+send Enter
+assert_contains "Nuevo host" "slash command /conn opens a new host"
+send Escape
+sleep 0.3
 assert_contains "Menú" "action bar is visible"
 send Tab
 send Enter
@@ -279,7 +297,7 @@ fi
 
 # Reopen the UI with the same workspace file and verify pending views.
 "$TMUX" new-session -d -s "$SESSION" -x 120 -y 36 \
-  "cd $(printf '%q' "$HERE") && TERM=xterm-256color SSH05_PREFERENCES=$(printf '%q' "$SOCKET_DIR/preferences.json") SSH05_SOCKET=$(printf '%q' "$SOCKET") SSH05_WORKSPACE=$(printf '%q' "$SOCKET_DIR/workspace.json") SSH05_UI_DEBUG=$(printf '%q' "$LOG") $(printf '%q' "$BUN") run src/ssh05.ts"
+  "cd $(printf '%q' "$HERE") && SSH05_NO_WELCOME=1 TERM=xterm-256color SSH05_PREFERENCES=$(printf '%q' "$SOCKET_DIR/preferences.json") SSH05_SOCKET=$(printf '%q' "$SOCKET") SSH05_WORKSPACE=$(printf '%q' "$SOCKET_DIR/workspace.json") SSH05_UI_DEBUG=$(printf '%q' "$LOG") $(printf '%q' "$BUN") run src/ssh05.ts"
 assert_contains "Pendiente" "workspace restores pending tabs, not fake live sessions"
 assert_contains "ssh05-ui-1" "restored tabs keep their host alias"
 send Enter
@@ -299,7 +317,7 @@ fi
 # Real 10-tab overflow check with a clean workspace.
 rm -f "$SOCKET_DIR/workspace10.json"
 "$TMUX" new-session -d -s "$SESSION" -x 120 -y 36 \
-  "cd $(printf '%q' "$HERE") && TERM=xterm-256color SSH05_PREFERENCES=$(printf '%q' "$SOCKET_DIR/preferences.json") SSH05_SOCKET=$(printf '%q' "$SOCKET") SSH05_WORKSPACE=$(printf '%q' "$SOCKET_DIR/workspace10.json") SSH05_UI_DEBUG=$(printf '%q' "$LOG") $(printf '%q' "$BUN") run src/ssh05.ts"
+  "cd $(printf '%q' "$HERE") && SSH05_NO_WELCOME=1 TERM=xterm-256color SSH05_PREFERENCES=$(printf '%q' "$SOCKET_DIR/preferences.json") SSH05_SOCKET=$(printf '%q' "$SOCKET") SSH05_WORKSPACE=$(printf '%q' "$SOCKET_DIR/workspace10.json") SSH05_UI_DEBUG=$(printf '%q' "$LOG") $(printf '%q' "$BUN") run src/ssh05.ts"
 assert_contains "Hosts (3)" "10-tab UI loaded"
 sleep 0.5
 for index in $(seq 1 10); do
@@ -330,7 +348,7 @@ fi
 # Abrupt UI crash: ssh05d keeps the sessions; a restarted UI must attach them.
 rm -f "$SOCKET_DIR/workspace-crash.json"
 "$TMUX" new-session -d -s "$SESSION" -x 120 -y 36 \
-  "cd $(printf '%q' "$HERE") && TERM=xterm-256color SSH05_PREFERENCES=$(printf '%q' "$SOCKET_DIR/preferences.json") SSH05_SOCKET=$(printf '%q' "$SOCKET") SSH05_WORKSPACE=$(printf '%q' "$SOCKET_DIR/workspace-crash.json") SSH05_UI_DEBUG=$(printf '%q' "$LOG") $(printf '%q' "$BUN") run src/ssh05.ts"
+  "cd $(printf '%q' "$HERE") && SSH05_NO_WELCOME=1 TERM=xterm-256color SSH05_PREFERENCES=$(printf '%q' "$SOCKET_DIR/preferences.json") SSH05_SOCKET=$(printf '%q' "$SOCKET") SSH05_WORKSPACE=$(printf '%q' "$SOCKET_DIR/workspace-crash.json") SSH05_UI_DEBUG=$(printf '%q' "$LOG") $(printf '%q' "$BUN") run src/ssh05.ts"
 assert_contains "Hosts (3)" "crash UI loaded"
 send C-t Enter
 assert_contains "[1 " "crash tab 1 opened"
@@ -344,7 +362,7 @@ sleep 0.5
 sleep 0.5
 
 "$TMUX" new-session -d -s "$SESSION" -x 120 -y 36 \
-  "cd $(printf '%q' "$HERE") && TERM=xterm-256color SSH05_PREFERENCES=$(printf '%q' "$SOCKET_DIR/preferences.json") SSH05_SOCKET=$(printf '%q' "$SOCKET") SSH05_WORKSPACE=$(printf '%q' "$SOCKET_DIR/workspace-crash.json") SSH05_UI_DEBUG=$(printf '%q' "$LOG") $(printf '%q' "$BUN") run src/ssh05.ts"
+  "cd $(printf '%q' "$HERE") && SSH05_NO_WELCOME=1 TERM=xterm-256color SSH05_PREFERENCES=$(printf '%q' "$SOCKET_DIR/preferences.json") SSH05_SOCKET=$(printf '%q' "$SOCKET") SSH05_WORKSPACE=$(printf '%q' "$SOCKET_DIR/workspace-crash.json") SSH05_UI_DEBUG=$(printf '%q' "$LOG") $(printf '%q' "$BUN") run src/ssh05.ts"
 assert_contains "Ctrl+Tab cambiar" "restarted UI attaches live supervisor sessions"
 assert_not_contains "Pendiente" "live sessions are not shown as pending"
 send 'echo LIVE_REATTACH_OK' Enter
@@ -364,7 +382,7 @@ fi
 # Multiple named workspaces with live-session reuse.
 rm -rf "$SOCKET_DIR/workspaces"
 "$TMUX" new-session -d -s "$SESSION" -x 120 -y 36 \
-  "cd $(printf '%q' "$HERE") && TERM=xterm-256color SSH05_PREFERENCES=$(printf '%q' "$SOCKET_DIR/preferences.json") SSH05_SOCKET=$(printf '%q' "$SOCKET") SSH05_WORKSPACE_DIR=$(printf '%q' "$SOCKET_DIR/workspaces") SSH05_UI_DEBUG=$(printf '%q' "$LOG") $(printf '%q' "$BUN") run src/ssh05.ts"
+  "cd $(printf '%q' "$HERE") && SSH05_NO_WELCOME=1 TERM=xterm-256color SSH05_PREFERENCES=$(printf '%q' "$SOCKET_DIR/preferences.json") SSH05_SOCKET=$(printf '%q' "$SOCKET") SSH05_WORKSPACE_DIR=$(printf '%q' "$SOCKET_DIR/workspaces") SSH05_UI_DEBUG=$(printf '%q' "$LOG") $(printf '%q' "$BUN") run src/ssh05.ts"
 assert_contains "Hosts (3)" "workspace UI loaded"
 send Enter
 assert_contains "[1 ● ssh05-ui-1]" "default workspace tab opened"

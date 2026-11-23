@@ -1,3 +1,15 @@
+ssh05 (0.3.28) unstable; urgency=medium
+
+  * La barra superior se alcanza con izquierda/derecha desde la lista de
+    hosts; Enter abre el menú seleccionado.
+  * Hosts agrupados en "Hosts SSH" y "Contenedores" según su origen.
+  * Pantalla de bienvenida con los controles; Enter la cierra
+    (SSH05_NO_WELCOME=1 la omite).
+  * Comandos con /: /connect o /conn crea un host, /help, /hosts, /frp,
+    /transfers, /workspaces, /preferences y /quit.
+
+ -- Dinámicas Electrónicas <dinamicas.electronicas@gmail.com>  Mon, 23 Nov 2026 17:30:00 +0100
+
 ssh05 (0.3.27) unstable; urgency=medium
 
   * `ssh05` sin argumentos abre la interfaz OpenTUI si `ssh05-ui` está

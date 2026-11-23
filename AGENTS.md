@@ -83,6 +83,7 @@ make install                   # copies ./bin/ssh05 y ./bin/ssh05d to /usr/bin
   - Pegar con bracketed paste funciona en búsqueda, formularios y terminal.
   - El alta de host admite contraseña y la guarda como `#!! encPassword`.
   - `ssh05` sin argumentos abre la UI OpenTUI; `SSH05_NO_UI=1` fuerza el gestor clásico.
+  - `←/→` desde hosts enfoca el menú superior; `/connect` o `/conn` crea un host.
   - `Ctrl+P` abre el selector de workspaces; `n` crea uno nuevo.
   - Barra de acciones visible (`Menú`, `Hosts`, `Nuevo`, `WS`, `Rutas`,
     `Diag`, `Transferir`, `FRP`, `Prefs`, `Ayuda`, `Salir`). `Tab` la enfoca,

@@ -144,7 +144,7 @@ export interface Workspace {
 // Hosts, routes and FRP
 // ---------------------------------------------------------------------------
 
-export type SourceKind = "manual" | "ssh_config" | "keepass"
+export type SourceKind = "manual" | "ssh_config" | "keepass" | "docker"
 
 export interface SourceReference {
   kind: SourceKind

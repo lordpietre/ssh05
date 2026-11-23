@@ -90,6 +90,10 @@
 | Pegado en la app | **Hecho** | bracketed paste en búsqueda, formularios y terminal; `ui-smoke` |
 | Contraseña en alta de host | **Hecho** | campo en la UI; `hosts.create` escribe `#!! encPassword`; test de ida y vuelta |
 | `ssh05` abre la UI por defecto | **Hecho** | sin argumentos ejecuta `ssh05-ui`; `SSH05_NO_UI=1` fuerza el gestor clásico |
+| Menú superior con flechas | **Hecho** | `←/→` desde hosts enfoca la barra; `Enter` abre; `Esc` vuelve |
+| Agrupación por origen | **Hecho** | `Hosts SSH` y `Contenedores` según `sourceRefs.kind` |
+| Bienvenida con controles | **Hecho** | splash inicial; `Enter`/`Esc`; `SSH05_NO_WELCOME=1` |
+| Comandos `/` | **Hecho** | `/connect`, `/conn`, `/new`, `/hosts`, `/frp`, `/transfers`, `/help`… |
 | Alta de hosts desde la UI | **Hecho** | `hosts.create`, `Ctrl+N` |
 | Servicio de usuario y Docker opt-in | **Hecho** | `ssh05d.service`, `--docker` |
 | tmux solo se reengancha si existe | **Hecho** | `TmuxCreate=false`, sonda `has-session`, prueba real |
@@ -102,10 +106,11 @@
 | Prioridad | Trabajo | Criterio de cierre |
 |---|---|---|
 | — | GeoIP de ciudad | No incluido; ASN/RDAP y país orientativo ya operativos |
+| P2 | Publicar release 0.3.28 | menú con flechas, agrupación, bienvenida y `/connect`; notas en `docs/releases/0.3.28.md` |
 
 Releases publicados: <https://github.com/lordpietre/ssh05/releases> (`v0.3.18`
 identidad, `v0.3.19` trzsz/Zmodem, `v0.3.20` paquete autosuficiente,
-`v0.3.21` Docker opt-in, `v0.3.22` flechas, `v0.3.23` overlays opacos, `v0.3.24` solo flechas, `v0.3.25` pegado, `v0.3.26` contraseña enc, `v0.3.27` UI por defecto).
+`v0.3.21` Docker opt-in, `v0.3.22` flechas, `v0.3.23` overlays opacos, `v0.3.24` solo flechas, `v0.3.25` pegado, `v0.3.26` contraseña enc, `v0.3.27` UI por defecto, `v0.3.28` menú/agrupación/bienvenida/`/connect`).
 
 ## Invariantes que no se negocian
 
