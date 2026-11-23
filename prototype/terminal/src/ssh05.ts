@@ -765,6 +765,11 @@ function closeChoices(): CloseChoice[] {
   return choices
 }
 
+function padOverlay(lines: string[]): string {
+  const width = Math.max(20, renderer.width)
+  return lines.map((line) => line + " ".repeat(Math.max(0, width - line.length))).join("\n")
+}
+
 function renderCloseDialog(): void {
   if (!closeDialogVisible) {
     closeOverlay.visible = false
@@ -778,7 +783,7 @@ function renderCloseDialog(): void {
     lines.push(`  ${index === closeDialogCursor ? ">" : " "} ${choices[index].label}`)
   }
   lines.push("", "  Enter confirmar · Esc cancelar")
-  closeOverlay.content = lines.join("\n")
+  closeOverlay.content = padOverlay(lines)
 }
 
 function openCloseDialog(): void {
@@ -832,7 +837,7 @@ function renderPalette(): void {
     lines.push(`  ${marker} ${paletteCommands[index]}`)
   }
   lines.push("", "  ↑↓←→ mover · Enter ejecutar · Esc cerrar")
-  paletteOverlay.content = lines.join("\n")
+  paletteOverlay.content = padOverlay(lines)
 }
 
 function openPalette(): void {
@@ -1781,7 +1786,7 @@ function renderWorkspacePicker(): void {
     const marker = workspacePickerCursor === workspaceNames.length ? ">" : " "
     lines.push(`  ${marker} + Nuevo workspace…`, "", "  ↑↓←→ mover · Enter abrir · n nuevo · Esc cerrar")
   }
-  workspaceOverlay.content = lines.join("\n")
+  workspaceOverlay.content = padOverlay(lines)
 }
 
 function openWorkspacePicker(): void {
@@ -1932,7 +1937,7 @@ function renderNewHost(): void {
   newHostOverlay.visible = true
   const form = newHostForm
   const marker = (index: number) => (index === form.field ? ">" : " ")
-  newHostOverlay.content = [
+  newHostOverlay.content = padOverlay([
     "",
     "  Nuevo host",
     "",
@@ -1943,7 +1948,7 @@ function renderNewHost(): void {
     `  ${marker(4)} IdentityFile: ${form.identityFile}`,
     "",
     "  ↑↓←→/Tab cambiar campo · Enter guardar y conectar · Esc cancelar",
-  ].join("\n")
+  ])
 }
 
 function openNewHost(): void {
@@ -2037,7 +2042,7 @@ function renderHelp(): void {
     return
   }
   helpOverlay.visible = true
-  helpOverlay.content = [
+  helpOverlay.content = padOverlay([
     "",
     "  Ayuda · atajos",
     "",
@@ -2054,7 +2059,7 @@ function renderHelp(): void {
     "  En Nmap: Enter confirma el escaneo · Esc cancela",
     "",
     "  Esc/Enter cerrar",
-  ].join("\n")
+  ])
 }
 
 function renderNmapConfirm(): void {
@@ -2064,7 +2069,7 @@ function renderNmapConfirm(): void {
   }
   nmapOverlay.visible = true
   const host = currentFormHost()
-  nmapOverlay.content = [
+  nmapOverlay.content = padOverlay([
     "",
     "  Escaneo Nmap optativo",
     "",
@@ -2073,7 +2078,7 @@ function renderNmapConfirm(): void {
     "",
     "  Solo úsalo en redes autorizadas. Se ejecutará nmap -sT -Pn.",
     "  Enter escanear · Esc cancelar · edita los puertos",
-  ].join("\n")
+  ])
 }
 
 function openNmapConfirm(): void {
@@ -2193,7 +2198,7 @@ function renderTransfers(): void {
       "  ↑↓←→ campo · Espacio cambia · Enter iniciar · Esc cancelar",
       "  Ctrl+P protocolo · Ctrl+R recursivo",
     ]
-    transferOverlay.content = lines.join("\n")
+    transferOverlay.content = padOverlay(lines)
     return
   }
   const lines = ["", "  Transferencias", ""]
@@ -2208,7 +2213,7 @@ function renderTransfers(): void {
     )
   }
   lines.push("", "  ↑↓←→ mover · u subir · d descargar · c cancelar · Esc cerrar")
-  transferOverlay.content = lines.join("\n")
+  transferOverlay.content = padOverlay(lines)
 }
 
 async function refreshTransfers(): Promise<void> {
@@ -2374,7 +2379,7 @@ function renderPreferences(): void {
   }
   prefsOverlay.visible = true
   const marker = (index: number) => (index === preferencesCursor ? ">" : " ")
-  prefsOverlay.content = [
+  prefsOverlay.content = padOverlay([
     "",
     "  Preferencias",
     "",
@@ -2383,7 +2388,7 @@ function renderPreferences(): void {
     `  ${marker(2)} Posición de pestañas: ${preferences.tabPosition}  (←/→)`,
     "",
     "  ↑↓←→ mover y ajustar · w ancho · d densidad · t pestañas · Enter/Esc cerrar",
-  ].join("\n")
+  ])
 }
 
 function applyTabPosition(): void {
@@ -2455,7 +2460,7 @@ function renderDiagnostics(): void {
     return
   }
   diagOverlay.visible = true
-  diagOverlay.content = diagContent
+  diagOverlay.content = padOverlay(diagContent.split("\n"))
 }
 
 function renderLabelsEditor(): void {
@@ -2464,14 +2469,14 @@ function renderLabelsEditor(): void {
     return
   }
   labelsOverlay.visible = true
-  labelsOverlay.content = [
+  labelsOverlay.content = padOverlay([
     "",
     "  Etiquetas del host",
     "",
     `  ${labelsInput}▌`,
     "",
     "  Enter guardar · Esc cancelar",
-  ].join("\n")
+  ])
 }
 
 function renderFRP(): void {
@@ -2493,7 +2498,7 @@ function renderFRP(): void {
     const lines = ["", "  Nuevo proxy FRP", ""]
     fields.forEach((line, index) => lines.push(`  ${index === form.field ? ">" : " "}${line}`))
     lines.push("", "  ↑↓←→ campo · Espacio cambia tipo · Enter aplicar · Esc cancelar")
-    frpOverlay.content = lines.join("\n")
+    frpOverlay.content = padOverlay(lines)
     return
   }
   const lines = ["", "  FRP · endpoints", ""]
@@ -2522,7 +2527,7 @@ function renderFRP(): void {
     lines.push(`  ${marker} ${proxy.state} ${proxy.name} [${proxy.type}] ${target}${stats}${error}`)
   }
   lines.push("", "  ↑↓←→ mover · n nuevo · d parar · x eliminar · s iniciar/parar frps · r rotar token · Esc cerrar")
-  frpOverlay.content = lines.join("\n")
+  frpOverlay.content = padOverlay(lines)
 }
 
 async function refreshFRP(): Promise<void> {

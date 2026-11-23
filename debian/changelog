@@ -1,3 +1,11 @@
+ssh05 (0.3.23) unstable; urgency=medium
+
+  * Los overlays de pantalla completa rellenan cada línea, evitando que el
+    texto de fondo (barra de acciones y hosts) se transparente al abrir
+    menús, preferencias, transferencias, FRP o ayuda.
+
+ -- Dinámicas Electrónicas <dinamicas.electronicas@gmail.com>  Mon, 23 Nov 2026 02:30:00 +0100
+
 ssh05 (0.3.22) unstable; urgency=medium
 
   * Navegación completa con flechas en menús, submenús, listas y

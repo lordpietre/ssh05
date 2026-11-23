@@ -1,12 +1,12 @@
-# Instaladores ssh05 0.3.22
+# Instaladores ssh05 0.3.23
 
 Los `.deb` para Ubuntu y Debian están en esta carpeta:
 
 ```text
-ssh05_0.3.22_ubuntu_amd64.deb
-ssh05_0.3.22_ubuntu_arm64.deb
-ssh05_0.3.22_debian_amd64.deb
-ssh05_0.3.22_debian_arm64.deb
+ssh05_0.3.23_ubuntu_amd64.deb
+ssh05_0.3.23_ubuntu_arm64.deb
+ssh05_0.3.23_debian_amd64.deb
+ssh05_0.3.23_debian_arm64.deb
 *.sha256
 ```
 
@@ -23,13 +23,13 @@ ssh05-ui
 Instalación (verifica antes la suma):
 
 ```sh
-sha256sum -c ssh05_0.3.22_ubuntu_amd64.deb.sha256
-sudo apt install ./ssh05_0.3.22_ubuntu_amd64.deb
+sha256sum -c ssh05_0.3.23_ubuntu_amd64.deb.sha256
+sudo apt install ./ssh05_0.3.23_ubuntu_amd64.deb
 ```
 
 También se publican en:
 
-https://github.com/lordpietre/ssh05/releases/tag/v0.3.22
+https://github.com/lordpietre/ssh05/releases/tag/v0.3.23
 
 Para regenerarlos:
 
