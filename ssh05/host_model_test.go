@@ -31,6 +31,38 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func TestHostModelPasteRoutesToSearchAndFields(t *testing.T) {
+	assert := assert.New(t)
+	userConfig = &ssh05Config{promptDefaultMode: "list"}
+
+	hosts := []*sshHost{
+		{Alias: "web-prod-1", Host: "1.1.1.1"},
+		{Alias: "db-prod", Host: "2.2.2.2"},
+	}
+	m := newHostModel("", hosts, nil)
+
+	// Pasting outside a field starts a search with the text.
+	m.Update(tea.PasteMsg{Content: "web\n"})
+	assert.True(m.search)
+	assert.Equal("/web", string(m.filter))
+	assert.Len(m.filtered, 1)
+
+	// Pasting into a numeric field keeps only digits.
+	m.search = false
+	m.filter = nil
+	m.applyFilter()
+	m.newHost.active = true
+	m.newHost.fields = []newHostField{{label: "Port", value: ""}}
+	m.newHost.cursor = 0
+	m.Update(tea.PasteMsg{Content: "22\n"})
+	assert.Equal("22", m.newHost.fields[0].value)
+
+	// Pasting into a text field keeps a single line.
+	m.newHost.fields = []newHostField{{label: "Alias", value: ""}}
+	m.Update(tea.PasteMsg{Content: "web\nprod"})
+	assert.Equal("web prod", m.newHost.fields[0].value)
+}
+
 func TestHostModelVimKeysDoNotNavigate(t *testing.T) {
 	assert := assert.New(t)
 	userConfig = &ssh05Config{promptDefaultMode: "list"}

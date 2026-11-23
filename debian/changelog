@@ -1,3 +1,12 @@
+ssh05 (0.3.25) unstable; urgency=medium
+
+  * Pegar texto funciona en la búsqueda y formularios del TUI clásico y de
+    la UI OpenTUI; sin campo activo, inicia una búsqueda con el texto.
+  * El pegado en la terminal respeta el foco y se envía como bytes al PTY.
+  * Se documenta Ctrl+Shift+V en la ayuda.
+
+ -- Dinámicas Electrónicas <dinamicas.electronicas@gmail.com>  Mon, 23 Nov 2026 15:30:00 +0100
+
 ssh05 (0.3.24) unstable; urgency=medium
 
   * j y k dejan de mover la selección: solo las flechas arriba/abajo (y

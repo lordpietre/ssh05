@@ -549,6 +549,8 @@ func (m *hostModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 	case tea.KeyPressMsg:
 		return m.handleKey(msg)
+	case tea.PasteMsg:
+		return m.handlePaste(msg.String()), nil
 	case tunnelScanResultMsg:
 		if msg.err != nil {
 			m.tunnel.scanErr = msg.err.Error()
@@ -654,6 +656,66 @@ func (m *hostModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 	return m, nil
+}
+
+// handlePaste routes pasted text to the active single-line field, or starts a
+// search with it when no text field is focused.
+func (m *hostModel) handlePaste(text string) tea.Model {
+	text = strings.TrimSpace(strings.ReplaceAll(text, "\r", ""))
+	if text == "" {
+		return m
+	}
+	if len(text) > 4096 {
+		text = text[:4096]
+	}
+	oneLine := strings.ReplaceAll(text, "\n", " ")
+
+	appendDigits := func(dst *string) {
+		for _, r := range text {
+			if r >= '0' && r <= '9' {
+				*dst += string(r)
+			}
+		}
+	}
+
+	switch {
+	case m.search:
+		m.filter = append(m.filter, []byte(oneLine)...)
+		m.applyFilter()
+		m.clampCursor()
+		return m
+	case m.newHost.active:
+		f := &m.newHost.fields[m.newHost.cursor]
+		if f.kind == "group" {
+			return m
+		}
+		if f.label == "Port" {
+			appendDigits(&f.value)
+		} else {
+			f.value += oneLine
+		}
+		return m
+	case m.edit.active:
+		f := &m.edit.fields[m.edit.cursor]
+		if f.kind == "group" {
+			return m
+		}
+		if f.configKey == "Port" {
+			appendDigits(&f.value)
+		} else {
+			f.value += oneLine
+		}
+		return m
+	case m.tunnel.active || m.frp.active || m.config.active || m.download.active ||
+		m.upload.active || m.groupPicker.active || m.groups.active || m.deleteAsk:
+		return m
+	}
+
+	m.search = true
+	m.filter = append([]byte("/"), []byte(oneLine)...)
+	m.applyFilter()
+	m.clampCursor()
+	return m
 }
 
 func (m *hostModel) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {

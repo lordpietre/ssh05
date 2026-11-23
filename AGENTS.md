@@ -80,6 +80,7 @@ make install                   # copies ./bin/ssh05 y ./bin/ssh05d to /usr/bin
   el socket no existe.
   - `Ctrl+G` activa/desactiva tmux remoto antes de abrir un host.
   - En el TUI clásico, `j`/`k` no navegan: solo flechas (y PageUp/PageDown/Home/End).
+  - Pegar con bracketed paste funciona en búsqueda, formularios y terminal.
   - `Ctrl+P` abre el selector de workspaces; `n` crea uno nuevo.
   - Barra de acciones visible (`Menú`, `Hosts`, `Nuevo`, `WS`, `Rutas`,
     `Diag`, `Transferir`, `FRP`, `Prefs`, `Ayuda`, `Salir`). `Tab` la enfoca,

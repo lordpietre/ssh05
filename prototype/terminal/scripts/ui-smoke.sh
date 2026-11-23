@@ -124,6 +124,11 @@ assert_contains "Ayuda" "help command listed"
 assert_contains "Nuevo host" "new host command listed"
 send Escape
 sleep 0.3
+PASTE_SEQ=$(printf '\033[200~ssh05-ui-2\033[201~')
+"$TMUX" send-keys -t "$SESSION" -l -- "$PASTE_SEQ"
+assert_contains "/ssh05-ui-2" "bracketed paste fills the host search"
+send Escape
+sleep 0.3
 send F1
 assert_contains "Ayuda · atajos" "help overlay opens"
 send Escape

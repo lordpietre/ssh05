@@ -1625,6 +1625,69 @@ renderer.keyInput.on("keypress", (key) => {
   }
 })
 
+renderer.keyInput.on("paste", (event: { bytes: Uint8Array }) => {
+  const raw = new TextDecoder().decode(event.bytes).slice(0, 64 * 1024)
+  if (!raw) return
+  const oneLine = raw.replace(/\r/g, "").replace(/\n/g, " ").slice(0, 4096)
+
+  if (newHostVisible && newHostForm) {
+    const form = newHostForm
+    if (form.field === 2) {
+      form.port += oneLine.replace(/[^0-9]/g, "")
+    } else if (form.field === 0) form.alias += oneLine
+    else if (form.field === 1) form.hostname += oneLine
+    else if (form.field === 3) form.username += oneLine
+    else if (form.field === 4) form.identityFile += oneLine
+    uiDirty()
+    return
+  }
+  if (transferVisible && transferForm) {
+    if (transferForm.field === 0) transferForm.localPath += oneLine
+    else if (transferForm.field === 1) transferForm.remotePath += oneLine
+    uiDirty()
+    return
+  }
+  if (frpVisible && frpForm) {
+    if (frpForm.field === 0) frpForm.name += oneLine
+    else if (frpForm.field === 2) frpForm.servicePort += oneLine.replace(/[^0-9]/g, "")
+    else if (frpForm.field === 3) frpForm.remotePort += oneLine.replace(/[^0-9]/g, "")
+    else if (frpForm.field === 4) frpForm.bindPort += oneLine.replace(/[^0-9]/g, "")
+    uiDirty()
+    return
+  }
+  if (workspacePickerVisible) {
+    if (workspaceNewMode) workspaceInput += oneLine
+    uiDirty()
+    return
+  }
+  if (labelsEditing) {
+    labelsInput += oneLine
+    uiDirty()
+    return
+  }
+  if (nmapConfirmVisible) {
+    nmapPorts += oneLine.replace(/[^0-9,-]/g, "")
+    uiDirty()
+    return
+  }
+  if (
+    helpVisible || diagVisible || preferencesVisible || paletteVisible || actionsMenuVisible ||
+    closeDialogVisible || transferVisible || frpVisible || workspacePickerVisible
+  ) {
+    return
+  }
+  if (!hostFocused) {
+    const active = store.active()
+    if (active && client && sessions.has(active.sessionId)) {
+      client.sendBinary(active.sessionId, new TextEncoder().encode(raw))
+      return
+    }
+  }
+  query += oneLine
+  cursor = 0
+  uiDirty()
+})
+
 process.on("SIGWINCH", () => {
   const cols = process.stdout.columns
   const rows = process.stdout.rows
@@ -2053,6 +2116,7 @@ function renderHelp(): void {
     "  F10 salir           F1 ayuda            F6 barra de acciones",
     "",
     "  En hosts: ↑↓←→ mover · Enter conectar · escribir busca",
+    "  Pegar (Ctrl+Shift+V) en búsqueda, formularios y terminal según el foco",
     "  En menús y formularios: ↑↓←→ mover · Enter aceptar · Esc volver",
     "  En FRP (Ctrl+F): ↑↓←→ proxy · n crear · d parar · x eliminar · s frps · r rotar",
     "  En transferencias: ↑↓←→ mover · Espacio cambia · u subir · d descargar · c cancelar",
