@@ -2,8 +2,8 @@
 
 | Campo | Valor |
 |---|---|
-| Fecha | 22/11/2026 |
-| Commit base | `6613937` |
+| Fecha | 23/11/2026 |
+| Commit base | `b5c6cd6` |
 | Documento | `SSH05_SDD_v0.3.md` |
 | Fase actual | **P0 + P1 cerrados**; **P2 funcional cerrado** |
 
@@ -80,7 +80,7 @@
 | Barra de botones navegable | **Hecho** | `Menú`, acciones y ratón; `Tab`/flechas |
 | Identidad ssh05 reunificada | **Hecho** | `ssh05d`, `src/ssh05.ts`, rutas `~/.config/ssh05`, `SSH05_*` con respaldo `TRSS_*` |
 | Vendor y soporte en el producto | **Hecho** | `internal/identity/`, `--version` y ayuda; `Dinámicas Electrónicas` |
-| Publicación de releases | **Hecho** | `v0.3.18`, `v0.3.19` y `v0.3.20`: `.deb`, rpm, binarios y win7 |
+| Publicación de releases | **Hecho** | `v0.3.18`–`v0.3.27`: `.deb`, rpm, binarios y win7 |
 | Paquete autosuficiente | **Hecho** | `.deb` con `ssh05`, `ssh05d`, `ssh05-ui`, Bun y dependencias de producción |
 | Supervisor por defecto | **Hecho** | `default.target.wants` global + arranque bajo demanda desde `ssh05-ui` |
 | Docker opt-in en el servicio | **Hecho** | unidad sin `*_DISABLE_DOCKER`; `--docker` en ExecStart lista contenedores |
@@ -102,7 +102,6 @@
 | Prioridad | Trabajo | Criterio de cierre |
 |---|---|---|
 | — | GeoIP de ciudad | No incluido; ASN/RDAP y país orientativo ya operativos |
-| P2 | Publicar release 0.3.26 | contraseña codificada en el alta; notas en `docs/releases/0.3.26.md` |
 
 Releases publicados: <https://github.com/lordpietre/ssh05/releases> (`v0.3.18`
 identidad, `v0.3.19` trzsz/Zmodem, `v0.3.20` paquete autosuficiente,
