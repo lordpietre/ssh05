@@ -3,7 +3,7 @@
 | Campo | Valor |
 |---|---|
 | Fecha | 23/11/2026 |
-| Commit base | `7fd556b` |
+| Commit base | `72fc1a6` |
 | Documento | `SSH05_SDD_v0.3.md` |
 | Fase actual | **P0 + P1 cerrados**; **P2 funcional cerrado** |
 
@@ -109,7 +109,6 @@
 | Prioridad | Trabajo | Criterio de cierre |
 |---|---|---|
 | — | GeoIP de ciudad | No incluido; ASN/RDAP y país orientativo ya operativos |
-| P2 | Publicar release 0.3.29 | alias, cursor, menú contextual y edición/borrado; notas en `docs/releases/0.3.29.md` |
 
 Releases publicados: <https://github.com/lordpietre/ssh05/releases> (`v0.3.18`
 identidad, `v0.3.19` trzsz/Zmodem, `v0.3.20` paquete autosuficiente,
