@@ -3,7 +3,7 @@
 | Campo | Valor |
 |---|---|
 | Fecha | 22/11/2026 |
-| Commit base | `ba7860b` |
+| Commit base | `ecab1db` |
 | Documento | `SSH05_SDD_v0.3.md` |
 | Fase actual | **P0 + P1 cerrados**; **P2 funcional cerrado** |
 
@@ -99,7 +99,6 @@
 | Prioridad | Trabajo | Criterio de cierre |
 |---|---|---|
 | — | GeoIP de ciudad | No incluido; ASN/RDAP y país orientativo ya operativos |
-| P2 | Publicar release 0.3.24 | j/k fuera de la navegación; notas en `docs/releases/0.3.24.md` |
 
 Releases publicados: <https://github.com/lordpietre/ssh05/releases> (`v0.3.18`
 identidad, `v0.3.19` trzsz/Zmodem, `v0.3.20` paquete autosuficiente,
