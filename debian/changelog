@@ -1,3 +1,18 @@
+ssh05 (0.42.1) unstable; urgency=medium
+
+  * Revisión de opciones: las acciones sin host, sin pestaña, sin proxy o sin
+    transferencia muestran un mensaje en lugar de no hacer nada.
+  * Se elimina la opción duplicada «Desconectar SSH» del diálogo de cierre;
+    queda «Cerrar conexión y pestaña» y, si aplica, «Desacoplar tmux».
+  * El escaneo Nmap usa una conexión IPC propia: ya no bloquea sesiones,
+    hosts ni el resto de la UI; se puede cancelar con Esc o con el botón.
+  * Clic en protocolo/recursivo (transferencias) y en tipo (FRP) cambia el
+    valor, no solo selecciona el campo.
+  * Nmap avisa si sudo está activo sin SO ni trazado.
+  * Se limpian saltos de línea en scripts y avisos de Nmap.
+
+ -- Dinámicas Electrónicas <dinamicas.electronicas@gmail.com>  Wed, 25 Nov 2026 21:40:00 +0100
+
 ssh05 (0.42.0) unstable; urgency=medium
 
   * Nmap se integra como binario estático embebido (7.99) con sus datos

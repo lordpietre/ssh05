@@ -4,7 +4,7 @@ Cliente SSH de escritorio y terminal, compatible con OpenSSH, con gestor visual 
 hosts, supervisor local (`ssh05d`) y frontend OpenTUI. Fork de
 [trzsz-ssh](https://github.com/trzsz/trzsz-ssh) orientado a escritorios Linux.
 
-**Versión:** `0.42.0` · **Licencia:** MIT · **Desarrollado por Dinámicas Electrónicas**
+**Versión:** `0.42.1` · **Licencia:** MIT · **Desarrollado por Dinámicas Electrónicas**
 Soporte: `dinamicas.electronicas@gmail.com` · [Repositorio](https://github.com/lordpietre/ssh05)
 
 > Identidad actual: binario `ssh05`, supervisor `ssh05d`, UI `ssh05-ui`.
@@ -306,7 +306,7 @@ Descarga el paquete de tu arquitectura desde
 <https://github.com/lordpietre/ssh05/releases/latest>:
 
 ```sh
-VERSION=0.42.0
+VERSION=0.42.1
 wget "https://github.com/lordpietre/ssh05/releases/download/v${VERSION}/ssh05_${VERSION}_ubuntu_amd64.deb"
 wget "https://github.com/lordpietre/ssh05/releases/download/v${VERSION}/ssh05_${VERSION}_ubuntu_amd64.deb.sha256"
 sha256sum -c "ssh05_${VERSION}_ubuntu_amd64.deb.sha256"
@@ -340,7 +340,7 @@ tiene repositorio, así que `apt upgrade` no mostrará ninguna actualización de
 ssh05. Para actualizar usa el paquete descargado:
 
 ```sh
-sudo apt install --reinstall ./ssh05_0.42.0_ubuntu_amd64.deb
+sudo apt install --reinstall ./ssh05_0.42.1_ubuntu_amd64.deb
 ```
 
 Si quieres que `apt upgrade` gestione ssh05 automáticamente, hace falta
@@ -367,7 +367,7 @@ Paquete local:
 
 ```sh
 make deb
-sudo apt install ./dist/ssh05_0.42.0_ubuntu_amd64.deb
+sudo apt install ./dist/ssh05_0.42.1_ubuntu_amd64.deb
 ```
 
 ---
@@ -389,7 +389,7 @@ ssh05 --list-hosts            # inventario JSON desde ~/.ssh/config
 
 Resultado esperado:
 
-- `ssh05` y `ssh05d` muestran la misma versión (`0.42.0`).
+- `ssh05` y `ssh05d` muestran la misma versión (`0.42.1`).
 - `ssh05d` está `enabled` y `active`; el socket existe con permisos `srw-------`.
 - `ssh05 --list-hosts` devuelve un array JSON (aunque esté vacío).
 - `ssh05-ui` en una terminal real dibuja la interfaz y conecta con el socket.
@@ -454,7 +454,7 @@ La UI está pensada para alternar teclado y ratón sin perder el contexto:
 - **Ventana SSH:** cada sesión se muestra dentro de un marco con cabecera de
   estado, host, ruta y tmux. La `×` de la esquina superior derecha cierra la
   conexión (`close-view`); con clic derecho en la `×` se abre el menú para
-  elegir entre cerrar la vista, desconectar SSH o desacoplar tmux.
+  elegir entre cerrar la conexión y la pestaña o desacoplar tmux.
 
 En menús y formularios, `↑↓←→`, `Home`, `End`, `PageUp`, `PageDown`, `Enter`
 y `Esc` siguen funcionando exactamente igual que antes.
@@ -481,6 +481,7 @@ Opciones del panel:
 | `r` | Usar `sudo -n` para SO/trazado (sin pedir contraseña) |
 | `f` | Activar todo |
 | `Enter` | Escanear |
+| `Esc` | Cancelar el escaneo |
 
 La UI muestra IP, hostname, MAC, fabricante, tipo de máquina, SO, puertos,
 servicios, versiones, scripts, uptime, distancia y traza. `D` abre el informe
@@ -489,6 +490,9 @@ completo y `A` añade el host seleccionado al inventario.
 Sin root se sigue haciendo descubrimiento, servicios y scripts; la MAC y el
 fabricante se completan desde la tabla ARP local. Para SO y trazado se puede
 activar `sudo -n`, que falla de forma controlada si sudo pide contraseña.
+
+El escaneo usa una conexión IPC separada, así que no bloquea la apertura de
+sesiones ni el resto de la UI. Se puede cancelar con `Esc`.
 
 ### Atajos de la UI OpenTUI
 

@@ -155,6 +155,10 @@ func (s *Service) nmapScan(ctx context.Context, req contracts.RPCRequest) (json.
 				addresses = append(addresses, host.Address)
 			}
 		}
+		if len(addresses) > 256 {
+			addresses = addresses[:256]
+			result.Warnings = append(result.Warnings, "El análisis detallado se limita a 256 hosts.")
+		}
 		detailArgs := append(append([]string{}, dataArgs...), "-sT", "-n", "-T4", "--max-retries", "1")
 		if params.Services {
 			detailArgs = append(detailArgs, "-sV", "--version-light")

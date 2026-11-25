@@ -700,6 +700,8 @@ let newHostForm: {
 let helpVisible = false
 let nmapConfirmVisible = false
 let nmapScanning = false
+let nmapScanClient: IpcClient | undefined
+let nmapScanGeneration = 0
 let nmapView: "form" | "results" = "form"
 let nmapHosts: NmapHost[] = []
 let nmapNetworks: string[] = []
@@ -1405,8 +1407,7 @@ type CloseChoice = {
 
 function closeChoices(): CloseChoice[] {
   const choices: CloseChoice[] = [
-    { label: "Cerrar vista (desconecta SSH)", intent: "close-view" },
-    { label: "Desconectar SSH", intent: "disconnect-ssh" },
+    { label: "Cerrar conexión y pestaña", intent: "close-view" },
   ]
   if (store.active()?.tmux) {
     choices.push({
@@ -1553,7 +1554,11 @@ function executeCloseChoice(choice: CloseChoice): void {
 
 function openCloseDialog(): void {
   const active = store.active()
-  if (!active) return
+  if (!active) {
+    transientText = "No hay pestaña activa"
+    uiDirty()
+    return
+  }
   if (!sessions.has(active.sessionId)) {
     void closeActive("close-view")
     return
@@ -2200,7 +2205,11 @@ function reconnectActive(): void {
   const active = store.active()
   if (!active) return
   const host = pendingHosts.get(active.id)
-  if (!host) return
+  if (!host) {
+    transientText = "No hay datos para reconectar esta pestaña"
+    uiDirty()
+    return
+  }
   void connectHost(host, {
     replaceTabId: active.id,
     tmuxSession: active.tmux?.sessionName,
@@ -2262,7 +2271,11 @@ async function applyHostOverride(
 
 async function toggleFavorite(): Promise<void> {
   const host = filteredHosts()[cursor]
-  if (!host) return
+  if (!host) {
+    transientText = "Selecciona un host para marcarlo como favorito"
+    uiDirty()
+    return
+  }
   if (await applyHostOverride(host.id, { favorite: !host.favorite })) {
     transientText = host.favorite ? `${host.alias} ya no es favorito` : `${host.alias} es favorito`
   }
@@ -2271,7 +2284,11 @@ async function toggleFavorite(): Promise<void> {
 
 async function cycleHostColor(): Promise<void> {
   const host = filteredHosts()[cursor]
-  if (!host) return
+  if (!host) {
+    transientText = "Selecciona un host para cambiar su color"
+    uiDirty()
+    return
+  }
   const current = normalizeHex(host.color) ?? ""
   const index = HOST_COLORS.findIndex((color) => normalizeHex(color) === current)
   const next = HOST_COLORS[(index + 1) % HOST_COLORS.length]
@@ -2283,7 +2300,11 @@ async function cycleHostColor(): Promise<void> {
 
 function openLabelsEditor(): void {
   const host = filteredHosts()[cursor]
-  if (!host) return
+  if (!host) {
+    transientText = "Selecciona un host para editar sus etiquetas"
+    uiDirty()
+    return
+  }
   labelsEditing = true
   labelsHostID = host.id
   labelsInput = (host.labels ?? []).join(" ")
@@ -3426,6 +3447,9 @@ function renderNmapConfirm(): void {
     "  Red: automática (interfaz principal)",
     "  Análisis:",
     ...options.map(([, label, enabled]) => `  ${nmapCheck(enabled)} ${label}`),
+    ...(nmapOptions.sudo && !nmapOptions.os && !nmapOptions.trace
+      ? ["  ⚠ Sudo no tiene efecto sin SO o trazado."]
+      : []),
     "",
     "  El descubrimiento siempre usa nmap -sn; las opciones añaden un análisis detallado.",
     "",
@@ -3437,7 +3461,7 @@ function renderNmapConfirm(): void {
     },
   }))
   const actions = nmapScanning
-    ? [{ label: "Escaneando…", run: () => {} }]
+    ? [{ label: "Cancelar escaneo", run: cancelNmapScan }]
     : [
         { label: "Escanear red", run: () => void runNmapScan() },
         { label: "Todo", run: () => { nmapOptions = { services: true, scripts: true, os: true, trace: true, allPorts: true, sudo: true }; uiDirty() } },
@@ -3450,6 +3474,7 @@ function renderNmapConfirm(): void {
 }
 
 function toggleNmapOption(index: number): void {
+  if (nmapScanning) return
   switch (index) {
     case 0:
       nmapOptions.services = !nmapOptions.services
@@ -3536,7 +3561,7 @@ function renderNmapResults(): void {
     }
   }
   for (const warning of nmapWarnings.slice(0, 2)) {
-    lines.push(`  ⚠ ${truncate(warning, 70)}`)
+    lines.push(`  ⚠ ${truncate(warning.replace(/\s+/g, " "), 70)}`)
   }
   lines.push("")
   regions.push(...addActionLine(lines, "Acciones", [
@@ -3568,7 +3593,8 @@ function showNmapDetails(): void {
       for (const cpe of port.cpe ?? []) lines.push(`      ${cpe}`)
     }
     for (const script of host.scripts ?? []) {
-      lines.push(`    Script ${script.id}: ${truncate(script.output ?? "", 120)}`)
+      const output = (script.output ?? "").replace(/\s+/g, " ").trim()
+      lines.push(`    Script ${script.id}: ${truncate(output, 120)}`)
     }
     if (host.uptimeSeconds) lines.push(`    Uptime: ${host.uptimeSeconds}s · ${host.lastBoot || ""}`.trimEnd())
     if (host.distance) lines.push(`    Distancia: ${host.distance}`)
@@ -3585,7 +3611,10 @@ function showNmapDetails(): void {
 
 function handleNmapKey(key: KeyEvent): void {
   const name = key.name.toLowerCase()
-  if (nmapScanning) return
+  if (nmapScanning) {
+    if (name === "escape") cancelNmapScan()
+    return
+  }
   if (nmapView === "results") {
     if (name === "escape") {
       nmapConfirmVisible = false
@@ -3638,16 +3667,35 @@ function openNmapConfirm(): void {
   nmapNetworks = []
   nmapWarnings = []
   nmapCursor = 0
+  nmapOptions = { services: true, scripts: false, os: false, trace: false, allPorts: false, sudo: false }
+  uiDirty()
+}
+
+function cancelNmapScan(): void {
+  nmapScanGeneration++
+  nmapScanClient?.close()
+  nmapScanClient = undefined
+  nmapScanning = false
+  nmapConfirmVisible = false
+  transientText = "Nmap: escaneo cancelado en la UI"
   uiDirty()
 }
 
 async function runNmapScan(): Promise<void> {
-  if (!client || nmapScanning) return
+  if (!client) {
+    showError("Nmap: el supervisor no está disponible")
+    return
+  }
+  if (nmapScanning) return
+  const generation = ++nmapScanGeneration
   nmapScanning = true
   transientText = "Nmap: descubriendo la red local…"
   uiDirty()
+  let scanClient: IpcClient | undefined
   try {
-    const result = await client.call(
+    scanClient = await IpcClient.connect(socketPath)
+    nmapScanClient = scanClient
+    const result = await scanClient.call(
       "diagnostics.nmap",
       {
         confirm: true,
@@ -3661,6 +3709,7 @@ async function runNmapScan(): Promise<void> {
       },
       { timeoutMs: nmapOptions.allPorts ? 650_000 : 240_000 },
     )
+    if (generation !== nmapScanGeneration) return
     nmapNetworks = result.networks ?? []
     nmapHosts = result.hosts ?? []
     nmapWarnings = result.warnings ?? []
@@ -3668,17 +3717,25 @@ async function runNmapScan(): Promise<void> {
     nmapView = "results"
     transientText = ""
   } catch (error) {
-    showError(`Nmap: ${String(error)}`)
+    if (generation === nmapScanGeneration) showError(`Nmap: ${String(error)}`)
   } finally {
-    nmapScanning = false
-    uiDirty()
+    scanClient?.close()
+    if (nmapScanClient === scanClient) nmapScanClient = undefined
+    if (generation === nmapScanGeneration) {
+      nmapScanning = false
+      uiDirty()
+    }
   }
 }
 
 async function addNmapHost(): Promise<void> {
   if (!client) return
   const host = nmapHosts[nmapCursor]
-  if (!host) return
+  if (!host) {
+    transientText = "Nmap: no hay host seleccionado"
+    uiDirty()
+    return
+  }
   const alias = normalizeAlias(host.hostname || host.address)
   if (hosts.some((item) => item.alias === alias || item.target.hostname === host.address)) {
     transientText = `Nmap: ${alias} ya está en el inventario`
@@ -3776,6 +3833,8 @@ function renderTransfers(): void {
       },
       onClick: () => {
         form.field = index
+        if (index === 2) form.protocol = form.protocol === "sftp" ? "scp" : "sftp"
+        else if (index === 3) form.recursive = !form.recursive
         uiDirty()
       },
     }))
@@ -3826,7 +3885,11 @@ function renderTransfers(): void {
 
 async function cancelSelectedTransfer(): Promise<void> {
   const item = transfers[transferCursor]
-  if (!item || !client) return
+  if (!item || !client) {
+    transientText = "Transferencias: no hay ninguna seleccionada"
+    uiDirty()
+    return
+  }
   try {
     await client.call("transfers.cancel", { transferId: item.transferId }, { timeoutMs: 5000 })
     await refreshTransfers()
@@ -4162,6 +4225,7 @@ function renderFRP(): void {
         },
         onClick: () => {
           form.field = index
+          if (index === 1) form.type = nextFRPFormType(form.type)
           uiDirty()
         },
       })
@@ -4270,7 +4334,11 @@ function openFRPForm(): void {
 
 async function stopSelectedFRP(): Promise<void> {
   const proxy = frpProxies[frpCursor]
-  if (!proxy || !client) return
+  if (!proxy || !client) {
+    transientText = "FRP: no hay proxy seleccionado"
+    uiDirty()
+    return
+  }
   try {
     await client.call("frp.proxies.stop", { proxyId: proxy.id }, { timeoutMs: 5000 })
     await refreshFRP()
@@ -4282,7 +4350,11 @@ async function stopSelectedFRP(): Promise<void> {
 
 async function removeSelectedFRP(): Promise<void> {
   const proxy = frpProxies[frpCursor]
-  if (!proxy || !client) return
+  if (!proxy || !client) {
+    transientText = "FRP: no hay proxy seleccionado"
+    uiDirty()
+    return
+  }
   if (frpDeleteArmed !== proxy.id) {
     frpDeleteArmed = proxy.id
     transientText = `FRP: pulsa Eliminar otra vez para borrar ${proxy.name}`
@@ -4325,7 +4397,11 @@ async function toggleLocalFrps(): Promise<void> {
 
 async function rotateFRPToken(): Promise<void> {
   const endpoint = frpEndpoints[0]
-  if (!endpoint || !client) return
+  if (!endpoint || !client) {
+    transientText = "FRP: no hay endpoint para rotar"
+    uiDirty()
+    return
+  }
   try {
     await client.call("frp.tokens.rotate", { endpointId: endpoint.id }, { timeoutMs: 15_000 })
     await refreshFRP()
