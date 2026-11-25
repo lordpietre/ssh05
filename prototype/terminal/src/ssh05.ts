@@ -2586,6 +2586,11 @@ renderer.keyInput.on("keypress", (key) => {
     handleHostKeyDialogKey(key)
     return
   }
+  if (notice && name === "escape") {
+    key.stopPropagation()
+    dismissNotice()
+    return
+  }
   if (name === "f1") {
     key.stopPropagation()
     helpVisible = !helpVisible
@@ -2690,11 +2695,6 @@ renderer.keyInput.on("keypress", (key) => {
   if (frpVisible) {
     key.stopPropagation()
     void handleFRPKey(key)
-    return
-  }
-  if (notice && name === "escape") {
-    key.stopPropagation()
-    dismissNotice()
     return
   }
   if (matchesAction(key, keybindings, "frp")) {
@@ -3470,7 +3470,7 @@ function renderHelp(): void {
     "  Pegar (Ctrl+Shift+V) en búsqueda, formularios y terminal según el foco",
     "  En menús y formularios: ↑↓←→ mover · Enter aceptar · Esc volver",
     "  En FRP (Ctrl+F): ↑↓←→ proxy · n crear · d parar · x eliminar · s frps · r rotar",
-    "  En transferencias: ↑↓←→ mover · Espacio cambia · u subir · d descargar · c cancelar",
+    "  En transferencias: ↑↓←→ mover · Espacio cambia · u subir · d descargar · r reintentar · c cancelar",
     "  En Nmap: v/s/o/t/p/r opciones · f todo · Enter escanear red · Esc cancelar",
     "  La bienvenida se cierra con Enter; SSH05_NO_WELCOME=1 la omite",
     "",
@@ -3969,12 +3969,45 @@ function renderTransfers(): void {
   regions.push(...addActionLine(lines, "", [
     { label: "Subir", run: () => openTransferForm("upload") },
     { label: "Descargar", run: () => openTransferForm("download") },
+    { label: "Reintentar", run: () => void retrySelectedTransfer() },
     { label: "Cancelar", run: () => void cancelSelectedTransfer() },
     { label: "Cerrar", run: closeTransfers },
   ]))
-  lines.push("", "  ↑↓←→ mover · u subir · d descargar · c cancelar · Esc cerrar · clic para elegir")
+  lines.push("", "  ↑↓←→ mover · u subir · d descargar · r reintentar · c cancelar · Esc cerrar · clic")
   setOverlayRegions("transfer", regions)
   transferOverlay.content = styledOverlay(lines, count > 0 ? 3 + transferCursor : -1, [1])
+}
+
+async function retrySelectedTransfer(): Promise<void> {
+  const item = transfers[transferCursor]
+  if (!item || !item.hostProfileId || !client) {
+    transientText = "Transferencias: no hay transferencia u host para reintentar"
+    uiDirty()
+    return
+  }
+  if (item.protocol !== "scp" && item.protocol !== "sftp") {
+    transientText = `Transferencias: protocolo ${item.protocol} no reintentable`
+    uiDirty()
+    return
+  }
+  try {
+    await client.call(
+      "transfers.start",
+      {
+        hostProfileId: item.hostProfileId,
+        protocol: item.protocol,
+        direction: item.direction,
+        localPath: item.localPath,
+        remotePath: item.remotePath,
+        recursive: item.recursive,
+      },
+      { timeoutMs: 15_000 },
+    )
+    await refreshTransfers()
+  } catch (error) {
+    showError(`Reintentar transferencia: ${String(error)}`)
+    uiDirty()
+  }
 }
 
 async function cancelSelectedTransfer(): Promise<void> {
@@ -4136,6 +4169,8 @@ async function handleTransferKey(key: KeyEvent): Promise<void> {
     transferCursor = Math.max(0, transferCursor - 5)
   } else if (name === "pagedown") {
     transferCursor = Math.min(Math.max(0, transfers.length - 1), transferCursor + 5)
+  } else if (name === "r") {
+    await retrySelectedTransfer()
   } else if (name === "c") {
     await cancelSelectedTransfer()
   }

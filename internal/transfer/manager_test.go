@@ -189,3 +189,30 @@ func TestTransferValidationAndLimits(t *testing.T) {
 		t.Fatalf("sftp with spaces must be accepted: %v", err)
 	}
 }
+
+func TestTransfersUseSSH05Transport(t *testing.T) {
+	dir := t.TempDir()
+	log := filepath.Join(dir, "args.log")
+	scp := writeScript(t, dir, "scp", "printf '%s\\n' \"$*\" > "+log+"\nexit 0\n")
+	sftp := writeScript(t, dir, "sftp", "cat >/dev/null\nexit 0\n")
+	manager := NewManager(Options{
+		ScpBin: scp, SftpBin: sftp, SSH05Bin: "/opt/ssh05/bin/ssh05", MaxActive: 2, KeepDone: 5,
+	})
+	t.Cleanup(manager.Close)
+	local := filepath.Join(dir, "file.txt")
+	if err := os.WriteFile(local, []byte("data"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	started, err := manager.Start(context.Background(), Request{
+		HostProfileID: "lab", Protocol: "scp", Direction: "upload",
+		Target: "lab", LocalPath: local, RemotePath: "/tmp/file.txt",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	waitState(t, manager, started.ID, StateCompleted)
+	data, _ := os.ReadFile(log)
+	if !strings.Contains(string(data), "-S /opt/ssh05/bin/ssh05") {
+		t.Fatalf("scp must use ssh05 transport: %s", data)
+	}
+}

@@ -51,6 +51,7 @@ type forwardArgs struct {
 type sshArgs struct {
 	VerShort       bool        `arg:"-v,--" help:"show short version number and exit"`
 	VerDetailed    bool        `arg:"-V,--" help:"show detailed version info and exit"`
+	Quiet          bool        `arg:"-q,--" help:"quiet mode (used by sftp/scp -S)"`
 	Destination    string      `arg:"positional" help:"alias in ~/.ssh/config, or [user@]hostname[:port]"`
 	Command        string      `arg:"positional" help:"command to execute instead of a login shell"`
 	Argument       []string    `arg:"positional" help:"command arguments separated by spaces"`

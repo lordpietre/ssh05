@@ -9,8 +9,10 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"os/exec"
 	"os/signal"
 	"path/filepath"
+	"strings"
 	"syscall"
 	"time"
 
@@ -24,6 +26,25 @@ import (
 
 func defaultAuditPath() string {
 	return filepath.Join(identity.UserStateDir(), "audit.log")
+}
+
+// resolveSSH05 finds the ssh05 client used as the scp/sftp transport. Using
+// ssh05 instead of the system ssh lets transfers reuse ssh_config, the SSH
+// agent and encrypted passwords (encPassword).
+func resolveSSH05(configured string) string {
+	if strings.TrimSpace(configured) != "" {
+		return configured
+	}
+	if executable, err := os.Executable(); err == nil {
+		candidate := filepath.Join(filepath.Dir(executable), "ssh05")
+		if info, statErr := os.Stat(candidate); statErr == nil && !info.IsDir() {
+			return candidate
+		}
+	}
+	if path, err := exec.LookPath("ssh05"); err == nil {
+		return path
+	}
+	return ""
 }
 
 func main() {
@@ -55,6 +76,7 @@ func main() {
 	frpConfig := flag.String("frp-config", "", "FRP manager config path")
 	scpBin := flag.String("scp", "scp", "scp binary for file transfers")
 	sftpBin := flag.String("sftp", "sftp", "sftp binary for file transfers")
+	ssh05Bin := flag.String("ssh05", "", "ssh05 client used as scp/sftp transport (default: sibling ssh05)")
 	nmapBin := flag.String("nmap", "", "optional external nmap binary; the embedded one is used by default")
 	dockerHosts := flag.Bool("docker", false, "include Docker containers as hosts")
 	trzszEnabled := flag.Bool("trzsz", true, "enable trz/tsz transfers inside sessions")
@@ -126,6 +148,7 @@ func main() {
 		SSHConfig: *sshConfig,
 		ScpBin:    *scpBin,
 		SftpBin:   *sftpBin,
+		SSH05Bin:  resolveSSH05(*ssh05Bin),
 	})
 	defer transferManager.Close()
 	service := supervisor.NewService(backend, inventory,

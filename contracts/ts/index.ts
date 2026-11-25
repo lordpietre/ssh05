@@ -478,6 +478,7 @@ export interface FrpServerParams {
 
 export interface TransferInfo {
   transferId: string
+  hostProfileId?: string
   protocol: string
   direction: "upload" | "download"
   target: string

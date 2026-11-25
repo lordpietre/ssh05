@@ -283,13 +283,14 @@ func (s *Service) startTransfer(ctx context.Context, req contracts.RPCRequest) (
 	}
 	target, port := s.transferTarget(ctx, params.HostProfileID, params.RouteID)
 	info, err := s.transfers.Start(ctx, transfermanager.Request{
-		Protocol:   params.Protocol,
-		Direction:  params.Direction,
-		Target:     target,
-		Port:       port,
-		LocalPath:  params.LocalPath,
-		RemotePath: params.RemotePath,
-		Recursive:  params.Recursive,
+		HostProfileID: params.HostProfileID,
+		Protocol:      params.Protocol,
+		Direction:     params.Direction,
+		Target:        target,
+		Port:          port,
+		LocalPath:     params.LocalPath,
+		RemotePath:    params.RemotePath,
+		Recursive:     params.Recursive,
 	})
 	if err != nil {
 		s.log(audit.Event{Action: "transfer.start", HostProfileID: params.HostProfileID, Result: "error", ErrorCode: "internal"})
@@ -329,7 +330,8 @@ func (s *Service) cancelTransfer(req contracts.RPCRequest) (json.RawMessage, *co
 
 func toTransferInfo(info transfermanager.Info) contracts.TransferInfo {
 	return contracts.TransferInfo{
-		ID: info.ID, Protocol: info.Protocol, Direction: info.Direction,
+		ID: info.ID, HostProfileID: info.HostProfileID,
+		Protocol: info.Protocol, Direction: info.Direction,
 		Target: info.Target, LocalPath: info.LocalPath, RemotePath: info.RemotePath,
 		Recursive: info.Recursive, State: string(info.State),
 		StartedAt: info.StartedAt, FinishedAt: info.FinishedAt,

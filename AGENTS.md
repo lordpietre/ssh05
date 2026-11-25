@@ -152,7 +152,9 @@ make install                   # copies ./bin/ssh05 y ./bin/ssh05d to /usr/bin
 - Auditoría saneada: `--audit-log /ruta/audit.log --audit-max-bytes N --audit-max-files N`.
 - Límites: `--max-sessions N`, `--max-pending-bytes N`.
 - Overrides de hosts: `--hosts-overrides /ruta/hosts.json`.
-- Transferencias: `--scp scp --sftp sftp`; panel «Transferencias» en la paleta.
+- Transferencias: `--scp scp --sftp sftp --ssh05 ssh05`; panel «Transferencias»
+  en la paleta. SFTP/SCP usan `-S ssh05` para reutilizar config, agente y
+  `encPassword`.
   `--trzsz` (por defecto) y `--zmodem` habilitan `trz`/`tsz` y `rz`/`sz` dentro
   de las sesiones; `--download-path` fija el destino (por defecto
   `~/Downloads` si existe). Smoke real: `make trzsz-smoke`.

@@ -4,7 +4,7 @@ Cliente SSH de escritorio y terminal, compatible con OpenSSH, con gestor visual 
 hosts, supervisor local (`ssh05d`) y frontend OpenTUI. Fork de
 [trzsz-ssh](https://github.com/trzsz/trzsz-ssh) orientado a escritorios Linux.
 
-**Versión:** `0.42.3` · **Licencia:** MIT · **Desarrollado por Dinámicas Electrónicas**
+**Versión:** `0.42.4` · **Licencia:** MIT · **Desarrollado por Dinámicas Electrónicas**
 Soporte: `dinamicas.electronicas@gmail.com` · [Repositorio](https://github.com/lordpietre/ssh05)
 
 > Identidad actual: binario `ssh05`, supervisor `ssh05d`, UI `ssh05-ui`.
@@ -127,9 +127,10 @@ Soporte: `dinamicas.electronicas@gmail.com` · [Repositorio](https://github.com/
    mismo stream; el resto de bytes pasa sin cambios.
 
 7. **Transferencias SCP/SFTP**
-   `internal/transfer` ejecuta los binarios `scp`/`sftp` con el mismo
-   `ssh_config` y agente. Exige autenticación no interactiva (`BatchMode`) y no
-   interpola una shell.
+   `internal/transfer` ejecuta los binarios `scp`/`sftp` con `-S ssh05`, por lo
+   que reutilizan `ssh_config`, el agente SSH, `encPassword` y el resto de la
+   autenticación de ssh05. No interpolan una shell; el binario de transporte se
+   puede cambiar con `ssh05d --ssh05 <ruta>`.
 
 8. **FRP**
    `internal/frp` es dueño del ciclo de vida de `frpc`/`frps`: valida binarios
@@ -306,7 +307,7 @@ Descarga el paquete de tu arquitectura desde
 <https://github.com/lordpietre/ssh05/releases/latest>:
 
 ```sh
-VERSION=0.42.3
+VERSION=0.42.4
 wget "https://github.com/lordpietre/ssh05/releases/download/v${VERSION}/ssh05_${VERSION}_ubuntu_amd64.deb"
 wget "https://github.com/lordpietre/ssh05/releases/download/v${VERSION}/ssh05_${VERSION}_ubuntu_amd64.deb.sha256"
 sha256sum -c "ssh05_${VERSION}_ubuntu_amd64.deb.sha256"
@@ -340,7 +341,7 @@ tiene repositorio, así que `apt upgrade` no mostrará ninguna actualización de
 ssh05. Para actualizar usa el paquete descargado:
 
 ```sh
-sudo apt install --reinstall ./ssh05_0.42.3_ubuntu_amd64.deb
+sudo apt install --reinstall ./ssh05_0.42.4_ubuntu_amd64.deb
 ```
 
 Si quieres que `apt upgrade` gestione ssh05 automáticamente, hace falta
@@ -367,7 +368,7 @@ Paquete local:
 
 ```sh
 make deb
-sudo apt install ./dist/ssh05_0.42.3_ubuntu_amd64.deb
+sudo apt install ./dist/ssh05_0.42.4_ubuntu_amd64.deb
 ```
 
 ---
@@ -389,7 +390,7 @@ ssh05 --list-hosts            # inventario JSON desde ~/.ssh/config
 
 Resultado esperado:
 
-- `ssh05` y `ssh05d` muestran la misma versión (`0.42.3`).
+- `ssh05` y `ssh05d` muestran la misma versión (`0.42.4`).
 - `ssh05d` está `enabled` y `active`; el socket existe con permisos `srw-------`.
 - `ssh05 --list-hosts` devuelve un array JSON (aunque esté vacío).
 - `ssh05-ui` en una terminal real dibuja la interfaz y conecta con el socket.
@@ -560,6 +561,12 @@ ssh05 host --install-trzsz                  # instalar trz/tsz remoto
 Dentro de una sesión, `trz`/`tsz` se detectan automáticamente. Zmodem requiere
 `--zmodem` y `lrzsz` en el servidor. Las descargas usan `--download-path` o
 `~/Downloads`; si no existe, se abre el selector del escritorio.
+
+El panel **Transferencias** de la UI usa SCP/SFTP con `-S ssh05`, así que
+funciona con claves, agente SSH y contraseñas `#!! encPassword` igual que una
+sesión normal. Si una transferencia falla, se puede seleccionar y usar
+**Reintentar** (`r`) sin reiniciar la app. El binario de transporte se puede
+cambiar con `ssh05d --ssh05 <ruta>`.
 
 ### Túneles y FRP
 

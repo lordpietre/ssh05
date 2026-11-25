@@ -1,3 +1,16 @@
+ssh05 (0.42.4) unstable; urgency=medium
+
+  * SFTP y SCP usan `ssh05 -S` como transporte, por lo que funcionan con
+    `#!! encPassword`, ssh_config y agente SSH, no solo con claves.
+  * `ssh05` acepta `-q`, necesario cuando sftp/scp lo invocan con `-S`.
+  * Nuevo `ssh05d --ssh05 <ruta>` para elegir el cliente de transporte.
+  * Transferencias fallidas se pueden reintentar con `r` o el botón
+    «Reintentar», sin reiniciar la app.
+  * Las notificaciones de error se cierran con Esc antes que cualquier panel,
+    evitando que un error parezca bloquear la interfaz.
+
+ -- Dinámicas Electrónicas <dinamicas.electronicas@gmail.com>  Wed, 25 Nov 2026 23:40:00 +0100
+
 ssh05 (0.42.3) unstable; urgency=medium
 
   * Al empezar, la barra de menús queda enfocada: ←/→ navega, Enter abre el

@@ -3,7 +3,7 @@
 | Campo | Valor |
 |---|---|
 | Fecha | 25/11/2026 |
-| Commit base | `a437e79` + cambios 0.42.3 |
+| Commit base | `a437e79` + cambios 0.42.4 |
 | Documento | `SSH05_SDD_v0.3.md` |
 | Fase actual | **P0 + P1 cerrados**; **P2 funcional cerrado** |
 
@@ -118,7 +118,7 @@
 
 Releases publicados: <https://github.com/lordpietre/ssh05/releases> (`v0.3.18`
 identidad, `v0.3.19` trzsz/Zmodem, `v0.3.20` paquete autosuficiente,
-`v0.3.21` Docker opt-in, `v0.3.22` flechas, `v0.3.23` overlays opacos, `v0.3.24` solo flechas, `v0.3.25` pegado, `v0.3.26` contraseña enc, `v0.3.27` UI por defecto, `v0.3.28` menú/agrupación/bienvenida/`/connect`, `v0.3.29` edición/borrado, `v0.3.30` renombrado/cursor, `v0.40.0` host keys sin TTY, ventana SSH y navegación con ratón, `v0.40.1` cierre idempotente, errores centrados y ratón estable, `v0.42.0` Nmap embebido y escaneo de red local con SO, servicios, scripts y trazado, `v0.42.1` revisión de opciones sin efecto y cancelación de Nmap, `v0.42.2` bienvenida extensa, menús sin «Acciones» y navegación direccional, `v0.42.3` foco inicial en menú y restauración de foco al cerrar).
+`v0.3.21` Docker opt-in, `v0.3.22` flechas, `v0.3.23` overlays opacos, `v0.3.24` solo flechas, `v0.3.25` pegado, `v0.3.26` contraseña enc, `v0.3.27` UI por defecto, `v0.3.28` menú/agrupación/bienvenida/`/connect`, `v0.3.29` edición/borrado, `v0.3.30` renombrado/cursor, `v0.40.0` host keys sin TTY, ventana SSH y navegación con ratón, `v0.40.1` cierre idempotente, errores centrados y ratón estable, `v0.42.0` Nmap embebido y escaneo de red local con SO, servicios, scripts y trazado, `v0.42.1` revisión de opciones sin efecto y cancelación de Nmap, `v0.42.2` bienvenida extensa, menús sin «Acciones» y navegación direccional, `v0.42.3` foco inicial en menú y restauración de foco al cerrar, `v0.42.4` SCP/SFTP con transporte ssh05 y reintento de transferencias).
 
 ## Invariantes que no se negocian
 

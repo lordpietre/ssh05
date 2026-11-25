@@ -350,18 +350,19 @@ type FrpServerParams struct {
 // --- transfers ---
 
 type TransferInfo struct {
-	ID         string    `json:"transferId"`
-	Protocol   string    `json:"protocol"`
-	Direction  string    `json:"direction"`
-	Target     string    `json:"target"`
-	LocalPath  string    `json:"localPath"`
-	RemotePath string    `json:"remotePath"`
-	Recursive  bool      `json:"recursive"`
-	State      string    `json:"state"`
-	StartedAt  time.Time `json:"startedAt"`
-	FinishedAt time.Time `json:"finishedAt,omitempty"`
-	ErrorCode  string    `json:"errorCode,omitempty"`
-	ErrorLabel string    `json:"errorLabel,omitempty"`
+	ID            string    `json:"transferId"`
+	HostProfileID string    `json:"hostProfileId,omitempty"`
+	Protocol      string    `json:"protocol"`
+	Direction     string    `json:"direction"`
+	Target        string    `json:"target"`
+	LocalPath     string    `json:"localPath"`
+	RemotePath    string    `json:"remotePath"`
+	Recursive     bool      `json:"recursive"`
+	State         string    `json:"state"`
+	StartedAt     time.Time `json:"startedAt"`
+	FinishedAt    time.Time `json:"finishedAt,omitempty"`
+	ErrorCode     string    `json:"errorCode,omitempty"`
+	ErrorLabel    string    `json:"errorLabel,omitempty"`
 }
 
 type TransfersStartParams struct {

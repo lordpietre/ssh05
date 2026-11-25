@@ -26,29 +26,31 @@ const (
 // Request is a validated transfer request. Target is an SSH destination
 // (alias or user@host); Port is optional.
 type Request struct {
-	Protocol   string
-	Direction  string
-	Target     string
-	Port       int
-	LocalPath  string
-	RemotePath string
-	Recursive  bool
+	HostProfileID string
+	Protocol      string
+	Direction     string
+	Target        string
+	Port          int
+	LocalPath     string
+	RemotePath    string
+	Recursive     bool
 }
 
 // Info is a non-secret transfer snapshot.
 type Info struct {
-	ID         string    `json:"transferId"`
-	Protocol   string    `json:"protocol"`
-	Direction  string    `json:"direction"`
-	Target     string    `json:"target"`
-	LocalPath  string    `json:"localPath"`
-	RemotePath string    `json:"remotePath"`
-	Recursive  bool      `json:"recursive"`
-	State      State     `json:"state"`
-	StartedAt  time.Time `json:"startedAt"`
-	FinishedAt time.Time `json:"finishedAt,omitempty"`
-	ErrorCode  string    `json:"errorCode,omitempty"`
-	ErrorLabel string    `json:"errorLabel,omitempty"`
+	ID            string    `json:"transferId"`
+	HostProfileID string    `json:"hostProfileId,omitempty"`
+	Protocol      string    `json:"protocol"`
+	Direction     string    `json:"direction"`
+	Target        string    `json:"target"`
+	LocalPath     string    `json:"localPath"`
+	RemotePath    string    `json:"remotePath"`
+	Recursive     bool      `json:"recursive"`
+	State         State     `json:"state"`
+	StartedAt     time.Time `json:"startedAt"`
+	FinishedAt    time.Time `json:"finishedAt,omitempty"`
+	ErrorCode     string    `json:"errorCode,omitempty"`
+	ErrorLabel    string    `json:"errorLabel,omitempty"`
 }
 
 // Options configures the transfer manager.
@@ -56,6 +58,9 @@ type Options struct {
 	SSHConfig string
 	ScpBin    string
 	SftpBin   string
+	// SSH05Bin is the ssh05 client used as the SSH transport for scp/sftp,
+	// so transfers can use ssh05 credentials (encPassword, config, agent).
+	SSH05Bin  string
 	MaxActive int
 	KeepDone  int
 }
@@ -162,15 +167,16 @@ func (m *Manager) Start(ctx context.Context, request Request) (Info, error) {
 	id := fmt.Sprintf("xfer-%d", m.next.Add(1))
 	item := &transfer{
 		info: Info{
-			ID:         id,
-			Protocol:   request.Protocol,
-			Direction:  request.Direction,
-			Target:     target,
-			LocalPath:  local,
-			RemotePath: request.RemotePath,
-			Recursive:  request.Recursive,
-			State:      StateRunning,
-			StartedAt:  time.Now().UTC(),
+			ID:            id,
+			HostProfileID: request.HostProfileID,
+			Protocol:      request.Protocol,
+			Direction:     request.Direction,
+			Target:        target,
+			LocalPath:     local,
+			RemotePath:    request.RemotePath,
+			Recursive:     request.Recursive,
+			State:         StateRunning,
+			StartedAt:     time.Now().UTC(),
 		},
 		stderr: &boundedBuffer{limit: 4096},
 	}
@@ -206,6 +212,9 @@ func (m *Manager) Start(ctx context.Context, request Request) (Info, error) {
 func (m *Manager) build(request Request) (string, []string, string) {
 	if request.Protocol == "scp" {
 		args := []string{"-B", "-o", "BatchMode=yes"}
+		if m.opts.SSH05Bin != "" {
+			args = append(args, "-S", m.opts.SSH05Bin)
+		}
 		if m.opts.SSHConfig != "" {
 			args = append(args, "-F", m.opts.SSHConfig)
 		}
@@ -226,6 +235,9 @@ func (m *Manager) build(request Request) (string, []string, string) {
 	}
 
 	args := []string{"-q", "-b", "-", "-o", "BatchMode=yes"}
+	if m.opts.SSH05Bin != "" {
+		args = append(args, "-S", m.opts.SSH05Bin)
+	}
 	if m.opts.SSHConfig != "" {
 		args = append(args, "-F", m.opts.SSHConfig)
 	}
