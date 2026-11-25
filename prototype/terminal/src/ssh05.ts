@@ -25,8 +25,8 @@ import {
   createCliRenderer,
   fg,
 } from "@opentui/core"
-import { appendFileSync, existsSync } from "node:fs"
-import { join } from "node:path"
+import { appendFileSync, existsSync, mkdirSync, renameSync, statSync, writeFileSync } from "node:fs"
+import { dirname, join } from "node:path"
 import type {
   FrpEndpoint,
   FrpProxy,
@@ -48,7 +48,7 @@ import { loadKeybindings, matchesAction } from "./config/keybindings.ts"
 import { RPC_CODE_HOST_KEY_CHANGED, RPC_CODE_HOST_KEY_UNKNOWN } from "../../../contracts/ts/index.ts"
 import { exportDiagnostics } from "./diagnostics/export.ts"
 import { isValidAlias, normalizeAlias } from "./hosts/alias.ts"
-import { envValue, resolveSocketPath, SUPERVISOR } from "./identity.ts"
+import { envValue, resolveSocketPath, stateDir, SUPERVISOR } from "./identity.ts"
 import {
   loadPreferences,
   nextPanelWidth,
@@ -78,16 +78,37 @@ const UI_COLORS = {
 } as const
 const MAX_PENDING_BYTES = 1 << 20
 
-const debugFile = envValue("UI_DEBUG")
+const debugOverride = envValue("UI_DEBUG")
+const debugFile = debugOverride && debugOverride !== "1" && debugOverride.toLowerCase() !== "true"
+  ? debugOverride
+  : join(stateDir(), "ui.log")
+let debugBytes = 0
+try {
+  mkdirSync(dirname(debugFile), { recursive: true, mode: 0o700 })
+  debugBytes = statSync(debugFile).size
+} catch {
+  // The log is best-effort.
+}
+
 const debug = (message: string) => {
-  if (debugFile) {
-    try {
-      appendFileSync(debugFile, `${new Date().toISOString()} ${message}\n`)
-    } catch {
-      // Debug logging must never break the UI.
+  try {
+    if (debugBytes > 2 << 20) {
+      try {
+        renameSync(debugFile, `${debugFile}.1`)
+      } catch {
+        // If rotation fails, truncate instead.
+        writeFileSync(debugFile, "", { mode: 0o600 })
+      }
+      debugBytes = 0
     }
+    const line = `${new Date().toISOString()} ${message}\n`
+    appendFileSync(debugFile, line, { mode: 0o600 })
+    debugBytes += Buffer.byteLength(line)
+  } catch {
+    // Debug logging must never break the UI.
   }
 }
+debug(`ui start pid=${process.pid} socket=${resolveSocketPath()}`)
 
 const loadedBindings = loadKeybindings()
 const keybindings = loadedBindings.bindings
@@ -107,7 +128,7 @@ currentWorkspace = safeWorkspaceName(currentWorkspace)
 const renderer = await createCliRenderer({
   exitOnCtrlC: false,
   useMouse: true,
-  enableMouseMovement: false,
+  enableMouseMovement: true,
 })
 
 const root = new BoxRenderable(renderer, {
@@ -183,6 +204,18 @@ hostPanel.add(hostHint)
 
 hostList.onMouseDown = (event) => {
   const row = event.y - hostList.y
+  if (commandMode) return
+  const hit = hostLineMap.find((item) => item.line === row)
+  if (!hit) return
+  hostFocused = true
+  actionBarFocused = false
+  cursor = hit.index
+  event.stopPropagation()
+  uiDirty()
+}
+
+hostList.onMouseUp = (event) => {
+  const row = event.y - hostList.y
   if (commandMode) {
     const hit = commandLineMap.find((item) => item.line === row)
     if (!hit) return
@@ -195,16 +228,15 @@ hostList.onMouseDown = (event) => {
   }
   const hit = hostLineMap.find((item) => item.line === row)
   if (!hit) return
+  event.stopPropagation()
   hostFocused = true
   actionBarFocused = false
   cursor = hit.index
   if (event.button === MouseButton.RIGHT) {
-    event.stopPropagation()
     openHostMenu(hit.host)
     return
   }
   if (event.button !== MouseButton.LEFT) return
-  event.stopPropagation()
   const now = Date.now()
   if (lastHostClick.id === hit.host.id && now - lastHostClick.at < 450) {
     lastHostClick = { id: "", at: 0 }
@@ -263,7 +295,7 @@ const sessionClose = new TextRenderable(renderer, {
   width: 3,
   height: 1,
   visible: false,
-  onMouseDown: (event) => {
+  onMouseUp: (event) => {
     if (event.button === MouseButton.RIGHT) {
       openCloseDialog()
       return
@@ -309,7 +341,7 @@ applyTabPosition()
 hostPanel.width = hostPanelWidth
 renderer.start()
 
-tabBar.onMouseDown = (event) => {
+tabBar.onMouseUp = (event) => {
   const hit = tabBarHitTest(
     { tabs: store.list(), activeId: store.active()?.id, width: renderer.width },
     event.x - tabBar.x,
@@ -561,6 +593,48 @@ const helpOverlay = new TextRenderable(renderer, {
 
 renderer.root.add(helpOverlay)
 
+const helpClose = new TextRenderable(renderer, {
+  id: "help-close",
+  position: "absolute",
+  top: 1,
+  width: 12,
+  height: 1,
+  content: " [ Cerrar ] ",
+  visible: false,
+  zIndex: 150,
+  fg: RGBA.fromInts(255, 255, 255),
+  bg: RGBA.fromInts(58, 78, 110),
+  onMouseUp: (event) => {
+    event.stopPropagation()
+    debug("overlay help explicit close")
+    helpVisible = false
+    focusHosts()
+  },
+})
+
+renderer.root.add(helpClose)
+
+const diagClose = new TextRenderable(renderer, {
+  id: "diag-close",
+  position: "absolute",
+  top: 1,
+  width: 12,
+  height: 1,
+  content: " [ Cerrar ] ",
+  visible: false,
+  zIndex: 151,
+  fg: RGBA.fromInts(255, 255, 255),
+  bg: RGBA.fromInts(58, 78, 110),
+  onMouseUp: (event) => {
+    event.stopPropagation()
+    debug("overlay diag explicit close")
+    diagVisible = false
+    focusHosts()
+  },
+})
+
+renderer.root.add(diagClose)
+
 const newHostOverlay = new TextRenderable(renderer, {
   id: "new-host-overlay",
   position: "absolute",
@@ -590,7 +664,7 @@ const noticeBox = new BoxRenderable(renderer, {
   backgroundColor: RGBA.fromInts(32, 18, 20),
   zIndex: 160,
   visible: false,
-  onMouseDown: () => dismissNotice(),
+  onMouseUp: () => dismissNotice(),
 })
 
 const noticeText = new TextRenderable(renderer, {
@@ -729,6 +803,7 @@ let transferForm: {
 let transfers: TransferInfo[] = []
 let transferCursor = 0
 let transferPoll: ReturnType<typeof setInterval> | undefined
+const transferStates = new Map<string, string>()
 let preferencesVisible = false
 let preferencesCursor = 0
 let diagVisible = false
@@ -804,6 +879,9 @@ function addActionButton(label: string, run: () => void): void {
     onMouseDown: () => {
       actionBarFocused = true
       actionBarCursor = index
+      uiDirty()
+    },
+    onMouseUp: () => {
       run()
       actionBarFocused = false
       uiDirty()
@@ -879,7 +957,7 @@ for (let index = 0; index < actionsMenuItems.length; index++) {
     content: "",
     width: "100%",
     height: 1,
-    onMouseDown: () => {
+    onMouseUp: () => {
       actionsMenuCursor = index
       executeActionsMenu()
     },
@@ -1091,9 +1169,9 @@ function renderWelcome(): void {
     "  · Usar tmux remoto con Ctrl+G y reenganchar al reconectar.",
     "",
     "  Teclado y ratón",
-    "  ↑↓ hosts · ←→ barra/menú · Enter abrir · Esc volver",
-    "  Clic selecciona · doble clic conecta · clic derecho menú",
-    "  Rueda desplaza · F1 ayuda · F10 salir",
+    "  [↑/↓] hosts   [←/→] barra/menú   [Enter] abrir   [Esc] volver",
+    "  [Tab] menú   [F1] ayuda   [F10] salir",
+    "  [Clic] selecciona · [doble] conecta · [derecho] menú · [rueda] desplaza",
     "",
   ]
   const actionLine = lines.length
@@ -1340,6 +1418,7 @@ function renderNotice(): void {
 }
 
 function showError(message: string): void {
+  debug(`error: ${message}`)
   notice = { message }
   errorText = ""
   transientText = ""
@@ -1420,6 +1499,7 @@ function renderStatus(): void {
 }
 
 function uiDirty(): void {
+  if (quitting) return
   renderHosts()
   renderTabs()
   renderSessionHeader()
@@ -1464,7 +1544,9 @@ function closeChoices(): CloseChoice[] {
 }
 
 function padLine(line: string, width = Math.max(20, renderer.width)): string {
-  return line + " ".repeat(Math.max(0, width - line.length))
+  const chars = Array.from(line)
+  const clipped = chars.length > width ? chars.slice(0, Math.max(0, width - 1)).join("") + "…" : line
+  return clipped + " ".repeat(Math.max(0, width - Array.from(clipped).length))
 }
 
 function isHintLine(trimmed: string): boolean {
@@ -1560,7 +1642,18 @@ function bindOverlayMouse(name: string, overlay: TextRenderable): void {
     const region = findOverlayRegion(name, event.y - overlay.y, event.x - overlay.x)
     if (!region) return
     event.stopPropagation()
-    region.onClick(event)
+  }
+  overlay.onMouseUp = (event) => {
+    if (event.button !== MouseButton.LEFT) return
+    const row = event.y - overlay.y
+    const col = event.x - overlay.x
+    const region = findOverlayRegion(name, row, col)
+    if (!region) return
+    event.stopPropagation()
+    debug(`overlay ${name} click row=${row} col=${col}`)
+    // Let the mouse-up finish before hiding this overlay or opening another.
+    // Without this, the release can land on the underlying action bar.
+    setTimeout(() => region.onClick(event), 40)
   }
 }
 
@@ -1837,6 +1930,7 @@ function executePalette(index: number): void {
       helpVisible = true
       break
   }
+  uiDirty()
 }
 
 function handlePaletteKey(key: KeyEvent): void {
@@ -2270,6 +2364,7 @@ function reconnectActive(): void {
 }
 
 async function quit(): Promise<void> {
+  debug("quit requested")
   if (quitting) return
   if (saveTimer) {
     clearTimeout(saveTimer)
@@ -2590,6 +2685,10 @@ renderer.keyInput.on("keypress", (key) => {
     key.stopPropagation()
     dismissNotice()
     return
+  }
+  if (notice) {
+    // Any other key dismisses the error and continues to the active panel.
+    dismissNotice()
   }
   if (name === "f1") {
     key.stopPropagation()
@@ -3447,38 +3546,37 @@ async function saveNewHost(connect: boolean): Promise<void> {
 function renderHelp(): void {
   if (!helpVisible) {
     helpOverlay.visible = false
+    helpClose.visible = false
     return
   }
   helpOverlay.visible = true
-  const lines = [
+  helpClose.visible = true
+  const lines = ["", "  Ayuda · atajos y controles"]
+  const close = { label: "Cerrar", run: () => { helpVisible = false; focusHosts() } }
+  const regions = addActionLine(lines, "", [close])
+  lines.push(
     "",
-    "  Ayuda · atajos",
+    "  Hosts      [↑/↓] mover      [←] barra superior",
+    "             [→] menú host    [Enter] conectar",
+    "             [doble clic] conectar · [clic derecho] menú",
+    "             [F2/F3/F4] favorito / color / etiquetas",
+    "  Ventanas   [Ctrl+T] hosts   [Ctrl+K] paleta",
+    "             [Ctrl+P] workspaces · [Ctrl+N] nuevo host",
+    "             [Ctrl+Tab] pestaña · [Ctrl+1..9] pestaña",
+    "             [Ctrl+W] cerrar · [Ctrl+Shift+←/→] mover",
+    "             [Ctrl+G] tmux · [F6] barra de menú",
+    "  Menús      [↑/↓/←/→] mover · [Enter] abrir · [Esc] volver",
+    "  Búsqueda   escribir o [/] comandos (/connect, /conn, /help)",
+    "  FRP        [Ctrl+F] · [↑/↓/←/→] proxy · [n] nuevo · [d] parar",
+    "             [x] eliminar · [s] frps · [r] rotar",
+    "  Archivos   [↑/↓/←/→] mover · [Espacio] cambiar",
+    "             [u] subir · [d] descargar · [r] reintentar · [c] cancelar",
+    "  Nmap       [v/s/o/t/p/r] opciones · [f] todo · [Enter] escanear",
+    "  Ayuda      [F1] esta pantalla · [F10] salir",
+    "  Debug      ~/.local/state/ssh05/ui.log · SSH05_UI_DEBUG",
     "",
-    "  Ctrl+T hosts        Ctrl+K paleta        Ctrl+P workspaces",
-    "  Ctrl+N nuevo host   Ctrl+G tmux          Ctrl+I KeePass       Ctrl+W cerrar",
-    "  Ctrl+Tab pestaña    Ctrl+1..9 pestaña    Ctrl+Shift+←/→ mover",
-    "  F2 favorito         F3 color             F4 etiquetas",
-    "  F10 salir           F1 ayuda             F6 barra de menú",
-    "",
-    "  Ratón: clic en hosts, pestañas, botones y filas de menú",
-    "  Rueda del ratón: desplaza la lista de hosts",
-    "  En hosts: ↑↓ mover · ← barra superior · → menú del host",
-    "  Menú del host (→): Conectar · Editar · Eliminar",
-    "  Enter conecta · doble clic conecta · clic derecho abre el menú",
-    "  Escribir busca · / comandos (/connect, /conn, /help)",
-    "  El alta/edición admite contraseña; se guarda como #!! encPassword",
-    "  Pegar (Ctrl+Shift+V) en búsqueda, formularios y terminal según el foco",
-    "  En menús y formularios: ↑↓←→ mover · Enter aceptar · Esc volver",
-    "  En FRP (Ctrl+F): ↑↓←→ proxy · n crear · d parar · x eliminar · s frps · r rotar",
-    "  En transferencias: ↑↓←→ mover · Espacio cambia · u subir · d descargar · r reintentar · c cancelar",
-    "  En Nmap: v/s/o/t/p/r opciones · f todo · Enter escanear red · Esc cancelar",
-    "  La bienvenida se cierra con Enter; SSH05_NO_WELCOME=1 la omite",
-    "",
-  ]
-  const regions = addActionLine(lines, "", [
-    { label: "Cerrar", run: () => { helpVisible = false; focusHosts() } },
-  ])
-  lines.push("", "  Esc/Enter cerrar · clic en [ Cerrar ] o en el título")
+    "  [Esc] o [Enter] cerrar · clic en [ Cerrar ] o en el título",
+  )
   regions.push({
     line: 1,
     onClick: () => {
@@ -3487,7 +3585,11 @@ function renderHelp(): void {
     },
   })
   setOverlayRegions("help", regions)
+  helpOverlay.width = renderer.width
+  helpOverlay.height = renderer.height
   helpOverlay.content = styledOverlay(lines, -1, [1])
+  helpClose.left = Math.max(0, renderer.width - 14)
+  helpClose.top = 1
 }
 
 function nmapCheck(value: boolean): string {
@@ -3920,6 +4022,9 @@ function renderTransfers(): void {
       ),
       "",
     ]
+    if (form.direction === "upload" && form.localPath.endsWith("/") && !form.recursive) {
+      lines.push("  ⚠ La ruta local parece una carpeta: activa Recursivo o elige un archivo.")
+    }
     const regions: OverlayRegion[] = rows.map((_, index) => ({
       line: 3 + index,
       onHover: () => {
@@ -3991,6 +4096,7 @@ async function retrySelectedTransfer(): Promise<void> {
     return
   }
   try {
+    debug(`transfer retry ${item.protocol} ${item.direction} ${item.transferId}`)
     await client.call(
       "transfers.start",
       {
@@ -4018,6 +4124,7 @@ async function cancelSelectedTransfer(): Promise<void> {
     return
   }
   try {
+    debug(`transfer cancel ${item.transferId}`)
     await client.call("transfers.cancel", { transferId: item.transferId }, { timeoutMs: 5000 })
     await refreshTransfers()
   } catch (error) {
@@ -4031,6 +4138,15 @@ async function refreshTransfers(): Promise<void> {
   try {
     const result = await client.call("transfers.list", {}, { timeoutMs: 5000 })
     transfers = result.transfers ?? []
+    for (const item of transfers) {
+      if (transferStates.get(item.transferId) !== item.state) {
+        transferStates.set(item.transferId, item.state)
+        debug(
+          `transfer ${item.transferId} ${item.state}` +
+            (item.errorLabel ? `: ${item.errorLabel.replace(/\s+/g, " ")}` : ""),
+        )
+      }
+    }
     transferCursor = Math.min(transferCursor, Math.max(0, transfers.length - 1))
   } catch (error) {
     debug(`transfers.list: ${String(error)}`)
@@ -4039,6 +4155,7 @@ async function refreshTransfers(): Promise<void> {
 }
 
 async function openTransfers(): Promise<void> {
+  debug("transfers open")
   transferVisible = true
   transferForm = null
   transferCursor = 0
@@ -4048,6 +4165,7 @@ async function openTransfers(): Promise<void> {
 }
 
 function closeTransfers(): void {
+  debug("transfers close")
   transferVisible = false
   transferForm = null
   stopTransferPoll()
@@ -4072,7 +4190,7 @@ function openTransferForm(direction: "upload" | "download"): void {
     direction,
     protocol: "sftp",
     localPath: direction === "upload" ? `${process.cwd()}/` : `${process.env.HOME ?? "~"}/`,
-    remotePath: "~/",
+    remotePath: "/home/",
     recursive: false,
     field: 0,
   }
@@ -4088,6 +4206,7 @@ async function startTransferForm(): Promise<void> {
     return
   }
   try {
+    debug(`transfer start ${form.protocol} ${form.direction} ${host.alias} ${form.localPath} -> ${form.remotePath}`)
     const plan = await client.call("routes.plan", { hostProfileId: host.id }, { timeoutMs: 3000 })
     await client.call(
       "transfers.start",
@@ -4103,6 +4222,7 @@ async function startTransferForm(): Promise<void> {
       { timeoutMs: 15_000 },
     )
     transferForm = null
+    debug(`transfer queued ${form.protocol} ${form.direction} ${host.alias}`)
     await refreshTransfers()
   } catch (error) {
     showError(`Transferencia: ${String(error)}`)
@@ -4290,9 +4410,11 @@ function handlePreferencesKey(key: KeyEvent): void {
 function renderDiagnostics(): void {
   if (!diagVisible) {
     diagOverlay.visible = false
+    diagClose.visible = false
     return
   }
   diagOverlay.visible = true
+  diagClose.visible = true
   const lines = diagContent.split("\n")
   const titleLine = lines.findIndex((line) => line.trim().startsWith("Diagnóstico") || line.trim().startsWith("Red ·"))
   lines.push("")
@@ -4302,6 +4424,10 @@ function renderDiagnostics(): void {
   lines.push("", "  Esc/Enter cerrar · clic en [ Cerrar ]")
   setOverlayRegions("diag", regions)
   diagOverlay.content = styledOverlay(lines, -1, titleLine >= 0 ? [titleLine] : [1])
+  diagOverlay.width = renderer.width
+  diagOverlay.height = renderer.height
+  diagClose.left = Math.max(0, renderer.width - 14)
+  diagClose.top = 1
 }
 
 function renderLabelsEditor(): void {
@@ -4702,6 +4828,7 @@ async function ensureSupervisor(): Promise<void> {
 }
 
 async function start(): Promise<void> {
+  debug(`start supervisor=${SUPERVISOR} socket=${socketPath}`)
   uiDirty()
   await ensureSupervisor()
   try {
@@ -4758,5 +4885,14 @@ async function start(): Promise<void> {
     uiDirty()
   }
 }
+
+process.on("uncaughtException", (error) => {
+  debug(`uncaught exception: ${error instanceof Error ? error.stack ?? error.message : String(error)}`)
+  showError(`Error interno de la UI: ${error instanceof Error ? error.message : String(error)}`)
+})
+process.on("unhandledRejection", (reason) => {
+  debug(`unhandled rejection: ${reason instanceof Error ? reason.stack ?? reason.message : String(reason)}`)
+  showError(`Error interno de la UI: ${reason instanceof Error ? reason.message : String(reason)}`)
+})
 
 void start()

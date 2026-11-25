@@ -4,7 +4,7 @@ Cliente SSH de escritorio y terminal, compatible con OpenSSH, con gestor visual 
 hosts, supervisor local (`ssh05d`) y frontend OpenTUI. Fork de
 [trzsz-ssh](https://github.com/trzsz/trzsz-ssh) orientado a escritorios Linux.
 
-**Versión:** `0.42.4` · **Licencia:** MIT · **Desarrollado por Dinámicas Electrónicas**
+**Versión:** `0.42.5` · **Licencia:** MIT · **Desarrollado por Dinámicas Electrónicas**
 Soporte: `dinamicas.electronicas@gmail.com` · [Repositorio](https://github.com/lordpietre/ssh05)
 
 > Identidad actual: binario `ssh05`, supervisor `ssh05d`, UI `ssh05-ui`.
@@ -307,7 +307,7 @@ Descarga el paquete de tu arquitectura desde
 <https://github.com/lordpietre/ssh05/releases/latest>:
 
 ```sh
-VERSION=0.42.4
+VERSION=0.42.5
 wget "https://github.com/lordpietre/ssh05/releases/download/v${VERSION}/ssh05_${VERSION}_ubuntu_amd64.deb"
 wget "https://github.com/lordpietre/ssh05/releases/download/v${VERSION}/ssh05_${VERSION}_ubuntu_amd64.deb.sha256"
 sha256sum -c "ssh05_${VERSION}_ubuntu_amd64.deb.sha256"
@@ -341,7 +341,7 @@ tiene repositorio, así que `apt upgrade` no mostrará ninguna actualización de
 ssh05. Para actualizar usa el paquete descargado:
 
 ```sh
-sudo apt install --reinstall ./ssh05_0.42.4_ubuntu_amd64.deb
+sudo apt install --reinstall ./ssh05_0.42.5_ubuntu_amd64.deb
 ```
 
 Si quieres que `apt upgrade` gestione ssh05 automáticamente, hace falta
@@ -368,7 +368,7 @@ Paquete local:
 
 ```sh
 make deb
-sudo apt install ./dist/ssh05_0.42.4_ubuntu_amd64.deb
+sudo apt install ./dist/ssh05_0.42.5_ubuntu_amd64.deb
 ```
 
 ---
@@ -390,7 +390,7 @@ ssh05 --list-hosts            # inventario JSON desde ~/.ssh/config
 
 Resultado esperado:
 
-- `ssh05` y `ssh05d` muestran la misma versión (`0.42.4`).
+- `ssh05` y `ssh05d` muestran la misma versión (`0.42.5`).
 - `ssh05d` está `enabled` y `active`; el socket existe con permisos `srw-------`.
 - `ssh05 --list-hosts` devuelve un array JSON (aunque esté vacío).
 - `ssh05-ui` en una terminal real dibuja la interfaz y conecta con el socket.
@@ -449,7 +449,11 @@ La UI está pensada para alternar teclado y ratón sin perder el contexto:
 - **Menús y paneles:** las filas se activan con un clic. Los formularios
   permiten clicar directamente en el campo. Los paneles de Transferencias, FRP,
   Preferencias, Nmap, Ayuda y Diagnóstico muestran botones `[ Acción ]`
-  clicables.
+  clicables. Ayuda y Diagnóstico tienen además un `[ Cerrar ]` fijo arriba a la
+  derecha, siempre visible aunque el contenido sea largo.
+- **Acciones al soltar:** los botones se ejecutan al soltar el clic, no al
+  pulsarlo, para que abrir un panel no active por accidente el control que
+  quede debajo.
 - **Rueda:** desplaza la lista de hosts, el menú superior y los selectores
   largos.
 - **Ventana SSH:** cada sesión se muestra dentro de un marco con cabecera de
@@ -564,9 +568,12 @@ Dentro de una sesión, `trz`/`tsz` se detectan automáticamente. Zmodem requiere
 
 El panel **Transferencias** de la UI usa SCP/SFTP con `-S ssh05`, así que
 funciona con claves, agente SSH y contraseñas `#!! encPassword` igual que una
-sesión normal. Si una transferencia falla, se puede seleccionar y usar
-**Reintentar** (`r`) sin reiniciar la app. El binario de transporte se puede
-cambiar con `ssh05d --ssh05 <ruta>`.
+sesión normal. La ruta remota por defecto al subir es `/home/`. Si la ruta
+local parece una carpeta y **Recursivo** está desactivado, el formulario lo
+avisa antes de iniciar. Cuando una transferencia falla, el error se muestra en
+un aviso que no bloquea la app y se puede seleccionar la transferencia y usar
+**Reintentar** (`r`) sin reiniciar. El binario de transporte se puede cambiar
+con `ssh05d --ssh05 <ruta>`.
 
 ### Túneles y FRP
 
@@ -634,7 +641,7 @@ Host lab
 | `SSH05_HOST_OVERRIDES` | Ruta alternativa de `hosts.json` |
 | `SSH05_THEME` / `SSH05_COLOR_LEVEL` | Tema y nivel de color |
 | `SSH05_NO_WELCOME=1` | Omite la pantalla de bienvenida |
-| `SSH05_UI_DEBUG` | Log de depuración de la UI |
+| `SSH05_UI_DEBUG` | Ruta del log de la UI; `1`/`true` usa `~/.local/state/ssh05/ui.log` |
 | `SSH05_DISABLE_DOCKER=1` | Oculta contenedores Docker |
 
 Los nombres `TRSS_*` siguen aceptándose como respaldo.
@@ -669,6 +676,18 @@ Los nombres `TRSS_*` siguen aceptándose como respaldo.
 ---
 
 ## Desarrollo y pruebas
+
+### Depuración de la UI
+
+La UI escribe un log persistente en `~/.local/state/ssh05/ui.log` (permisos
+`0600`). Registra el arranque, errores internos, avisos, estado de las
+transferencias y los clics de los paneles. Al superar 2 MiB rota a `ui.log.1`.
+
+```sh
+tail -f ~/.local/state/ssh05/ui.log
+SSH05_UI_DEBUG=/tmp/ssh05-ui.log ssh05-ui   # ruta alternativa
+SSH05_UI_DEBUG=1 ssh05-ui                   # fuerza el log por defecto
+```
 
 ```sh
 make test                 # tests Go

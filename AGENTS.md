@@ -94,6 +94,14 @@ make install                   # copies ./bin/ssh05 y ./bin/ssh05d to /usr/bin
   - Ratón: hosts (clic selecciona, doble clic conecta, clic derecho acciones,
     rueda), pestañas (clic activa, derecho/central cierra, rueda cambia),
     barra, filas de menú y botones `[ Acción ]`; sin selección por hover.
+    Los botones ejecutan al **soltar** el clic (no al pulsar) para no activar
+    por accidente el control que queda debajo al abrir un panel.
+  - Ayuda y Diagnóstico tienen un `[ Cerrar ]` fijo arriba a la derecha,
+    siempre visible y clicable.
+  - Log de la UI en `~/.local/state/ssh05/ui.log` (`SSH05_UI_DEBUG` acepta ruta
+    o `1`/`true`); rota a `ui.log.1` al pasar de 2 MiB.
+  - Subidas: la ruta remota por defecto es `/home/`; si la ruta local parece
+    carpeta sin «Recursivo», el formulario avisa.
   - Cada sesión SSH vive en una ventana con cabecera de estado; `×` cierra la
     conexión y el clic derecho en `×` abre las opciones de cierre.
   - `Menú` abre la lista completa de opciones navegable y clicable.

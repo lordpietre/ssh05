@@ -1,3 +1,22 @@
+ssh05 (0.42.5) unstable; urgency=medium
+
+  * Los botones y filas de los paneles se activan al soltar el clic, no al
+    pulsarlo; así abrir un panel no ejecuta por accidente el control que hay
+    debajo y los clics dejan de perderse.
+  * Ayuda y Diagnóstico incluyen un botón fijo «Cerrar» arriba a la derecha,
+    siempre visible y clicable aunque el contenido sea largo.
+  * La ayuda usa teclas entre corchetes y se puede cerrar con el ratón.
+  * El formulario de subida avisa si la ruta local parece una carpeta y
+    «Recursivo» está desactivado.
+  * La ruta remota por defecto al subir pasa a ser `/home/`.
+  * La UI escribe un log persistente en `~/.local/state/ssh05/ui.log` con
+    arranque, errores, transferencias y clics; rota al superar 2 MiB.
+  * `Esc` cierra primero el aviso de error; cualquier otra tecla también lo
+    descarta y continúa en el panel activo.
+  * El cierre de la app ya no provoca errores de render al destruir la escena.
+
+ -- Dinámicas Electrónicas <dinamicas.electronicas@gmail.com>  Thu, 26 Nov 2026 00:20:00 +0100
+
 ssh05 (0.42.4) unstable; urgency=medium
 
   * SFTP y SCP usan `ssh05 -S` como transporte, por lo que funcionan con
