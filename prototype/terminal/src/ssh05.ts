@@ -707,6 +707,7 @@ let nmapHosts: NmapHost[] = []
 let nmapNetworks: string[] = []
 let nmapWarnings: string[] = []
 let nmapCursor = 0
+let nmapOptionCursor = 0
 let nmapOptions = {
   services: true,
   scripts: false,
@@ -750,6 +751,7 @@ let frpForm: {
   bindPort: string
 } | null = null
 let welcomeVisible = envValue("NO_WELCOME") !== "1"
+let welcomeActionCursor = 0
 let caretOn = true
 let caretPos = 0
 let commandMode = false
@@ -861,7 +863,7 @@ const actionsMenuBox = new BoxRenderable(renderer, {
 
 const actionsMenuTitle = new TextRenderable(renderer, {
   id: "actions-title",
-  content: " Acciones",
+  content: " Menú",
   width: "100%",
   height: 1,
   fg: RGBA.fromInts(120, 190, 255),
@@ -1049,6 +1051,20 @@ setInterval(() => {
   uiDirty()
 }, 500)
 
+function welcomeActions(): { label: string; run: () => void }[] {
+  return [
+    { label: "Empezar", run: () => { welcomeVisible = false; focusHosts() } },
+    { label: "Nuevo host", run: () => { welcomeVisible = false; openNewHost() } },
+    { label: "Ayuda", run: () => { welcomeVisible = false; helpVisible = true; uiDirty() } },
+    { label: "Salir", run: () => void quit() },
+  ]
+}
+
+function executeWelcomeAction(index = welcomeActionCursor): void {
+  const action = welcomeActions()[index]
+  if (action) action.run()
+}
+
 function renderWelcome(): void {
   if (!welcomeVisible) {
     welcomeOverlay.visible = false
@@ -1059,24 +1075,48 @@ function renderWelcome(): void {
     "",
     "  ssh05 · Dinámicas Electrónicas",
     "",
-    "  Bienvenido",
+    "  Bienvenido a ssh05",
+    "  Tu cliente SSH con gestor de hosts, supervisor local y UI multipestaña.",
     "",
-    "  ↑/↓        mover por los hosts",
-    "  ←/→        barra superior / acciones del host",
-    "  Enter      conectar / abrir el menú seleccionado",
-    "  /          comandos: /connect crea un host",
-    "  Ctrl+N     nuevo host     Ctrl+K  paleta     Ctrl+P  workspaces",
-    "  F1 ayuda   F2 favorito    F3 color           F4 etiquetas",
-    "  Ratón      clic en hosts, pestañas y botones; rueda para desplazar",
-    "  F10 salir",
+    "  Qué puedes hacer",
+    "  · Conectar a un host con Enter o doble clic.",
+    "  · Crear, editar, borrar y buscar hosts de ~/.ssh/config.",
+    "  · Abrir varias sesiones en pestañas y cambiar con Ctrl+Tab.",
+    "  · Cerrar la conexión con la × de la ventana o Ctrl+W.",
+    "  · Guardar y restaurar workspaces con Ctrl+P.",
+    "  · Transferir archivos con SCP/SFTP, trzsz o Zmodem.",
+    "  · Gestionar túneles FRP con Ctrl+F.",
+    "  · Diagnosticar hosts y descubrir la red local con Nmap.",
+    "  · Usar tmux remoto con Ctrl+G y reenganchar al reconectar.",
+    "",
+    "  Teclado y ratón",
+    "  ↑↓ hosts · ←→ barra/menú · Enter abrir · Esc volver",
+    "  Clic selecciona · doble clic conecta · clic derecho menú",
+    "  Rueda desplaza · F1 ayuda · F10 salir",
     "",
   ]
-  const regions = addActionLine(lines, "Acciones", [
-    { label: "Continuar", run: () => { welcomeVisible = false; uiDirty() } },
-  ])
-  lines.push("", "  Pulsa Enter o haz clic para continuar")
+  const actionLine = lines.length
+  const actions = welcomeActions()
+  let text = "  "
+  const regions: OverlayRegion[] = []
+  actions.forEach((action, index) => {
+    const label = `[ ${action.label} ]`
+    const start = text.length
+    text += `${index === welcomeActionCursor ? "▸ " : "  "}${label} `
+    regions.push({
+      line: actionLine,
+      fromCol: start,
+      toCol: start + label.length,
+      onClick: () => {
+        welcomeActionCursor = index
+        executeWelcomeAction(index)
+      },
+    })
+  })
+  lines.push(text)
+  lines.push("  Usa ←/→ y Enter, o haz clic en una opción, para empezar")
   setOverlayRegions("welcome", regions)
-  welcomeOverlay.content = styledOverlay(lines, -1, [1, 3])
+  welcomeOverlay.content = styledOverlay(lines, -1, [1, 3, 6, 17])
 }
 
 
@@ -1431,10 +1471,8 @@ function isHintLine(trimmed: string): boolean {
     trimmed.startsWith("Tab") ||
     trimmed.startsWith("Espacio") ||
     trimmed.startsWith("Pulsa") ||
-    trimmed.startsWith("Acciones:") ||
     trimmed.startsWith("Solo úsalo") ||
     trimmed.startsWith("Verifica la huella") ||
-    trimmed.startsWith("La contraseña se guarda") ||
     trimmed.startsWith("Se guardará") ||
     trimmed.startsWith("StrictHostKeyChecking") ||
     trimmed.startsWith("Ajusta ssh_config")
@@ -1479,7 +1517,7 @@ type OverlayAction = { label: string; run: () => void }
 
 function addActionLine(lines: string[], prefix: string, actions: OverlayAction[]): OverlayRegion[] {
   const line = lines.length
-  let text = `  ${prefix}  `
+  let text = prefix ? `  ${prefix}  ` : "  "
   const regions: OverlayRegion[] = []
   for (const action of actions) {
     const label = `[ ${action.label} ]`
@@ -2363,12 +2401,12 @@ async function deleteHostAlias(alias: string): Promise<void> {
 
 function handleHostMenuKey(key: KeyEvent): void {
   const name = key.name.toLowerCase()
-  if (name === "escape" || name === "left") {
+  if (name === "escape") {
     closeHostMenu()
     return
   }
-  if (name === "up") hostMenuCursor = Math.max(0, hostMenuCursor - 1)
-  else if (name === "down") hostMenuCursor = Math.min(2, hostMenuCursor + 1)
+  if (name === "up" || name === "left") hostMenuCursor = Math.max(0, hostMenuCursor - 1)
+  else if (name === "down" || name === "right") hostMenuCursor = Math.min(2, hostMenuCursor + 1)
   else if (name === "home") hostMenuCursor = 0
   else if (name === "end") hostMenuCursor = 2
   else if (name === "return" || name === "enter") {
@@ -2514,9 +2552,18 @@ renderer.keyInput.on("keypress", (key) => {
   const name = key.name.toLowerCase()
   if (welcomeVisible) {
     key.stopPropagation()
-    if (name === "return" || name === "enter" || name === "escape") {
-      welcomeVisible = false
+    const count = welcomeActions().length
+    if (name === "left" || name === "up") {
+      welcomeActionCursor = (welcomeActionCursor + count - 1) % count
       uiDirty()
+    } else if (name === "right" || name === "down" || name === "tab") {
+      welcomeActionCursor = (welcomeActionCursor + 1) % count
+      uiDirty()
+    } else if (name === "return" || name === "enter") {
+      executeWelcomeAction()
+    } else if (name === "escape") {
+      welcomeVisible = false
+      focusHosts()
     }
     return
   }
@@ -2932,7 +2979,7 @@ function renderWorkspacePicker(): void {
   const lines = ["", workspaceNewMode ? "  Nuevo workspace" : "  Workspaces", ""]
   if (workspaceNewMode) {
     lines.push(`  Nombre: ${workspaceInput}▌`, "")
-    regions.push(...addActionLine(lines, "Acciones", [
+    regions.push(...addActionLine(lines, "", [
       { label: "Crear y abrir", run: () => { if (workspaceInput.trim()) void switchWorkspace(workspaceInput) } },
       { label: "Cancelar", run: () => { workspaceNewMode = false; workspaceInput = ""; uiDirty() } },
     ]))
@@ -2967,7 +3014,7 @@ function renderWorkspacePicker(): void {
     },
   })
   lines.push("")
-  regions.push(...addActionLine(lines, "Acciones", [
+  regions.push(...addActionLine(lines, "", [
     { label: "Nuevo", run: () => { workspaceNewMode = true; workspaceInput = ""; uiDirty() } },
     { label: "Cerrar", run: closeWorkspacePicker },
   ]))
@@ -3080,7 +3127,7 @@ function renderActionsMenu(): void {
   }
   actionsMenuScroll = Math.max(0, Math.min(actionsMenuScroll, actionsMenuItems.length - visibleRows))
   actionsMenuBox.height = visibleRows + 3
-  actionsMenuTitle.content = ` Acciones · ${actionsMenuCursor + 1}/${actionsMenuItems.length}`
+  actionsMenuTitle.content = ` Menú · ${actionsMenuCursor + 1}/${actionsMenuItems.length}`
   for (let index = 0; index < actionsMenuRows.length; index++) {
     const selected = index === actionsMenuCursor
     const visible = index >= actionsMenuScroll && index < actionsMenuScroll + visibleRows
@@ -3158,9 +3205,8 @@ function renderNewHost(): void {
     `  ${marker(4)} IdentityFile: ${withCaret(form.identityFile, form.field === 4)}`,
     `  ${marker(5)} Contraseña:   ${withCaret(masked, form.field === 5)}`,
     "",
-    form.error ? `  ⚠ ${form.error}` : "  La contraseña se guarda codificada (#!! encPassword) en ssh_config",
-    "",
   ]
+  if (form.error) lines.push(`  ⚠ ${form.error}`, "")
   const regions: OverlayRegion[] = []
   for (let field = 0; field < 6; field++) {
     regions.push({
@@ -3176,7 +3222,7 @@ function renderNewHost(): void {
       },
     })
   }
-  regions.push(...addActionLine(lines, "Acciones", [
+  regions.push(...addActionLine(lines, "", [
     { label: form.mode === "edit" ? "Guardar y conectar" : "Crear y conectar", run: () => void saveNewHost(true) },
     { label: "Guardar sin conectar", run: () => void saveNewHost(false) },
     { label: "Cancelar", run: () => { newHostVisible = false; newHostForm = null; uiDirty() } },
@@ -3386,13 +3432,13 @@ function renderHelp(): void {
     "  Ctrl+N nuevo host   Ctrl+G tmux          Ctrl+I KeePass       Ctrl+W cerrar",
     "  Ctrl+Tab pestaña    Ctrl+1..9 pestaña    Ctrl+Shift+←/→ mover",
     "  F2 favorito         F3 color             F4 etiquetas",
-    "  F10 salir           F1 ayuda             F6 barra de acciones",
+    "  F10 salir           F1 ayuda             F6 barra de menú",
     "",
     "  Ratón: clic en hosts, pestañas, botones y filas de menú",
     "  Rueda del ratón: desplaza la lista de hosts",
-    "  En hosts: ↑↓ mover · ← menú superior · → acciones del host",
-    "  Acciones del host (→): Conectar · Editar · Eliminar",
-    "  Enter conecta · doble clic conecta · clic derecho abre acciones",
+    "  En hosts: ↑↓ mover · ← barra superior · → menú del host",
+    "  Menú del host (→): Conectar · Editar · Eliminar",
+    "  Enter conecta · doble clic conecta · clic derecho abre el menú",
     "  Escribir busca · / comandos (/connect, /conn, /help)",
     "  El alta/edición admite contraseña; se guarda como #!! encPassword",
     "  Pegar (Ctrl+Shift+V) en búsqueda, formularios y terminal según el foco",
@@ -3403,7 +3449,7 @@ function renderHelp(): void {
     "  La bienvenida se cierra con Enter; SSH05_NO_WELCOME=1 la omite",
     "",
   ]
-  const regions = addActionLine(lines, "Acciones", [
+  const regions = addActionLine(lines, "", [
     { label: "Cerrar", run: () => { helpVisible = false; uiDirty() } },
   ])
   lines.push("", "  Esc/Enter cerrar · clic en [ Cerrar ] o en el título")
@@ -3446,17 +3492,21 @@ function renderNmapConfirm(): void {
     "",
     "  Red: automática (interfaz principal)",
     "  Análisis:",
-    ...options.map(([, label, enabled]) => `  ${nmapCheck(enabled)} ${label}`),
+    ...options.map(
+      ([, label, enabled], index) =>
+        `  ${index === nmapOptionCursor ? "▸" : " "} ${nmapCheck(enabled)} ${label}`,
+    ),
     ...(nmapOptions.sudo && !nmapOptions.os && !nmapOptions.trace
       ? ["  ⚠ Sudo no tiene efecto sin SO o trazado."]
       : []),
     "",
-    "  El descubrimiento siempre usa nmap -sn; las opciones añaden un análisis detallado.",
+    "  Descubrimiento con nmap -sn; las opciones añaden análisis detallado.",
     "",
   ]
   const regions: OverlayRegion[] = options.map(([, , enabled], index) => ({
     line: 5 + index,
     onClick: () => {
+      nmapOptionCursor = index
       toggleNmapOption(index)
     },
   }))
@@ -3464,17 +3514,18 @@ function renderNmapConfirm(): void {
     ? [{ label: "Cancelar escaneo", run: cancelNmapScan }]
     : [
         { label: "Escanear red", run: () => void runNmapScan() },
-        { label: "Todo", run: () => { nmapOptions = { services: true, scripts: true, os: true, trace: true, allPorts: true, sudo: true }; uiDirty() } },
+        { label: "Todo", run: () => { nmapOptions = { services: true, scripts: true, os: true, trace: true, allPorts: true, sudo: true }; nmapOptionCursor = 0; uiDirty() } },
         { label: "Cancelar", run: () => { nmapConfirmVisible = false; uiDirty() } },
       ]
-  regions.push(...addActionLine(lines, "Acciones", actions))
-  lines.push("", "  v servicios · s scripts · o SO · t trazado · p puertos · r sudo · f todo · Enter escanear · Esc cerrar")
+  regions.push(...addActionLine(lines, "", actions))
+  lines.push("", "  ↑↓←→ elegir · Espacio cambia · v/s/o/t/p/r · f todo · Enter escanear · Esc")
   setOverlayRegions("nmap", regions)
-  nmapOverlay.content = styledOverlay(lines, -1, [1])
+  nmapOverlay.content = styledOverlay(lines, nmapScanning ? -1 : 5 + nmapOptionCursor, [1])
 }
 
 function toggleNmapOption(index: number): void {
   if (nmapScanning) return
+  nmapOptionCursor = index
   switch (index) {
     case 0:
       nmapOptions.services = !nmapOptions.services
@@ -3564,7 +3615,7 @@ function renderNmapResults(): void {
     lines.push(`  ⚠ ${truncate(warning.replace(/\s+/g, " "), 70)}`)
   }
   lines.push("")
-  regions.push(...addActionLine(lines, "Acciones", [
+  regions.push(...addActionLine(lines, "", [
     { label: "Añadir host", run: () => void addNmapHost() },
     { label: "Ver todo", run: showNmapDetails },
     { label: "Reintentar", run: () => { nmapView = "form"; uiDirty() } },
@@ -3636,8 +3687,19 @@ function handleNmapKey(key: KeyEvent): void {
     uiDirty()
     return
   }
+  const space = name === "space" || key.sequence === " "
   if (name === "escape") {
     nmapConfirmVisible = false
+  } else if (name === "up" || name === "left") {
+    nmapOptionCursor = Math.max(0, nmapOptionCursor - 1)
+  } else if (name === "down" || name === "right") {
+    nmapOptionCursor = Math.min(5, nmapOptionCursor + 1)
+  } else if (name === "home") {
+    nmapOptionCursor = 0
+  } else if (name === "end") {
+    nmapOptionCursor = 5
+  } else if (space) {
+    toggleNmapOption(nmapOptionCursor)
   } else if (name === "v") {
     toggleNmapOption(0)
   } else if (name === "s") {
@@ -3652,7 +3714,8 @@ function handleNmapKey(key: KeyEvent): void {
     toggleNmapOption(5)
   } else if (name === "f") {
     nmapOptions = { services: true, scripts: true, os: true, trace: true, allPorts: true, sudo: true }
-  } else if ((name === "return" || name === "enter") && !nmapScanning) {
+    nmapOptionCursor = 0
+  } else if (name === "return" || name === "enter") {
     void runNmapScan()
     return
   }
@@ -3667,6 +3730,7 @@ function openNmapConfirm(): void {
   nmapNetworks = []
   nmapWarnings = []
   nmapCursor = 0
+  nmapOptionCursor = 0
   nmapOptions = { services: true, scripts: false, os: false, trace: false, allPorts: false, sudo: false }
   uiDirty()
 }
@@ -3838,7 +3902,7 @@ function renderTransfers(): void {
         uiDirty()
       },
     }))
-    regions.push(...addActionLine(lines, "Acciones", [
+    regions.push(...addActionLine(lines, "", [
       { label: "Iniciar", run: () => void startTransferForm() },
       { label: "Cancelar", run: () => { transferForm = null; uiDirty() } },
     ]))
@@ -3872,7 +3936,7 @@ function renderTransfers(): void {
     })
   }
   lines.push("")
-  regions.push(...addActionLine(lines, "Acciones", [
+  regions.push(...addActionLine(lines, "", [
     { label: "Subir", run: () => openTransferForm("upload") },
     { label: "Descargar", run: () => openTransferForm("download") },
     { label: "Cancelar", run: () => void cancelSelectedTransfer() },
@@ -4069,22 +4133,23 @@ function renderPreferences(): void {
     `  ${marker(1)} Densidad:            ◀ ${preferences.density} ▶`,
     `  ${marker(2)} Posición de pestañas: ◀ ${preferences.tabPosition} ▶`,
     "",
-    "  ↑↓←→ mover y ajustar · clic izquierda/derecha ajusta · w/d/t · Enter/Esc cerrar",
   ]
-  setOverlayRegions(
-    "prefs",
-    [0, 1, 2].map((index) => ({
-      line: 3 + index,
-      onHover: () => {
-        preferencesCursor = index
-      },
-      onClick: (event) => {
-        preferencesCursor = index
-        const delta = event.x - prefsOverlay.x < renderer.width / 2 ? -1 : 1
-        adjustPreferences(index, delta)
-      },
-    })),
-  )
+  const regions: OverlayRegion[] = [0, 1, 2].map((index) => ({
+    line: 3 + index,
+    onHover: () => {
+      preferencesCursor = index
+    },
+    onClick: (event) => {
+      preferencesCursor = index
+      const delta = event.x - prefsOverlay.x < renderer.width / 2 ? -1 : 1
+      adjustPreferences(index, delta)
+    },
+  }))
+  regions.push(...addActionLine(lines, "", [
+    { label: "Cerrar", run: () => { preferencesVisible = false; uiDirty() } },
+  ]))
+  lines.push("", "  ↑↓←→ mover/ajustar · clic ajusta · w/d/t · Esc o [ Cerrar ]")
+  setOverlayRegions("prefs", regions)
   prefsOverlay.content = styledOverlay(lines, 3 + preferencesCursor, [1])
 }
 
@@ -4164,7 +4229,7 @@ function renderDiagnostics(): void {
   const lines = diagContent.split("\n")
   const titleLine = lines.findIndex((line) => line.trim().startsWith("Diagnóstico") || line.trim().startsWith("Red ·"))
   lines.push("")
-  const regions = addActionLine(lines, "Acciones", [
+  const regions = addActionLine(lines, "", [
     { label: "Cerrar", run: () => { diagVisible = false; uiDirty() } },
   ])
   lines.push("", "  Esc/Enter cerrar · clic en [ Cerrar ]")
@@ -4179,7 +4244,7 @@ function renderLabelsEditor(): void {
   }
   labelsOverlay.visible = true
   const lines = ["", "  Etiquetas del host", "", `  ${labelsInput}▌`, ""]
-  const regions = addActionLine(lines, "Acciones", [
+  const regions = addActionLine(lines, "", [
     { label: "Guardar", run: () => void saveLabels() },
     { label: "Cancelar", run: () => { labelsEditing = false; uiDirty() } },
   ])
@@ -4231,7 +4296,7 @@ function renderFRP(): void {
       })
     })
     lines.push("")
-    regions.push(...addActionLine(lines, "Acciones", [
+    regions.push(...addActionLine(lines, "", [
       { label: "Aplicar", run: () => void applyFrpForm() },
       { label: "Cancelar", run: () => { frpForm = null; uiDirty() } },
     ]))
@@ -4280,7 +4345,7 @@ function renderFRP(): void {
     })
   }
   lines.push("")
-  regions.push(...addActionLine(lines, "Acciones", [
+  regions.push(...addActionLine(lines, "", [
     { label: "Nuevo", run: openFRPForm },
     { label: "Parar", run: () => void stopSelectedFRP() },
     { label: "Eliminar", run: () => void removeSelectedFRP() },

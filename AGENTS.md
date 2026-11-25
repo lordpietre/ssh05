@@ -96,7 +96,7 @@ make install                   # copies ./bin/ssh05 y ./bin/ssh05d to /usr/bin
     barra, filas de menú y botones `[ Acción ]`; sin selección por hover.
   - Cada sesión SSH vive en una ventana con cabecera de estado; `×` cierra la
     conexión y el clic derecho en `×` abre las opciones de cierre.
-  - `Menú` abre la lista completa de acciones navegable y clicable.
+  - `Menú` abre la lista completa de opciones navegable y clicable.
   - Menús, submenús, listas y formularios se navegan con `↑↓←→` (`←/↑`
     anterior, `→/↓` siguiente); `Espacio` cambia opciones y `Enter` acepta.
   - `Ctrl+K` abre la paleta de comandos; incluye diagnosticar host y exportar

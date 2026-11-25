@@ -4,7 +4,7 @@ Cliente SSH de escritorio y terminal, compatible con OpenSSH, con gestor visual 
 hosts, supervisor local (`ssh05d`) y frontend OpenTUI. Fork de
 [trzsz-ssh](https://github.com/trzsz/trzsz-ssh) orientado a escritorios Linux.
 
-**Versión:** `0.42.1` · **Licencia:** MIT · **Desarrollado por Dinámicas Electrónicas**
+**Versión:** `0.42.2` · **Licencia:** MIT · **Desarrollado por Dinámicas Electrónicas**
 Soporte: `dinamicas.electronicas@gmail.com` · [Repositorio](https://github.com/lordpietre/ssh05)
 
 > Identidad actual: binario `ssh05`, supervisor `ssh05d`, UI `ssh05-ui`.
@@ -306,7 +306,7 @@ Descarga el paquete de tu arquitectura desde
 <https://github.com/lordpietre/ssh05/releases/latest>:
 
 ```sh
-VERSION=0.42.1
+VERSION=0.42.2
 wget "https://github.com/lordpietre/ssh05/releases/download/v${VERSION}/ssh05_${VERSION}_ubuntu_amd64.deb"
 wget "https://github.com/lordpietre/ssh05/releases/download/v${VERSION}/ssh05_${VERSION}_ubuntu_amd64.deb.sha256"
 sha256sum -c "ssh05_${VERSION}_ubuntu_amd64.deb.sha256"
@@ -340,7 +340,7 @@ tiene repositorio, así que `apt upgrade` no mostrará ninguna actualización de
 ssh05. Para actualizar usa el paquete descargado:
 
 ```sh
-sudo apt install --reinstall ./ssh05_0.42.1_ubuntu_amd64.deb
+sudo apt install --reinstall ./ssh05_0.42.2_ubuntu_amd64.deb
 ```
 
 Si quieres que `apt upgrade` gestione ssh05 automáticamente, hace falta
@@ -367,7 +367,7 @@ Paquete local:
 
 ```sh
 make deb
-sudo apt install ./dist/ssh05_0.42.1_ubuntu_amd64.deb
+sudo apt install ./dist/ssh05_0.42.2_ubuntu_amd64.deb
 ```
 
 ---
@@ -389,7 +389,7 @@ ssh05 --list-hosts            # inventario JSON desde ~/.ssh/config
 
 Resultado esperado:
 
-- `ssh05` y `ssh05d` muestran la misma versión (`0.42.1`).
+- `ssh05` y `ssh05d` muestran la misma versión (`0.42.2`).
 - `ssh05d` está `enabled` y `active`; el socket existe con permisos `srw-------`.
 - `ssh05 --list-hosts` devuelve un array JSON (aunque esté vacío).
 - `ssh05-ui` en una terminal real dibuja la interfaz y conecta con el socket.
@@ -449,7 +449,7 @@ La UI está pensada para alternar teclado y ratón sin perder el contexto:
   permiten clicar directamente en el campo. Los paneles de Transferencias, FRP,
   Preferencias, Nmap, Ayuda y Diagnóstico muestran botones `[ Acción ]`
   clicables.
-- **Rueda:** desplaza la lista de hosts, el menú de acciones y los selectores
+- **Rueda:** desplaza la lista de hosts, el menú superior y los selectores
   largos.
 - **Ventana SSH:** cada sesión se muestra dentro de un marco con cabecera de
   estado, host, ruta y tmux. La `×` de la esquina superior derecha cierra la
@@ -461,7 +461,7 @@ y `Esc` siguen funcionando exactamente igual que antes.
 
 ### Escaneo de red local con Nmap
 
-La paleta `Ctrl+K` o el menú `Acciones` incluyen **Escanear red local (Nmap)**.
+La paleta `Ctrl+K` o el menú `Menú` incluyen **Escanear red local (Nmap)**.
 No escanea los puertos de un host: descubre hosts de la red privada principal
 con `nmap -sn`.
 

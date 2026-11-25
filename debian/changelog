@@ -1,3 +1,17 @@
+ssh05 (0.42.2) unstable; urgency=medium
+
+  * Nueva bienvenida extensa con guía de qué puede hacer el usuario, atajos y
+    botones navegables con flechas, ratón o Enter.
+  * Se elimina la palabra «Acciones» de todos los menús y del título del menú
+    superior; ahora se llama «Menú».
+  * El alta de host ya no muestra el texto sobre la contraseña codificada.
+  * Navegación con ←/→ habilitada en el menú del host y en las opciones de
+    Nmap; Espacio cambia la opción seleccionada.
+  * Preferencias incluye botón [ Cerrar ] clicable y mantiene ↑↓←→.
+  * Todos los menús y formularios conservan navegación direccional.
+
+ -- Dinámicas Electrónicas <dinamicas.electronicas@gmail.com>  Wed, 25 Nov 2026 22:20:00 +0100
+
 ssh05 (0.42.1) unstable; urgency=medium
 
   * Revisión de opciones: las acciones sin host, sin pestaña, sin proxy o sin

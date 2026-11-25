@@ -109,7 +109,7 @@ send Escape
 sleep 0.2
 send Left
 send Enter
-assert_contains "Acciones" "left arrow focuses the action bar"
+assert_contains "Menú" "left arrow focuses the action bar"
 send Escape
 sleep 0.3
 send /
@@ -152,7 +152,7 @@ sleep 0.3
 assert_contains "Menú" "action bar is visible"
 send Tab
 send Enter
-assert_contains "Acciones" "actions menu opens from the button bar"
+assert_contains "Menú · 1/" "actions menu opens from the button bar"
 send Escape
 sleep 0.3
 send F2
@@ -185,7 +185,7 @@ send Escape
 sleep 0.3
 send F6
 send Enter
-assert_contains "Acciones" "actions menu opens from the action bar with Enter"
+assert_contains "Menú · 1/" "actions menu opens from the action bar with Enter"
 send Down
 send Enter
 assert_contains "Nuevo host" "submenu opens with arrow selection"
