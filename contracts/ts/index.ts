@@ -581,11 +581,56 @@ export interface HostDiagnosticsResult {
 }
 
 export interface NmapParams {
-  hostProfileId: string
-  routeId?: string
-  ports?: string
+  /** Optional private IPv4 CIDR. Empty means auto-detect the local network. */
+  network?: string
+  services?: boolean
+  scripts?: boolean
+  os?: boolean
+  trace?: boolean
+  allPorts?: boolean
+  sudo?: boolean
   confirm: boolean
   authorized: boolean
+  /** @deprecated Host port scans are no longer performed. */
+  hostProfileId?: string
+  routeId?: string
+  ports?: string
+}
+
+export interface NmapOSClass {
+  type?: string
+  vendor?: string
+  osFamily?: string
+  osGen?: string
+  accuracy?: number
+}
+
+export interface NmapOSMatch {
+  name: string
+  accuracy?: number
+  classes?: NmapOSClass[]
+}
+
+export interface NmapScript {
+  id: string
+  output?: string
+}
+
+/** One host discovered by nmap. */
+export interface NmapHost {
+  address: string
+  mac?: string
+  vendor?: string
+  hostname?: string
+  state: string
+  deviceType?: string
+  osMatches?: NmapOSMatch[]
+  ports?: NmapPort[]
+  scripts?: NmapScript[]
+  uptimeSeconds?: number
+  lastBoot?: string
+  distance?: number
+  trace?: string[]
 }
 
 export interface NmapPort {
@@ -595,12 +640,19 @@ export interface NmapPort {
   service?: string
   product?: string
   version?: string
+  extraInfo?: string
+  cpe?: string[]
 }
 
 export interface NmapResult {
-  target: string
-  ports: NmapPort[]
+  networks: string[]
+  hosts: NmapHost[]
+  warnings?: string[]
   generatedAt: string
+  /** @deprecated */
+  target?: string
+  /** @deprecated */
+  ports?: NmapPort[]
 }
 
 export interface NetworkParams {

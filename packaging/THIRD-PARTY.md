@@ -1,5 +1,14 @@
 # Componentes de terceros incluidos en el paquete ssh05
 
+## Nmap
+
+- Proyecto: https://nmap.org
+- Versión incluida: 7.99 (binario estático embebido para Linux amd64/arm64)
+- Origen del build estático: https://github.com/whoisnian/static-binaries/releases/tag/v20260901.1
+- Licencia: Nmap Public Source License (NPSL); texto completo en
+  `/usr/share/doc/ssh05/nmap-LICENSE` y https://nmap.org/npsl/
+- Uso comercial/OEM: https://nmap.org/oem/
+
 ## Bun
 
 - Proyecto: https://bun.sh · https://github.com/oven-sh/bun

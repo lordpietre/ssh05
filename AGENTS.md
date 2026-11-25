@@ -156,7 +156,10 @@ make install                   # copies ./bin/ssh05 y ./bin/ssh05d to /usr/bin
   `--trzsz` (por defecto) y `--zmodem` habilitan `trz`/`tsz` y `rz`/`sz` dentro
   de las sesiones; `--download-path` fija el destino (por defecto
   `~/Downloads` si existe). Smoke real: `make trzsz-smoke`.
-- Diagnóstico de red: `--nmap nmap`; Nmap exige confirmación explícita.
+- Diagnóstico de red: Nmap 7.99 embebido (Linux amd64/arm64) para descubrir la
+  red local con `nmap -sn`; opciones de servicios, scripts, SO, trazado y todos
+  los puertos. `--nmap <ruta>` permite un binario externo. SO/trazado requieren
+  root o `sudo -n` opcional; Nmap exige confirmación explícita.
 - Supervisor: `--docker` incluye contenedores; por defecto se ocultan. Los `.deb`
   instalan `usr/lib/systemd/user/ssh05d.service`.
   ASN/RDAP usan Team Cymru DNS y `rdap.org`.

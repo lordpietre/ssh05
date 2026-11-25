@@ -4,7 +4,7 @@ Cliente SSH de escritorio y terminal, compatible con OpenSSH, con gestor visual 
 hosts, supervisor local (`ssh05d`) y frontend OpenTUI. Fork de
 [trzsz-ssh](https://github.com/trzsz/trzsz-ssh) orientado a escritorios Linux.
 
-**Versión:** `0.40.1` · **Licencia:** MIT · **Desarrollado por Dinámicas Electrónicas**
+**Versión:** `0.42.0` · **Licencia:** MIT · **Desarrollado por Dinámicas Electrónicas**
 Soporte: `dinamicas.electronicas@gmail.com` · [Repositorio](https://github.com/lordpietre/ssh05)
 
 > Identidad actual: binario `ssh05`, supervisor `ssh05d`, UI `ssh05-ui`.
@@ -41,8 +41,8 @@ Soporte: `dinamicas.electronicas@gmail.com` · [Repositorio](https://github.com/
 - **Supervisor local** que mantiene sesiones y túneles aunque se cierre la UI.
 - **Transferencias** trzsz (`trz`/`tsz`), Zmodem (`rz`/`sz`), SCP y SFTP.
 - **Túneles FRP** (TCP/UDP/STCP/XTCP) gestionados desde la UI.
-- **Diagnóstico de red**: DNS, TCP, banner, TLS, latencia, ASN/RDAP y Nmap
-  optativo con confirmación.
+- **Diagnóstico de red**: DNS, TCP, banner, TLS, latencia, ASN/RDAP y
+  descubrimiento de la red local con Nmap embebido.
 - **Compatibilidad OpenSSH**: flags estándar, `Include`, `Match`, `ProxyJump`,
   `ControlMaster`, `-L/-R/-D`, X11, agente SSH y certificados.
 - **Transporte UDP opcional** tipo Mosh con QUIC o KCP, mediante `tsshd` en el
@@ -151,6 +151,7 @@ Soporte: `dinamicas.electronicas@gmail.com` · [Repositorio](https://github.com/
 | Transferencias | `trzsz-go`, `tsshd`, `scp`/`sftp` del sistema, `shellescape` |
 | UDP | forks `trzsz/quic-go`, `trzsz/kcp-go`, `trzsz/smux` |
 | Túneles | **FRP 0.69.1** (`frpc`/`frps`) |
+| Red local | **Nmap 7.99** estático embebido, datos y scripts NSE incluidos |
 | Secretos | AES-GCM (`enc`), bcrypt-pbkdf, `pquerna/otp`, `gokrb5` (GSSAPI) |
 | Inventario | `~/.ssh/config`, KeePassXC CLI (`keepassxc-cli`), Docker optativo |
 | Empaquetado | `.deb` Ubuntu/Debian, RPM, GoReleaser, systemd user unit |
@@ -236,7 +237,7 @@ docs/               ADRs, auditoría, fases, releases y rendimiento
 | FRP | `frp.tokens.rotate`, `frp.servers.start`, `frp.servers.stop` | Rotación y `frps` gestionado |
 | Transferencias | `transfers.start`, `transfers.list`, `transfers.cancel` | SCP/SFTP tipado |
 | Vault | `vault.status`, `vault.unlockRequest` | Estado KDBX y desbloqueo |
-| Diagnóstico | `diagnostics.report`, `diagnostics.host`, `diagnostics.nmap`, `diagnostics.network` | Informe saneado, DNS/TCP/banner/TLS, Nmap, ASN/RDAP |
+| Diagnóstico | `diagnostics.report`, `diagnostics.host`, `diagnostics.nmap`, `diagnostics.network` | Informe saneado, DNS/TCP/banner/TLS, red local con Nmap, ASN/RDAP |
 | Workspaces | `workspaces.save`, `workspaces.restore` | Persistencia y plan de restauración |
 
 ### Interfaces Go internas
@@ -305,7 +306,7 @@ Descarga el paquete de tu arquitectura desde
 <https://github.com/lordpietre/ssh05/releases/latest>:
 
 ```sh
-VERSION=0.40.1
+VERSION=0.42.0
 wget "https://github.com/lordpietre/ssh05/releases/download/v${VERSION}/ssh05_${VERSION}_ubuntu_amd64.deb"
 wget "https://github.com/lordpietre/ssh05/releases/download/v${VERSION}/ssh05_${VERSION}_ubuntu_amd64.deb.sha256"
 sha256sum -c "ssh05_${VERSION}_ubuntu_amd64.deb.sha256"
@@ -325,7 +326,8 @@ El paquete instala:
 
 Dependencias recomendadas: `tmux` (sesiones persistentes) y `zenity`
 (selectores de archivo). Para FRP hacen falta `frpc`/`frps` (o
-`make download-frp`); para KeePass, `keepassxc-cli`; para Nmap, `nmap`.
+`make download-frp`); para KeePass, `keepassxc-cli`. Nmap va embebido; `--nmap`
+permite usar un binario externo.
 
 `ssh05-ui` arranca `ssh05d` automáticamente si el socket todavía no existe, así
 que la primera ejecución tras instalar funciona sin pasos manuales.
@@ -338,7 +340,7 @@ tiene repositorio, así que `apt upgrade` no mostrará ninguna actualización de
 ssh05. Para actualizar usa el paquete descargado:
 
 ```sh
-sudo apt install --reinstall ./ssh05_0.40.1_ubuntu_amd64.deb
+sudo apt install --reinstall ./ssh05_0.42.0_ubuntu_amd64.deb
 ```
 
 Si quieres que `apt upgrade` gestione ssh05 automáticamente, hace falta
@@ -365,7 +367,7 @@ Paquete local:
 
 ```sh
 make deb
-sudo apt install ./dist/ssh05_0.40.1_ubuntu_amd64.deb
+sudo apt install ./dist/ssh05_0.42.0_ubuntu_amd64.deb
 ```
 
 ---
@@ -387,7 +389,7 @@ ssh05 --list-hosts            # inventario JSON desde ~/.ssh/config
 
 Resultado esperado:
 
-- `ssh05` y `ssh05d` muestran la misma versión (`0.40.1`).
+- `ssh05` y `ssh05d` muestran la misma versión (`0.42.0`).
 - `ssh05d` está `enabled` y `active`; el socket existe con permisos `srw-------`.
 - `ssh05 --list-hosts` devuelve un array JSON (aunque esté vacío).
 - `ssh05-ui` en una terminal real dibuja la interfaz y conecta con el socket.
@@ -456,6 +458,37 @@ La UI está pensada para alternar teclado y ratón sin perder el contexto:
 
 En menús y formularios, `↑↓←→`, `Home`, `End`, `PageUp`, `PageDown`, `Enter`
 y `Esc` siguen funcionando exactamente igual que antes.
+
+### Escaneo de red local con Nmap
+
+La paleta `Ctrl+K` o el menú `Acciones` incluyen **Escanear red local (Nmap)**.
+No escanea los puertos de un host: descubre hosts de la red privada principal
+con `nmap -sn`.
+
+El binario Nmap 7.99 y sus datos van embebidos en ssh05 para Linux `amd64` y
+`arm64`; no hace falta instalar `nmap`. En otras plataformas se puede indicar
+`ssh05d --nmap <ruta>`.
+
+Opciones del panel:
+
+| Tecla | Opción |
+|---|---|
+| `v` | Servicios y versiones (`-sV`) |
+| `s` | Scripts NSE (`-sC`) |
+| `o` | Sistema operativo (`-O`), requiere root |
+| `t` | Trazado de ruta, requiere root |
+| `p` | Todos los puertos (`-p-`) |
+| `r` | Usar `sudo -n` para SO/trazado (sin pedir contraseña) |
+| `f` | Activar todo |
+| `Enter` | Escanear |
+
+La UI muestra IP, hostname, MAC, fabricante, tipo de máquina, SO, puertos,
+servicios, versiones, scripts, uptime, distancia y traza. `D` abre el informe
+completo y `A` añade el host seleccionado al inventario.
+
+Sin root se sigue haciendo descubrimiento, servicios y scripts; la MAC y el
+fabricante se completan desde la tabla ARP local. Para SO y trazado se puede
+activar `sudo -n`, que falla de forma controlada si sudo pide contraseña.
 
 ### Atajos de la UI OpenTUI
 
@@ -601,6 +634,9 @@ Los nombres `TRSS_*` siguen aceptándose como respaldo.
 - **Supervisor no interactivo:** `ssh05d` no lee contraseñas, passphrases ni
   respuestas de `/dev/tty`; usa solo secretos configurados, comandos o el
   agente SSH. Así una sesión nunca queda bloqueada esperando una terminal.
+- **Nmap:** el binario y sus datos se extraen con permisos `0700` y SHA-256
+  verificado. `sudo -n` solo se usa si el usuario activa la opción de SO/traza;
+  no se pide ni se guarda ninguna contraseña.
 - **Agente SSH:** solo se consultan identidades y huellas; nunca se extraen
   claves privadas.
 - **Auditoría:** eventos explícitos y saneados, con rotación; sin payload PTY.

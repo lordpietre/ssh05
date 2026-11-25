@@ -3,7 +3,7 @@
 | Campo | Valor |
 |---|---|
 | Fecha | 25/11/2026 |
-| Commit base | `a437e79` + cambios 0.40.0 |
+| Commit base | `a437e79` + cambios 0.42.0 |
 | Documento | `SSH05_SDD_v0.3.md` |
 | Fase actual | **P0 + P1 cerrados**; **P2 funcional cerrado** |
 
@@ -70,7 +70,7 @@
 | Informe de diagnóstico saneado | **Hecho** | `diagnostics.report`, `src/diagnostics/export.ts` |
 | Retención de auditoría y buffers | **Hecho** | `--audit-max-files`, `--max-pending-bytes` |
 | DIA-01 DNS, puerto, banner y latencia | **Hecho** | `diagnostics.host` + paleta y smoke real |
-| DIA-02 Nmap optativo y confirmado | **Hecho** | `diagnostics.nmap`, doble confirmación |
+| DIA-02 Nmap de red local y confirmado | **Hecho** | `diagnostics.nmap`, Nmap 7.99 embebido, opciones de servicios/SO/scripts/trazado |
 | DIA-03 ASN/RDAP y país orientativo | **Hecho** | Team Cymru DNS + rdap.org; IP privadas no se consultan |
 | Línea base de rendimiento | **Hecho** | `make bench`, `docs/performance.md` |
 | DAT-01 SCP/SFTP tipado | **Hecho** | `transfers.start/list/cancel`, UI y smoke real |
@@ -118,7 +118,7 @@
 
 Releases publicados: <https://github.com/lordpietre/ssh05/releases> (`v0.3.18`
 identidad, `v0.3.19` trzsz/Zmodem, `v0.3.20` paquete autosuficiente,
-`v0.3.21` Docker opt-in, `v0.3.22` flechas, `v0.3.23` overlays opacos, `v0.3.24` solo flechas, `v0.3.25` pegado, `v0.3.26` contraseña enc, `v0.3.27` UI por defecto, `v0.3.28` menú/agrupación/bienvenida/`/connect`, `v0.3.29` edición/borrado, `v0.3.30` renombrado/cursor, `v0.40.0` host keys sin TTY, ventana SSH y navegación con ratón, `v0.40.1` cierre idempotente, errores centrados y ratón estable).
+`v0.3.21` Docker opt-in, `v0.3.22` flechas, `v0.3.23` overlays opacos, `v0.3.24` solo flechas, `v0.3.25` pegado, `v0.3.26` contraseña enc, `v0.3.27` UI por defecto, `v0.3.28` menú/agrupación/bienvenida/`/connect`, `v0.3.29` edición/borrado, `v0.3.30` renombrado/cursor, `v0.40.0` host keys sin TTY, ventana SSH y navegación con ratón, `v0.40.1` cierre idempotente, errores centrados y ratón estable, `v0.42.0` Nmap embebido y escaneo de red local con SO, servicios, scripts y trazado).
 
 ## Invariantes que no se negocian
 

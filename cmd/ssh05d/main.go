@@ -55,7 +55,7 @@ func main() {
 	frpConfig := flag.String("frp-config", "", "FRP manager config path")
 	scpBin := flag.String("scp", "scp", "scp binary for file transfers")
 	sftpBin := flag.String("sftp", "sftp", "sftp binary for file transfers")
-	nmapBin := flag.String("nmap", "nmap", "opt-in nmap binary for diagnostics")
+	nmapBin := flag.String("nmap", "", "optional external nmap binary; the embedded one is used by default")
 	dockerHosts := flag.Bool("docker", false, "include Docker containers as hosts")
 	trzszEnabled := flag.Bool("trzsz", true, "enable trz/tsz transfers inside sessions")
 	zmodemEnabled := flag.Bool("zmodem", false, "enable rz/sz transfers inside sessions")

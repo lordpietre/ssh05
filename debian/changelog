@@ -1,3 +1,19 @@
+ssh05 (0.42.0) unstable; urgency=medium
+
+  * Nmap se integra como binario estático embebido (7.99) con sus datos
+    (servicios, probes, scripts, OS DB y prefijos MAC).
+  * «Escanear red local» descubre hosts con nmap -sn; ya no escanea puertos de
+    un host concreto.
+  * Opciones de análisis: servicios/versiones, scripts NSE, SO, trazado y todos
+    los puertos.
+  * El SO y el trazado necesitan root; se puede usar sudo -n sin guardar
+    contraseña.
+  * La UI muestra IP, hostname, MAC, fabricante, tipo de máquina, SO, puertos,
+    scripts, uptime, distancia y traza; permite añadir el host al inventario.
+  * Se enriquece la tabla ARP local para MAC y fabricante incluso sin root.
+
+ -- Dinámicas Electrónicas <dinamicas.electronicas@gmail.com>  Wed, 25 Nov 2026 21:00:00 +0100
+
 ssh05 (0.40.1) unstable; urgency=medium
 
   * Cerrar una sesión ya terminada es idempotente: deja de devolver

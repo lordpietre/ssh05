@@ -34,7 +34,8 @@ jobs:
           if [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
             export VERSION="${GITHUB_REF_NAME#v}"
           else
-            export VERSION="0.3.30+git${GITHUB_SHA::12}"
+            BASE_VERSION="$(sed -n 's/.*Version = "\([^"]*\)".*/\1/p' internal/identity/identity.go | head -n1)"
+            export VERSION="${BASE_VERSION}+git${GITHUB_SHA::12}"
           fi
           ./scripts/build-deb.sh "$DISTRO" "$ARCH"
       - name: Upload artifact

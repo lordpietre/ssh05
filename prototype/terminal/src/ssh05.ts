@@ -32,6 +32,7 @@ import type {
   FrpProxy,
   HostProfile,
   HostKeyChallenge,
+  NmapHost,
   IpcEvent,
   SessionId,
   SessionInfo,
@@ -698,7 +699,20 @@ let newHostForm: {
 } | null = null
 let helpVisible = false
 let nmapConfirmVisible = false
-let nmapPorts = "22,80,443"
+let nmapScanning = false
+let nmapView: "form" | "results" = "form"
+let nmapHosts: NmapHost[] = []
+let nmapNetworks: string[] = []
+let nmapWarnings: string[] = []
+let nmapCursor = 0
+let nmapOptions = {
+  services: true,
+  scripts: false,
+  os: false,
+  trace: false,
+  allPorts: false,
+  sudo: false,
+}
 let transferVisible = false
 let transferForm: {
   direction: "upload" | "download"
@@ -815,7 +829,7 @@ const actionsMenuItems: { label: string; run: () => void }[] = [
   { label: "Cambiar workspace", run: openWorkspacePicker },
   { label: "Probar ruta", run: () => void probeCurrentHost() },
   { label: "Diagnosticar host", run: () => void diagnoseCurrentHost() },
-  { label: "Escanear con Nmap", run: openNmapConfirm },
+  { label: "Escanear red local (Nmap)", run: openNmapConfirm },
   { label: "Información de red", run: () => void showNetworkInfo() },
   { label: "Exportar diagnóstico saneado", run: () => void exportDiagnosticsReport() },
   { label: "Preferencias", run: () => openPreferences() },
@@ -887,7 +901,7 @@ const paletteCommands = [
   "Cambiar workspace",
   "Probar ruta del host",
   "Diagnosticar host",
-  "Escanear con Nmap",
+  "Escanear red local (Nmap)",
   "Información de red",
   "Exportar diagnóstico saneado",
   "Preferencias",
@@ -906,7 +920,7 @@ const paletteDescriptions = [
   "Cambia el workspace activo o crea uno nuevo",
   "Comprueba DNS, TCP y latencia del host",
   "DNS, puerto, banner y TLS del host seleccionado",
-  "Escaneo optativo con confirmación explícita",
+  "Descubre hosts de la red local con Nmap embebido",
   "ASN/RDAP y país orientativo del host",
   "Guarda un informe saneado sin secretos",
   "Ancho, densidad y posición de pestañas",
@@ -1023,8 +1037,7 @@ function editingFieldActive(): boolean {
     labelsEditing ||
     (transferVisible && transferForm !== null) ||
     (frpVisible && frpForm !== null) ||
-    (workspacePickerVisible && workspaceNewMode) ||
-    nmapConfirmVisible
+    (workspacePickerVisible && workspaceNewMode)
   )
 }
 
@@ -2550,17 +2563,7 @@ renderer.keyInput.on("keypress", (key) => {
   }
   if (nmapConfirmVisible) {
     key.stopPropagation()
-    if (name === "escape") {
-      nmapConfirmVisible = false
-    } else if (name === "return" || name === "enter") {
-      void runNmapScan()
-    } else if (name === "backspace" || name === "delete") {
-      nmapPorts = name === "delete" ? "" : nmapPorts.slice(0, -1)
-    } else if (!key.ctrl && !key.meta && key.sequence) {
-      const chars = Array.from(key.sequence)
-      if (chars.length === 1 && /[0-9,-]/.test(chars[0])) nmapPorts += chars[0]
-    }
-    uiDirty()
+    handleNmapKey(key)
     return
   }
   if (transferVisible) {
@@ -2740,15 +2743,10 @@ renderer.keyInput.on("paste", (event: { bytes: Uint8Array }) => {
     uiDirty()
     return
   }
-  if (nmapConfirmVisible) {
-    nmapPorts += oneLine.replace(/[^0-9,-]/g, "")
-    uiDirty()
-    return
-  }
   if (
     helpVisible || diagVisible || preferencesVisible || paletteVisible || actionsMenuVisible ||
     closeDialogVisible || hostKeyDialog !== null || transferVisible || frpVisible || workspacePickerVisible ||
-    hostMenuVisible || deleteConfirmVisible
+    hostMenuVisible || deleteConfirmVisible || nmapConfirmVisible
   ) {
     return
   }
@@ -3380,7 +3378,7 @@ function renderHelp(): void {
     "  En menús y formularios: ↑↓←→ mover · Enter aceptar · Esc volver",
     "  En FRP (Ctrl+F): ↑↓←→ proxy · n crear · d parar · x eliminar · s frps · r rotar",
     "  En transferencias: ↑↓←→ mover · Espacio cambia · u subir · d descargar · c cancelar",
-    "  En Nmap: Enter confirma el escaneo · Esc cancela",
+    "  En Nmap: v/s/o/t/p/r opciones · f todo · Enter escanear red · Esc cancelar",
     "  La bienvenida se cierra con Enter; SSH05_NO_WELCOME=1 la omite",
     "",
   ]
@@ -3399,75 +3397,304 @@ function renderHelp(): void {
   helpOverlay.content = styledOverlay(lines, -1, [1])
 }
 
+function nmapCheck(value: boolean): string {
+  return value ? "☑" : "☐"
+}
+
 function renderNmapConfirm(): void {
   if (!nmapConfirmVisible) {
     nmapOverlay.visible = false
     return
   }
   nmapOverlay.visible = true
-  const host = currentFormHost()
+  if (nmapView === "results") {
+    renderNmapResults()
+    return
+  }
+  const options = [
+    ["v", "Servicios y versiones (-sV)", nmapOptions.services],
+    ["s", "Scripts NSE (-sC)", nmapOptions.scripts],
+    ["o", "Sistema operativo (-O, requiere root)", nmapOptions.os],
+    ["t", "Trazado de ruta (--traceroute, requiere root)", nmapOptions.trace],
+    ["p", "Todos los puertos (-p-, lento)", nmapOptions.allPorts],
+    ["r", "Usar sudo -n para SO/trazado (NOPASSWD)", nmapOptions.sudo],
+  ] as const
   const lines = [
     "",
-    "  Escaneo Nmap optativo",
+    "  Escaneo de red local · Nmap embebido",
     "",
-    `  Host: ${host?.alias ?? "(ninguno)"}`,
-    `  Puertos: ${nmapPorts}▌`,
+    "  Red: automática (interfaz principal)",
+    "  Análisis:",
+    ...options.map(([, label, enabled]) => `  ${nmapCheck(enabled)} ${label}`),
     "",
-    "  Solo úsalo en redes autorizadas. Se ejecutará nmap -sT -Pn.",
+    "  El descubrimiento siempre usa nmap -sn; las opciones añaden un análisis detallado.",
     "",
   ]
-  const regions = addActionLine(lines, "Acciones", [
-    { label: "Escanear", run: () => void runNmapScan() },
-    { label: "Cancelar", run: () => { nmapConfirmVisible = false; uiDirty() } },
-  ])
-  lines.push("", "  Enter escanear · Esc cancelar · edita los puertos con el teclado · clic para elegir")
+  const regions: OverlayRegion[] = options.map(([, , enabled], index) => ({
+    line: 5 + index,
+    onClick: () => {
+      toggleNmapOption(index)
+    },
+  }))
+  const actions = nmapScanning
+    ? [{ label: "Escaneando…", run: () => {} }]
+    : [
+        { label: "Escanear red", run: () => void runNmapScan() },
+        { label: "Todo", run: () => { nmapOptions = { services: true, scripts: true, os: true, trace: true, allPorts: true, sudo: true }; uiDirty() } },
+        { label: "Cancelar", run: () => { nmapConfirmVisible = false; uiDirty() } },
+      ]
+  regions.push(...addActionLine(lines, "Acciones", actions))
+  lines.push("", "  v servicios · s scripts · o SO · t trazado · p puertos · r sudo · f todo · Enter escanear · Esc cerrar")
   setOverlayRegions("nmap", regions)
-  nmapOverlay.content = styledOverlay(lines, 4, [1])
+  nmapOverlay.content = styledOverlay(lines, -1, [1])
 }
 
-function openNmapConfirm(): void {
-  const host = currentFormHost()
-  if (!host) {
-    transientText = "Nmap: no hay host seleccionado"
+function toggleNmapOption(index: number): void {
+  switch (index) {
+    case 0:
+      nmapOptions.services = !nmapOptions.services
+      break
+    case 1:
+      nmapOptions.scripts = !nmapOptions.scripts
+      break
+    case 2:
+      nmapOptions.os = !nmapOptions.os
+      break
+    case 3:
+      nmapOptions.trace = !nmapOptions.trace
+      break
+    case 4:
+      nmapOptions.allPorts = !nmapOptions.allPorts
+      break
+    case 5:
+      nmapOptions.sudo = !nmapOptions.sudo
+      break
+  }
+  uiDirty()
+}
+
+function nmapHostSummary(host: NmapHost): string {
+  const parts: string[] = []
+  if (host.hostname) parts.push(host.hostname)
+  const machine = host.deviceType || host.vendor
+  if (machine) parts.push(machine)
+  const os = host.osMatches?.[0]?.name
+  if (os) parts.push(os)
+  if (host.ports && host.ports.length > 0) parts.push(`${host.ports.length}p`)
+  return parts.join(" · ")
+}
+
+function renderNmapResults(): void {
+  const lines = [
+    "",
+    `  Red local · ${nmapNetworks.join(", ") || "sin redes"}`,
+    "",
+    `  ${nmapHosts.length} hosts · ${nmapScanning ? "analizando…" : "análisis completado"}`,
+    "",
+  ]
+  const maxList = 6
+  const start = Math.max(0, Math.min(nmapCursor - 2, Math.max(0, nmapHosts.length - maxList)))
+  const regions: OverlayRegion[] = []
+  if (nmapHosts.length === 0) {
+    lines.push("  Sin hosts encontrados.")
+  } else {
+    for (let index = start; index < Math.min(start + maxList, nmapHosts.length); index++) {
+      const host = nmapHosts[index]
+      const line = lines.length
+      lines.push(`  ${index === nmapCursor ? "▸" : " "} ${host.address}  ${truncate(nmapHostSummary(host), 54)}`)
+      regions.push({
+        line,
+        onClick: () => {
+          nmapCursor = index
+          uiDirty()
+        },
+      })
+    }
+  }
+  lines.push("", "  Detalle")
+  const selected = nmapHosts[nmapCursor]
+  if (selected) {
+    if (selected.mac || selected.vendor) {
+      lines.push(`  MAC: ${selected.mac || "?"}${selected.vendor ? ` · ${selected.vendor}` : ""}`)
+    }
+    lines.push(`  Tipo: ${selected.deviceType || "no identificado"}`)
+    const os = selected.osMatches?.[0]
+    lines.push(`  SO: ${os ? `${os.name}${os.accuracy ? ` (${os.accuracy}%)` : ""}` : "no detectado"}`)
+    const ports = (selected.ports ?? [])
+      .slice(0, 8)
+      .map((port) => `${port.port}/${port.protocol} ${port.service || port.state}${port.version ? ` ${port.version}` : ""}`)
+      .join(", ")
+    lines.push(`  Puertos: ${ports || "sin datos"}`)
+    if (selected.scripts && selected.scripts.length > 0) {
+      lines.push(`  Scripts: ${selected.scripts.map((script) => script.id).slice(0, 4).join(", ")}`)
+    }
+    if (selected.uptimeSeconds || selected.distance) {
+      lines.push(`  Uptime: ${selected.uptimeSeconds ? `${selected.uptimeSeconds}s` : "?"} · Distancia: ${selected.distance || "?"}`)
+    }
+    if (selected.trace && selected.trace.length > 0) {
+      lines.push(`  Traza: ${selected.trace.join(" → ")}`)
+    }
+  }
+  for (const warning of nmapWarnings.slice(0, 2)) {
+    lines.push(`  ⚠ ${truncate(warning, 70)}`)
+  }
+  lines.push("")
+  regions.push(...addActionLine(lines, "Acciones", [
+    { label: "Añadir host", run: () => void addNmapHost() },
+    { label: "Ver todo", run: showNmapDetails },
+    { label: "Reintentar", run: () => { nmapView = "form"; uiDirty() } },
+    { label: "Cerrar", run: () => { nmapConfirmVisible = false; uiDirty() } },
+  ]))
+  lines.push("", "  ↑↓ elegir host · Enter/A añadir · D ver todo · R reintentar · Esc cerrar · clic para elegir")
+  setOverlayRegions("nmap", regions)
+  nmapOverlay.content = styledOverlay(lines, -1, [1])
+}
+
+function showNmapDetails(): void {
+  const lines = ["", `  Nmap · ${nmapNetworks.join(", ") || "red local"}`, ""]
+  for (const host of nmapHosts) {
+    lines.push(`  Host ${host.address}${host.hostname ? ` · ${host.hostname}` : ""}`)
+    if (host.mac || host.vendor) lines.push(`    MAC: ${host.mac || "?"}${host.vendor ? ` · ${host.vendor}` : ""}`)
+    lines.push(`    Tipo: ${host.deviceType || "no identificado"} · Estado: ${host.state}`)
+    for (const os of host.osMatches ?? []) {
+      lines.push(`    SO: ${os.name}${os.accuracy ? ` (${os.accuracy}%)` : ""}`)
+      for (const cls of os.classes ?? []) {
+        lines.push(`      ${cls.type || "?"} · ${cls.vendor || "?"} · ${cls.osFamily || "?"} ${cls.osGen || ""}`.trimEnd())
+      }
+    }
+    for (const port of host.ports ?? []) {
+      const extra = [port.service, port.product, port.version, port.extraInfo].filter(Boolean).join(" ")
+      lines.push(`    ${port.port}/${port.protocol} ${port.state} ${extra}`.trimEnd())
+      for (const cpe of port.cpe ?? []) lines.push(`      ${cpe}`)
+    }
+    for (const script of host.scripts ?? []) {
+      lines.push(`    Script ${script.id}: ${truncate(script.output ?? "", 120)}`)
+    }
+    if (host.uptimeSeconds) lines.push(`    Uptime: ${host.uptimeSeconds}s · ${host.lastBoot || ""}`.trimEnd())
+    if (host.distance) lines.push(`    Distancia: ${host.distance}`)
+    if (host.trace && host.trace.length > 0) lines.push(`    Traza: ${host.trace.join(" → ")}`)
+    lines.push("")
+  }
+  for (const warning of nmapWarnings) lines.push(`  ⚠ ${warning}`)
+  lines.push("", "  Esc/Enter cerrar")
+  diagContent = lines.join("\n")
+  diagVisible = true
+  nmapConfirmVisible = false
+  uiDirty()
+}
+
+function handleNmapKey(key: KeyEvent): void {
+  const name = key.name.toLowerCase()
+  if (nmapScanning) return
+  if (nmapView === "results") {
+    if (name === "escape") {
+      nmapConfirmVisible = false
+    } else if (name === "up" || name === "left") {
+      nmapCursor = Math.max(0, nmapCursor - 1)
+    } else if (name === "down" || name === "right") {
+      nmapCursor = Math.min(Math.max(0, nmapHosts.length - 1), nmapCursor + 1)
+    } else if (name === "home") {
+      nmapCursor = 0
+    } else if (name === "end") {
+      nmapCursor = Math.max(0, nmapHosts.length - 1)
+    } else if (name === "a" || name === "return" || name === "enter") {
+      void addNmapHost()
+    } else if (name === "d") {
+      showNmapDetails()
+    } else if (name === "r") {
+      nmapView = "form"
+    }
     uiDirty()
     return
   }
+  if (name === "escape") {
+    nmapConfirmVisible = false
+  } else if (name === "v") {
+    toggleNmapOption(0)
+  } else if (name === "s") {
+    toggleNmapOption(1)
+  } else if (name === "o") {
+    toggleNmapOption(2)
+  } else if (name === "t") {
+    toggleNmapOption(3)
+  } else if (name === "p") {
+    toggleNmapOption(4)
+  } else if (name === "r") {
+    toggleNmapOption(5)
+  } else if (name === "f") {
+    nmapOptions = { services: true, scripts: true, os: true, trace: true, allPorts: true, sudo: true }
+  } else if ((name === "return" || name === "enter") && !nmapScanning) {
+    void runNmapScan()
+    return
+  }
+  uiDirty()
+}
+
+function openNmapConfirm(): void {
   nmapConfirmVisible = true
+  nmapView = "form"
+  nmapScanning = false
+  nmapHosts = []
+  nmapNetworks = []
+  nmapWarnings = []
+  nmapCursor = 0
   uiDirty()
 }
 
 async function runNmapScan(): Promise<void> {
-  if (!client) return
-  const host = currentFormHost()
-  if (!host) return
-  nmapConfirmVisible = false
+  if (!client || nmapScanning) return
+  nmapScanning = true
+  transientText = "Nmap: descubriendo la red local…"
+  uiDirty()
   try {
-    transientText = `Nmap: escaneando ${host.alias}…`
-    uiDirty()
-    const plan = await client.call("routes.plan", { hostProfileId: host.id }, { timeoutMs: 3000 })
     const result = await client.call(
       "diagnostics.nmap",
       {
-        hostProfileId: host.id,
-        routeId: plan.selected,
-        ports: nmapPorts,
         confirm: true,
         authorized: true,
+        services: nmapOptions.services,
+        scripts: nmapOptions.scripts,
+        os: nmapOptions.os,
+        trace: nmapOptions.trace,
+        allPorts: nmapOptions.allPorts,
+        sudo: nmapOptions.sudo,
       },
-      { timeoutMs: 70_000 },
+      { timeoutMs: nmapOptions.allPorts ? 650_000 : 240_000 },
     )
-    const lines = ["", `  Nmap · ${host.alias}`, "", `  Destino: ${result.target}`, ""]
-    if (result.ports.length === 0) lines.push("  Sin puertos devueltos")
-    for (const port of result.ports) {
-      const service = [port.service, port.product, port.version].filter(Boolean).join(" ")
-      lines.push(`  ${port.port}/${port.protocol} ${port.state} ${service}`)
-    }
-    lines.push("", "  Esc/Enter cerrar")
-    diagContent = lines.join("\n")
-    diagVisible = true
+    nmapNetworks = result.networks ?? []
+    nmapHosts = result.hosts ?? []
+    nmapWarnings = result.warnings ?? []
+    nmapCursor = 0
+    nmapView = "results"
     transientText = ""
   } catch (error) {
     showError(`Nmap: ${String(error)}`)
+  } finally {
+    nmapScanning = false
+    uiDirty()
+  }
+}
+
+async function addNmapHost(): Promise<void> {
+  if (!client) return
+  const host = nmapHosts[nmapCursor]
+  if (!host) return
+  const alias = normalizeAlias(host.hostname || host.address)
+  if (hosts.some((item) => item.alias === alias || item.target.hostname === host.address)) {
+    transientText = `Nmap: ${alias} ya está en el inventario`
+    uiDirty()
+    return
+  }
+  try {
+    await client.call(
+      "hosts.create",
+      { alias, hostname: host.address, port: 22 },
+      { timeoutMs: 10_000 },
+    )
+    await loadHosts()
+    transientText = `Nmap: ${alias} añadido al inventario`
+  } catch (error) {
+    showError(`Nmap: no se pudo añadir ${alias}: ${String(error)}`)
   }
   uiDirty()
 }

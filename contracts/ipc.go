@@ -460,26 +460,82 @@ type HostDiagnosticsResult struct {
 }
 
 type NmapParams struct {
-	HostProfileID string `json:"hostProfileId"`
+	// Network is an optional private IPv4 CIDR. When empty, ssh05d scans the
+	// detected local network of the primary interface.
+	Network string `json:"network,omitempty"`
+	// Analysis options. Discovery always runs; these enable the detailed pass.
+	Services bool `json:"services,omitempty"`
+	Scripts  bool `json:"scripts,omitempty"`
+	OS       bool `json:"os,omitempty"`
+	Trace    bool `json:"trace,omitempty"`
+	AllPorts bool `json:"allPorts,omitempty"`
+	// Sudo runs the root-only analysis through "sudo -n" when the supervisor
+	// is not root. It never prompts or stores a password.
+	Sudo       bool `json:"sudo,omitempty"`
+	Confirm    bool `json:"confirm"`
+	Authorized bool `json:"authorized"`
+	// Deprecated: host port scans are no longer performed.
+	HostProfileID string `json:"hostProfileId,omitempty"`
 	RouteID       string `json:"routeId,omitempty"`
 	Ports         string `json:"ports,omitempty"`
-	Confirm       bool   `json:"confirm"`
-	Authorized    bool   `json:"authorized"`
 }
 
+type NmapOSClass struct {
+	Type     string `json:"type,omitempty"`
+	Vendor   string `json:"vendor,omitempty"`
+	OSFamily string `json:"osFamily,omitempty"`
+	OSGen    string `json:"osGen,omitempty"`
+	Accuracy int    `json:"accuracy,omitempty"`
+}
+
+type NmapOSMatch struct {
+	Name     string        `json:"name"`
+	Accuracy int           `json:"accuracy,omitempty"`
+	Classes  []NmapOSClass `json:"classes,omitempty"`
+}
+
+type NmapScript struct {
+	ID     string `json:"id"`
+	Output string `json:"output,omitempty"`
+}
+
+// NmapHost is one local host discovered by nmap.
+type NmapHost struct {
+	Address       string        `json:"address"`
+	MAC           string        `json:"mac,omitempty"`
+	Vendor        string        `json:"vendor,omitempty"`
+	Hostname      string        `json:"hostname,omitempty"`
+	State         string        `json:"state"`
+	DeviceType    string        `json:"deviceType,omitempty"`
+	OSMatches     []NmapOSMatch `json:"osMatches,omitempty"`
+	Ports         []NmapPort    `json:"ports,omitempty"`
+	Scripts       []NmapScript  `json:"scripts,omitempty"`
+	UptimeSeconds int64         `json:"uptimeSeconds,omitempty"`
+	LastBoot      string        `json:"lastBoot,omitempty"`
+	Distance      int           `json:"distance,omitempty"`
+	Trace         []string      `json:"trace,omitempty"`
+}
+
+// NmapPort is one port observed during the detailed pass.
 type NmapPort struct {
-	Port     int    `json:"port"`
-	Protocol string `json:"protocol"`
-	State    string `json:"state"`
-	Service  string `json:"service,omitempty"`
-	Product  string `json:"product,omitempty"`
-	Version  string `json:"version,omitempty"`
+	Port      int      `json:"port"`
+	Protocol  string   `json:"protocol"`
+	State     string   `json:"state"`
+	Service   string   `json:"service,omitempty"`
+	Product   string   `json:"product,omitempty"`
+	Version   string   `json:"version,omitempty"`
+	ExtraInfo string   `json:"extraInfo,omitempty"`
+	CPE       []string `json:"cpe,omitempty"`
 }
 
 type NmapResult struct {
-	Target      string     `json:"target"`
-	Ports       []NmapPort `json:"ports"`
+	Networks    []string   `json:"networks"`
+	Hosts       []NmapHost `json:"hosts"`
+	Warnings    []string   `json:"warnings,omitempty"`
 	GeneratedAt string     `json:"generatedAt"`
+	// Deprecated compatibility fields.
+	Target string     `json:"target,omitempty"`
+	Ports  []NmapPort `json:"ports,omitempty"`
 }
 
 type NetworkParams struct {

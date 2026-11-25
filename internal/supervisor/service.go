@@ -68,7 +68,7 @@ func WithTransfers(manager *transfermanager.Manager) ServiceOption {
 	return func(service *Service) { service.transfers = manager }
 }
 
-// WithNmap enables the explicit, opt-in Nmap diagnostic binary.
+// WithNmap sets an optional external nmap binary. Empty uses the embedded one.
 func WithNmap(path string) ServiceOption {
 	return func(service *Service) { service.nmapPath = path }
 }
