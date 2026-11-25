@@ -88,6 +88,9 @@ func onTerminalResize(setTerminalSize func(int, int)) {
 }
 
 func getKeyboardInput() (*os.File, func(), error) {
+	if !terminalInputAllowed() {
+		return nil, nil, errNonInteractive
+	}
 	if isTerminal {
 		return os.Stdin, func() {}, nil
 	}

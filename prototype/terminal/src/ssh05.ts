@@ -14,9 +14,16 @@ import {
   BoxRenderable,
   EmbeddedTerminalRenderable,
   type KeyEvent,
+  type MouseEvent,
+  MouseButton,
   RGBA,
+  StyledText,
   TextRenderable,
+  type TextChunk,
+  bg as bgColor,
+  bold,
   createCliRenderer,
+  fg,
 } from "@opentui/core"
 import { appendFileSync, existsSync } from "node:fs"
 import { join } from "node:path"
@@ -24,6 +31,7 @@ import type {
   FrpEndpoint,
   FrpProxy,
   HostProfile,
+  HostKeyChallenge,
   IpcEvent,
   SessionId,
   SessionInfo,
@@ -36,6 +44,7 @@ import type {
   Workspace,
 } from "../../../contracts/ts/index.ts"
 import { loadKeybindings, matchesAction } from "./config/keybindings.ts"
+import { RPC_CODE_HOST_KEY_CHANGED, RPC_CODE_HOST_KEY_UNKNOWN } from "../../../contracts/ts/index.ts"
 import { exportDiagnostics } from "./diagnostics/export.ts"
 import { isValidAlias, normalizeAlias } from "./hosts/alias.ts"
 import { envValue, resolveSocketPath, SUPERVISOR } from "./identity.ts"
@@ -46,14 +55,26 @@ import {
   type Preferences,
 } from "./preferences/store.ts"
 import { normalizeHex } from "./theme/color.ts"
-import { IpcClient } from "./ipc/client.ts"
+import { IpcClient, IpcRemoteError } from "./ipc/client.ts"
 import { InMemoryTabStore } from "./tabs/store.ts"
-import { phaseIcon, phaseLabel, renderTabBar, renderTabBarStyled } from "./tabs/tabbar.ts"
+import { phaseIcon, phaseLabel, renderTabBar, renderTabBarStyled, tabBarHitTest } from "./tabs/tabbar.ts"
 import { listWorkspaceNames, loadWorkspace, safeWorkspaceName, saveWorkspace } from "./workspaces/store.ts"
 
 let preferences: Preferences = loadPreferences()
 let hostPanelWidth = preferences.hostPanelWidth
 const MAX_SESSIONS = 16
+const UI_COLORS = {
+  accent: "#7FB4FF",
+  accentSoft: "#4E6A93",
+  selectedBg: "#2D3B52",
+  selectedFg: "#FFFFFF",
+  dim: "#7D879A",
+  danger: "#FF7A7A",
+  warning: "#F2C94C",
+  success: "#7BD88F",
+  panelBg: RGBA.fromInts(16, 19, 26),
+  frame: RGBA.fromInts(48, 58, 76),
+} as const
 const MAX_PENDING_BYTES = 1 << 20
 
 const debugFile = envValue("UI_DEBUG")
@@ -85,7 +106,7 @@ currentWorkspace = safeWorkspaceName(currentWorkspace)
 const renderer = await createCliRenderer({
   exitOnCtrlC: false,
   useMouse: true,
-  enableMouseMovement: false,
+  enableMouseMovement: true,
 })
 
 const root = new BoxRenderable(renderer, {
@@ -159,16 +180,136 @@ hostPanel.add(hostQuery)
 hostPanel.add(hostList)
 hostPanel.add(hostHint)
 
+hostList.onMouseDown = (event) => {
+  const row = event.y - hostList.y
+  if (commandMode) {
+    const hit = commandLineMap.find((item) => item.line === row)
+    if (!hit) return
+    event.stopPropagation()
+    commandMode = false
+    commandInput = ""
+    hit.command.run("")
+    uiDirty()
+    return
+  }
+  const hit = hostLineMap.find((item) => item.line === row)
+  if (!hit) return
+  hostFocused = true
+  cursor = hit.index
+  if (event.button === MouseButton.RIGHT) {
+    event.stopPropagation()
+    openHostMenu(hit.host)
+    return
+  }
+  if (event.button !== MouseButton.LEFT) return
+  event.stopPropagation()
+  const now = Date.now()
+  if (lastHostClick.id === hit.host.id && now - lastHostClick.at < 450) {
+    lastHostClick = { id: "", at: 0 }
+    void connectHost(hit.host)
+    return
+  }
+  lastHostClick = { id: hit.host.id, at: now }
+  uiDirty()
+}
+
+hostList.onMouseMove = (event) => {
+  const row = event.y - hostList.y
+  const hit = hostLineMap.find((item) => item.line === row)
+  if (!hit) return
+  if (cursor === hit.index && hostFocused) return
+  cursor = hit.index
+  hostFocused = true
+  uiDirty()
+}
+
+hostList.onMouseScroll = (event) => {
+  if (event.scroll?.direction === "up") cursor = Math.max(0, cursor - 3)
+  else if (event.scroll?.direction === "down") {
+    cursor = Math.min(Math.max(0, filteredHosts().length - 1), cursor + 3)
+  }
+  uiDirty()
+}
+
+const sessionPane = new BoxRenderable(renderer, {
+  id: "session-pane",
+  flexGrow: 1,
+  flexShrink: 1,
+  height: "100%",
+  flexDirection: "column",
+  border: true,
+  borderStyle: "rounded",
+  borderColor: UI_COLORS.frame,
+  backgroundColor: UI_COLORS.panelBg,
+})
+
+const sessionHeader = new BoxRenderable(renderer, {
+  id: "session-header",
+  width: "100%",
+  height: 1,
+  flexDirection: "row",
+  backgroundColor: RGBA.fromInts(24, 29, 40),
+})
+
+const sessionTitle = new TextRenderable(renderer, {
+  id: "session-title",
+  content: " Sin sesión · selecciona un host",
+  fg: RGBA.fromInts(160, 172, 190),
+  bg: RGBA.fromInts(24, 29, 40),
+  height: 1,
+  flexGrow: 1,
+  flexShrink: 1,
+  minWidth: 0,
+  wrapMode: "none",
+})
+
+const sessionClose = new TextRenderable(renderer, {
+  id: "session-close",
+  content: " × ",
+  fg: RGBA.fromInts(255, 122, 122),
+  bg: RGBA.fromInts(24, 29, 40),
+  width: 3,
+  height: 1,
+  visible: false,
+  onMouseDown: (event) => {
+    if (event.button === MouseButton.RIGHT) {
+      openCloseDialog()
+      return
+    }
+    if (event.button === MouseButton.LEFT) void closeActive("close-view")
+  },
+  onMouseOver: () => {
+    sessionClose.bg = RGBA.fromInts(190, 62, 62)
+    sessionClose.fg = RGBA.fromInts(255, 255, 255)
+    uiDirty()
+  },
+  onMouseOut: () => {
+    sessionClose.bg = RGBA.fromInts(24, 29, 40)
+    sessionClose.fg = RGBA.fromInts(255, 122, 122)
+    uiDirty()
+  },
+})
+
+sessionHeader.add(sessionTitle)
+sessionHeader.add(sessionClose)
+
+sessionTitle.onMouseDown = () => {
+  const active = store.active()
+  if (active) focusTerminal()
+  else focusHosts()
+}
+
 const terminalArea = new BoxRenderable(renderer, {
   id: "terminal-area",
   flexGrow: 1,
   flexShrink: 1,
-  height: "100%",
-  backgroundColor: RGBA.fromInts(15, 17, 22),
+  backgroundColor: UI_COLORS.panelBg,
 })
 
+sessionPane.add(sessionHeader)
+sessionPane.add(terminalArea)
 body.add(hostPanel)
-body.add(terminalArea)
+body.add(sessionPane)
 
 const status = new TextRenderable(renderer, {
   id: "status",
@@ -185,6 +326,34 @@ renderer.root.add(root)
 applyTabPosition()
 hostPanel.width = hostPanelWidth
 renderer.start()
+
+tabBar.onMouseDown = (event) => {
+  const hit = tabBarHitTest(
+    { tabs: store.list(), activeId: store.active()?.id, width: renderer.width },
+    event.x - tabBar.x,
+  )
+  if (!hit) return
+  event.stopPropagation()
+  if (hit.kind === "hidden-left") {
+    cycle(-1)
+    return
+  }
+  if (hit.kind === "hidden-right") {
+    cycle(1)
+    return
+  }
+  activate(hit.id)
+  if (event.button === MouseButton.RIGHT || event.button === MouseButton.MIDDLE) {
+    openCloseDialog()
+  } else {
+    focusTerminal()
+  }
+}
+
+tabBar.onMouseScroll = (event) => {
+  if (event.scroll?.direction === "up") cycle(-1)
+  else if (event.scroll?.direction === "down") cycle(1)
+}
 
 const workspaceOverlay = new TextRenderable(renderer, {
   id: "workspace-overlay",
@@ -233,6 +402,22 @@ const closeOverlay = new TextRenderable(renderer, {
 })
 
 renderer.root.add(closeOverlay)
+
+const hostKeyOverlay = new TextRenderable(renderer, {
+  id: "host-key-overlay",
+  position: "absolute",
+  top: 0,
+  left: 0,
+  width: "100%",
+  height: "100%",
+  visible: false,
+  zIndex: 135,
+  content: "",
+  fg: RGBA.fromInts(255, 224, 170),
+  bg: RGBA.fromInts(24, 20, 14),
+})
+
+renderer.root.add(hostKeyOverlay)
 
 const frpOverlay = new TextRenderable(renderer, {
   id: "frp-overlay",
@@ -424,6 +609,22 @@ const pendingPlaceholder = new TextRenderable(renderer, {
 })
 terminalArea.add(pendingPlaceholder)
 
+bindOverlayMouse("workspace", workspaceOverlay)
+bindOverlayMouse("palette", paletteOverlay)
+bindOverlayMouse("close", closeOverlay)
+bindOverlayMouse("hostkey", hostKeyOverlay)
+bindOverlayMouse("frp", frpOverlay)
+bindOverlayMouse("labels", labelsOverlay)
+bindOverlayMouse("diag", diagOverlay)
+bindOverlayMouse("prefs", prefsOverlay)
+bindOverlayMouse("transfer", transferOverlay)
+bindOverlayMouse("welcome", welcomeOverlay)
+bindOverlayMouse("hostmenu", hostMenuOverlay)
+bindOverlayMouse("delete", deleteConfirmOverlay)
+bindOverlayMouse("nmap", nmapOverlay)
+bindOverlayMouse("help", helpOverlay)
+bindOverlayMouse("newhost", newHostOverlay)
+
 type SessionView = {
   sessionId: SessionId
   host: HostProfile
@@ -462,6 +663,12 @@ let paletteVisible = false
 let paletteCursor = 0
 let closeDialogVisible = false
 let closeDialogCursor = 0
+let hostKeyDialog: {
+  challenge: HostKeyChallenge
+  host: HostProfile
+  options: { tmuxSession?: string; tmuxCreate?: boolean; replaceTabId?: TabId }
+} | null = null
+let hostKeyCursor = 0
 let newHostVisible = false
 let newHostForm: {
   mode: "new" | "edit"
@@ -522,10 +729,26 @@ let hostMenuCursor = 0
 let hostMenuAlias = ""
 let deleteConfirmVisible = false
 let deleteConfirmAlias = ""
+let deleteConfirmCursor = 0
 let actionBarFocused = false
 let actionBarCursor = 0
+let actionBarHover = -1
 let actionsMenuVisible = false
 let actionsMenuCursor = 0
+let actionsMenuScroll = 0
+let hostLineMap: { line: number; host: HostProfile; index: number }[] = []
+let commandLineMap: { line: number; command: SlashCommand }[] = []
+let lastHostClick = { id: "", at: 0 }
+
+type OverlayRegion = {
+  line: number
+  fromCol?: number
+  toCol?: number
+  onHover?: () => void
+  onClick: (event: MouseEvent) => void
+}
+
+const overlayMouseRegions = new Map<string, OverlayRegion[]>()
 
 const actionBar = new BoxRenderable(renderer, {
   id: "action-bar",
@@ -551,6 +774,15 @@ function addActionButton(label: string, run: () => void): void {
       actionBarCursor = index
       run()
       actionBarFocused = false
+      actionBarHover = -1
+      uiDirty()
+    },
+    onMouseOver: () => {
+      actionBarHover = index
+      uiDirty()
+    },
+    onMouseOut: () => {
+      if (actionBarHover === index) actionBarHover = -1
       uiDirty()
     },
   })
@@ -628,9 +860,20 @@ for (let index = 0; index < actionsMenuItems.length; index++) {
       actionsMenuCursor = index
       executeActionsMenu()
     },
+    onMouseOver: () => {
+      actionsMenuCursor = index
+      uiDirty()
+    },
   })
   actionsMenuBox.add(row)
   actionsMenuRows.push(row)
+}
+actionsMenuBox.onMouseScroll = (event) => {
+  if (event.scroll?.direction === "up") actionsMenuCursor = Math.max(0, actionsMenuCursor - 1)
+  else if (event.scroll?.direction === "down") {
+    actionsMenuCursor = Math.min(actionsMenuItems.length - 1, actionsMenuCursor + 1)
+  }
+  uiDirty()
 }
 renderer.root.add(actionsMenuBox)
 root.add(actionBar, 1)
@@ -652,6 +895,25 @@ const paletteCommands = [
   "FRP",
   "Salir de ssh05",
   "Ayuda",
+]
+
+const paletteDescriptions = [
+  "Enfoca la lista de hosts y sus atajos",
+  "Crea un host y lo guarda en ssh_config",
+  "Importa hosts desde KeePass (KDBX)",
+  "Activa o desactiva tmux remoto antes de conectar",
+  "Elige cómo cerrar la pestaña o desconectar SSH",
+  "Cambia el workspace activo o crea uno nuevo",
+  "Comprueba DNS, TCP y latencia del host",
+  "DNS, puerto, banner y TLS del host seleccionado",
+  "Escaneo optativo con confirmación explícita",
+  "ASN/RDAP y país orientativo del host",
+  "Guarda un informe saneado sin secretos",
+  "Ancho, densidad y posición de pestañas",
+  "Subir o descargar con SCP/SFTP",
+  "Endpoints y proxies FRP",
+  "Cierra ssh05; las sesiones tmux siguen vivas",
+  "Muestra todos los atajos de teclado y ratón",
 ]
 
 type SlashCommand = { name: string; help: string; run: (arg: string) => void }
@@ -680,15 +942,39 @@ function renderHostMenu(): void {
     return
   }
   hostMenuOverlay.visible = true
-  const items = ["Conectar", "Editar", "Eliminar"]
-  hostMenuOverlay.content = padOverlay([
-    "",
-    `  Host · ${hostMenuAlias}`,
-    "",
-    ...items.map((item, index) => `  ${index === hostMenuCursor ? ">" : " "} ${item}`),
-    "",
-    "  ↑↓←→ elegir · Enter aceptar · Esc volver",
-  ])
+  const items = [
+    { label: "Conectar", icon: "▶" },
+    { label: "Editar", icon: "✎" },
+    { label: "Eliminar", icon: "✕" },
+  ]
+  const lines = ["", `  Host · ${hostMenuAlias}`, ""]
+  const regions: OverlayRegion[] = []
+  items.forEach((item, index) => {
+    const line = lines.length
+    lines.push(`  ${index === hostMenuCursor ? "▸" : " "} ${item.icon} ${item.label}`)
+    regions.push({
+      line,
+      onHover: () => {
+        hostMenuCursor = index
+      },
+      onClick: () => executeHostMenuItem(index),
+    })
+  })
+  lines.push("", "  ↑↓←→ elegir · Enter aceptar · Esc volver · clic para elegir")
+  setOverlayRegions("hostmenu", regions)
+  hostMenuOverlay.content = styledOverlay(lines, 3 + hostMenuCursor, [1])
+}
+
+function executeHostMenuItem(index: number): void {
+  const host = hosts.find((item) => item.alias === hostMenuAlias)
+  hostMenuVisible = false
+  if (!host) {
+    uiDirty()
+    return
+  }
+  if (index === 0) void connectHost(host)
+  else if (index === 1) openHostEditor(host)
+  else openDeleteConfirm(host)
 }
 
 function renderDeleteConfirm(): void {
@@ -697,14 +983,37 @@ function renderDeleteConfirm(): void {
     return
   }
   deleteConfirmOverlay.visible = true
-  deleteConfirmOverlay.content = padOverlay([
+  const lines = [
     "",
     "  Eliminar host",
     "",
     `  ¿Eliminar “${deleteConfirmAlias}” de ssh_config?`,
     "",
-    "  Enter confirma · Esc cancela",
+    `  ${deleteConfirmCursor === 0 ? "▸" : " "} [ Sí, eliminar ]`,
+    `  ${deleteConfirmCursor === 1 ? "▸" : " "} [ Cancelar ]`,
+    "",
+    "  ↑↓ elegir · Enter confirmar · Esc cancelar · clic para elegir",
+  ]
+  setOverlayRegions("delete", [
+    {
+      line: 5,
+      onHover: () => {
+        deleteConfirmCursor = 0
+      },
+      onClick: () => void deleteHostAlias(deleteConfirmAlias),
+    },
+    {
+      line: 6,
+      onHover: () => {
+        deleteConfirmCursor = 1
+      },
+      onClick: () => {
+        deleteConfirmVisible = false
+        uiDirty()
+      },
+    },
   ])
+  deleteConfirmOverlay.content = styledOverlay(lines, 5 + deleteConfirmCursor, [1])
 }
 
 function editingFieldActive(): boolean {
@@ -731,22 +1040,28 @@ function renderWelcome(): void {
     return
   }
   welcomeOverlay.visible = true
-  welcomeOverlay.content = padOverlay([
+  const lines = [
     "",
     "  ssh05 · Dinámicas Electrónicas",
     "",
     "  Bienvenido",
     "",
     "  ↑/↓        mover por los hosts",
-    "  ←/→        ir a la barra superior de menús",
+    "  ←/→        barra superior / acciones del host",
     "  Enter      conectar / abrir el menú seleccionado",
     "  /          comandos: /connect crea un host",
     "  Ctrl+N     nuevo host     Ctrl+K  paleta     Ctrl+P  workspaces",
     "  F1 ayuda   F2 favorito    F3 color           F4 etiquetas",
+    "  Ratón      clic en hosts, pestañas y botones; rueda para desplazar",
     "  F10 salir",
     "",
-    "  Pulsa Enter para continuar",
+  ]
+  const regions = addActionLine(lines, "Acciones", [
+    { label: "Continuar", run: () => { welcomeVisible = false; uiDirty() } },
   ])
+  lines.push("", "  Pulsa Enter o haz clic para continuar")
+  setOverlayRegions("welcome", regions)
+  welcomeOverlay.content = styledOverlay(lines, -1, [1, 3])
 }
 
 
@@ -808,25 +1123,29 @@ function pendingHostFor(host: HostProfile): HostProfile | undefined {
 
 function renderHosts(): void {
   const all = filteredHosts()
+  hostLineMap = []
+  commandLineMap = []
   hostTitle.content = ` Hosts (${all.length}${query ? `/${hosts.length}` : ""})${conflicts > 0 ? ` !${conflicts}` : ""}`
 
   if (commandMode) {
     hostQuery.content = ` /${withCaret(commandInput, true)}`
     hostHint.content = " /connect crea un host · Enter ejecutar · Esc cancelar"
     const matches = slashMatches(commandInput)
-    const lines = ["", "  Comandos"]
+    const lines = ["", "  Comandos", ""]
+    commandLineMap = []
     if (matches.length === 0) {
       lines.push("", `  Sin comandos para /${commandInput}`)
     } else {
-      lines.push("")
       for (const command of matches) {
-        lines.push(`  > /${command.name}  ${command.help}`)
+        commandLineMap.push({ line: lines.length, command })
+        lines.push(`  ▸ /${command.name}  ${command.help}`)
       }
     }
-    lines.push("", "  Enter ejecutar · Esc cancelar")
-    hostList.content = lines.join("\n")
+    lines.push("", "  Enter ejecutar · Esc cancelar · clic para ejecutar")
+    hostList.content = styledLines(lines, -1, hostPanelWidth, [1])
     return
   }
+  commandLineMap = []
 
   hostQuery.content = query ? ` /${truncate(query, 24)}` : " ↑↓ hosts · ←→ menú"
   hostHint.content =
@@ -882,9 +1201,12 @@ function renderHosts(): void {
   scroll = Math.max(0, Math.min(scroll, Math.max(0, display.length - rows)))
 
   const lines: string[] = []
+  const headerLines: number[] = []
+  hostLineMap = []
   for (let row = scroll; row < Math.min(display.length, scroll + rows); row++) {
     const entry = display[row]
     if (entry.kind === "header") {
+      headerLines.push(lines.length)
       lines.push(`  ── ${entry.label} ──`)
     } else {
       const host = entry.host
@@ -895,11 +1217,13 @@ function renderHosts(): void {
       const favorite = host.favorite ? "★" : " "
       const group = host.labels && host.labels.length > 0 ? ` (${host.labels[0]})` : ""
       const label = `${favorite}${host.alias}${group}`
-      lines.push(`${entry.index === cursor ? ">" : " "} ${state} ${truncate(label, hostPanelWidth - 4)}`)
+      hostLineMap.push({ line: lines.length, host, index: entry.index })
+      lines.push(`${entry.index === cursor ? "▸" : " "} ${state} ${truncate(label, hostPanelWidth - 4)}`)
     }
     if (preferences.density === "comfortable") lines.push("")
   }
-  hostList.content = lines.join("\n")
+  const selectedLine = hostLineMap.find((item) => item.index === cursor)?.line ?? -1
+  hostList.content = styledLines(lines, selectedLine, hostPanelWidth, headerLines)
 }
 
 function renderTabs(): void {
@@ -908,6 +1232,43 @@ function renderTabs(): void {
     activeId: store.active()?.id,
     width: renderer.width,
   })
+}
+
+function renderSessionHeader(): void {
+  const active = store.active()
+  const view = active ? sessions.get(active.sessionId) : undefined
+  const available = Math.max(10, renderer.width - hostPanelWidth - 8)
+  if (!active) {
+    sessionTitle.content = truncate(" Sin sesión · Enter conecta · Ctrl+N nuevo host", available)
+    sessionTitle.fg = RGBA.fromInts(150, 160, 175)
+    sessionClose.visible = false
+    sessionPane.borderColor = UI_COLORS.frame
+    return
+  }
+  sessionClose.visible = true
+  if (view) {
+    const tmux = active.tmux ? ` · tmux ${active.tmux.sessionName}` : ""
+    sessionTitle.content = truncate(
+      ` ${phaseIcon(active.phase)} ${active.title} · ${hostTarget(view.host)} · ${view.route}${tmux}`,
+      available,
+    )
+    sessionTitle.fg =
+      active.phase === "connected"
+        ? RGBA.fromInts(123, 216, 143)
+        : active.phase === "failed"
+          ? RGBA.fromInts(255, 122, 122)
+          : RGBA.fromInts(242, 201, 76)
+    sessionPane.borderColor =
+      active.phase === "connected"
+        ? RGBA.fromInts(66, 120, 88)
+        : active.phase === "failed"
+          ? RGBA.fromInts(150, 70, 70)
+          : UI_COLORS.frame
+    return
+  }
+  sessionTitle.content = truncate(` ○ ${active.title} · sesión pendiente · Enter reconectar`, available)
+  sessionTitle.fg = RGBA.fromInts(160, 172, 190)
+  sessionPane.borderColor = UI_COLORS.frame
 }
 
 function renderStatus(): void {
@@ -945,10 +1306,12 @@ function renderStatus(): void {
 function uiDirty(): void {
   renderHosts()
   renderTabs()
+  renderSessionHeader()
   renderStatus()
   renderWorkspacePicker()
   renderPalette()
   renderCloseDialog()
+  renderHostKeyDialog()
   renderFRP()
   renderLabelsEditor()
   renderDiagnostics()
@@ -984,9 +1347,118 @@ function closeChoices(): CloseChoice[] {
   return choices
 }
 
-function padOverlay(lines: string[]): string {
-  const width = Math.max(20, renderer.width)
-  return lines.map((line) => line + " ".repeat(Math.max(0, width - line.length))).join("\n")
+function padLine(line: string, width = Math.max(20, renderer.width)): string {
+  return line + " ".repeat(Math.max(0, width - line.length))
+}
+
+function isHintLine(trimmed: string): boolean {
+  return (
+    trimmed.startsWith("↑") ||
+    trimmed.startsWith("Enter") ||
+    trimmed.startsWith("Esc") ||
+    trimmed.startsWith("Ctrl") ||
+    trimmed.startsWith("Tab") ||
+    trimmed.startsWith("Espacio") ||
+    trimmed.startsWith("Pulsa") ||
+    trimmed.startsWith("Acciones:") ||
+    trimmed.startsWith("Solo úsalo") ||
+    trimmed.startsWith("Verifica la huella") ||
+    trimmed.startsWith("La contraseña se guarda") ||
+    trimmed.startsWith("Se guardará") ||
+    trimmed.startsWith("StrictHostKeyChecking") ||
+    trimmed.startsWith("Ajusta ssh_config")
+  )
+}
+
+function styledOverlay(lines: string[], selectedLine = -1, titleLines: number[] = [1]): StyledText {
+  return styledLines(lines, selectedLine, Math.max(20, renderer.width), titleLines)
+}
+
+function styledLines(lines: string[], selectedLine: number, width: number, titleLines: number[] = []): StyledText {
+  const chunks: TextChunk[] = []
+  lines.forEach((line, index) => {
+    const padded = padLine(line, width)
+    const trimmed = line.trim()
+    let chunk: TextChunk
+    if (index === selectedLine) {
+      chunk = bgColor(UI_COLORS.selectedBg)(fg(UI_COLORS.selectedFg)(bold(padded)))
+    } else if (titleLines.includes(index)) {
+      chunk = fg(UI_COLORS.accent)(bold(padded))
+    } else if (trimmed.startsWith("⚠") || trimmed.includes("IT IS POSSIBLE") || trimmed.startsWith("NO SE PUDO")) {
+      chunk = fg(UI_COLORS.danger)(padded)
+    } else if (isHintLine(trimmed)) {
+      chunk = fg(UI_COLORS.dim)(padded)
+    } else if (
+      trimmed.startsWith("FRP ·") ||
+      trimmed.startsWith("Hosts SSH") ||
+      trimmed.startsWith("Contenedores") ||
+      trimmed.startsWith("Transferencias")
+    ) {
+      chunk = fg(UI_COLORS.accentSoft)(bold(padded))
+    } else {
+      chunk = { __isChunk: true, text: padded }
+    }
+    chunks.push(chunk)
+    if (index < lines.length - 1) chunks.push({ __isChunk: true, text: "\n" })
+  })
+  return new StyledText(chunks)
+}
+
+type OverlayAction = { label: string; run: () => void }
+
+function addActionLine(lines: string[], prefix: string, actions: OverlayAction[]): OverlayRegion[] {
+  const line = lines.length
+  let text = `  ${prefix}  `
+  const regions: OverlayRegion[] = []
+  for (const action of actions) {
+    const label = `[ ${action.label} ]`
+    const start = text.length
+    text += label + "  "
+    regions.push({
+      line,
+      fromCol: start,
+      toCol: start + label.length - 1,
+      onClick: (event) => {
+        event.stopPropagation()
+        action.run()
+      },
+    })
+  }
+  lines.push(text)
+  return regions
+}
+
+function setOverlayRegions(name: string, regions: OverlayRegion[]): void {
+  overlayMouseRegions.set(name, regions)
+}
+
+function findOverlayRegion(name: string, row: number, col: number): OverlayRegion | undefined {
+  return overlayMouseRegions.get(name)?.find(
+    (region) =>
+      region.line === row &&
+      (region.fromCol === undefined || (col >= region.fromCol && col <= (region.toCol ?? region.fromCol))),
+  )
+}
+
+function bindOverlayMouse(name: string, overlay: TextRenderable): void {
+  let lastHoverRow = -2
+  overlay.onMouseDown = (event) => {
+    if (event.button !== MouseButton.LEFT) return
+    const region = findOverlayRegion(name, event.y - overlay.y, event.x - overlay.x)
+    if (!region) return
+    event.stopPropagation()
+    region.onClick(event)
+  }
+  overlay.onMouseMove = (event) => {
+    const row = event.y - overlay.y
+    if (row === lastHoverRow) return
+    lastHoverRow = row
+    const region = findOverlayRegion(name, row, event.x - overlay.x)
+    if (region?.onHover) {
+      region.onHover()
+      uiDirty()
+    }
+  }
 }
 
 function renderCloseDialog(): void {
@@ -997,12 +1469,27 @@ function renderCloseDialog(): void {
   closeOverlay.visible = true
   const choices = closeChoices()
   closeDialogCursor = Math.min(closeDialogCursor, choices.length - 1)
-  const lines = ["", "  Cerrar pestaña", ""]
-  for (let index = 0; index < choices.length; index++) {
-    lines.push(`  ${index === closeDialogCursor ? ">" : " "} ${choices[index].label}`)
-  }
-  lines.push("", "  Enter confirmar · Esc cancelar")
-  closeOverlay.content = padOverlay(lines)
+  const lines = ["", "  Cerrar conexión", ""]
+  const regions: OverlayRegion[] = []
+  choices.forEach((choice, index) => {
+    const line = lines.length
+    lines.push(`  ${index === closeDialogCursor ? "▸" : " "} ${choice.label}`)
+    regions.push({
+      line,
+      onHover: () => {
+        closeDialogCursor = index
+      },
+      onClick: () => executeCloseChoice(choice),
+    })
+  })
+  lines.push("", "  ↑↓ elegir · Enter confirmar · Esc cancelar · clic para elegir")
+  setOverlayRegions("close", regions)
+  closeOverlay.content = styledOverlay(lines, 3 + closeDialogCursor, [1])
+}
+
+function executeCloseChoice(choice: CloseChoice): void {
+  closeDialogVisible = false
+  void closeActive(choice.intent)
 }
 
 function openCloseDialog(): void {
@@ -1025,8 +1512,7 @@ function closeCloseDialog(): void {
 function executeCloseDialog(): void {
   const choice = closeChoices()[closeDialogCursor]
   if (!choice) return
-  closeDialogVisible = false
-  void closeActive(choice.intent)
+  executeCloseChoice(choice)
 }
 
 function handleCloseDialogKey(key: KeyEvent): void {
@@ -1034,11 +1520,116 @@ function handleCloseDialogKey(key: KeyEvent): void {
   if (name === "up" || name === "left") closeDialogCursor = Math.max(0, closeDialogCursor - 1)
   else if (name === "down" || name === "right") {
     closeDialogCursor = Math.min(closeChoices().length - 1, closeDialogCursor + 1)
-  } else if (name === "escape") {
+  } else if (name === "home") closeDialogCursor = 0
+  else if (name === "end") closeDialogCursor = closeChoices().length - 1
+  else if (name === "escape") {
     closeCloseDialog()
     return
   } else if (name === "return" || name === "enter") {
     executeCloseDialog()
+    return
+  }
+  uiDirty()
+}
+
+function renderHostKeyDialog(): void {
+  if (!hostKeyDialog) {
+    hostKeyOverlay.visible = false
+    return
+  }
+  hostKeyOverlay.visible = true
+  const { challenge, host } = hostKeyDialog
+  const lines = [
+    "",
+    "  Host desconocido",
+    "",
+    `  ${host.alias} · ${challenge.host || hostTarget(host)}`,
+    `  Tipo de clave: ${challenge.keyType}`,
+    `  Huella SHA-256: ${challenge.fingerprint}`,
+  ]
+  if (challenge.knownHostsPath) lines.push(`  Se guardará en: ${challenge.knownHostsPath}`)
+  lines.push("")
+  const regions: OverlayRegion[] = []
+  if (challenge.canTrust) {
+    lines.push("  Verifica la huella con el administrador del servidor.", "")
+    const choiceStart = lines.length
+    lines.push(`  ${hostKeyCursor === 0 ? "▸" : " "} [ Aceptar y conectar ]`)
+    lines.push(`  ${hostKeyCursor === 1 ? "▸" : " "} [ Cancelar ]`)
+    regions.push(
+      {
+        line: choiceStart,
+        onHover: () => {
+          hostKeyCursor = 0
+        },
+        onClick: () => void acceptHostKey(),
+      },
+      {
+        line: choiceStart + 1,
+        onHover: () => {
+          hostKeyCursor = 1
+        },
+        onClick: closeHostKeyDialog,
+      },
+    )
+  } else {
+    lines.push("  StrictHostKeyChecking=yes impide añadir esta clave.")
+    lines.push("  Ajusta ssh_config o añádela manualmente.", "")
+    const choiceStart = lines.length
+    lines.push(`  ${hostKeyCursor === 0 ? "▸" : " "} [ Cerrar ]`)
+    regions.push({ line: choiceStart, onClick: closeHostKeyDialog })
+  }
+  lines.push("", "  ↑↓ elegir · Enter confirmar · Esc cancelar · clic para elegir")
+  setOverlayRegions("hostkey", regions)
+  const choiceLine = lines.findIndex((line) => line.includes("[ Aceptar") || line.includes("[ Cerrar ]"))
+  hostKeyOverlay.content = styledOverlay(lines, choiceLine + hostKeyCursor, [1])
+}
+
+function closeHostKeyDialog(): void {
+  hostKeyDialog = null
+  hostKeyCursor = 0
+  transientText = "Conexión cancelada"
+  uiDirty()
+}
+
+async function acceptHostKey(): Promise<void> {
+  const pending = hostKeyDialog
+  if (!pending || !client) return
+  hostKeyDialog = null
+  hostKeyCursor = 0
+  transientText = `Añadiendo host key de ${pending.host.alias}…`
+  uiDirty()
+  try {
+    await client.call(
+      "hosts.trustKey",
+      { hostProfileId: pending.host.id, fingerprint: pending.challenge.fingerprint },
+      { timeoutMs: 20_000 },
+    )
+    transientText = `Host key aceptada; conectando ${pending.host.alias}…`
+    uiDirty()
+    await connectHost(pending.host, pending.options)
+  } catch (error) {
+    transientText = `No se pudo confiar en ${pending.host.alias}: ${String(error)}`
+    uiDirty()
+  }
+}
+
+function handleHostKeyDialogKey(key: KeyEvent): void {
+  const name = key.name.toLowerCase()
+  if (!hostKeyDialog) return
+  const choices = hostKeyDialog.challenge.canTrust ? 2 : 1
+  if (name === "up" || name === "left") hostKeyCursor = Math.max(0, hostKeyCursor - 1)
+  else if (name === "down" || name === "right") hostKeyCursor = Math.min(choices - 1, hostKeyCursor + 1)
+  else if (name === "home") hostKeyCursor = 0
+  else if (name === "end") hostKeyCursor = choices - 1
+  else if (name === "escape") {
+    closeHostKeyDialog()
+    return
+  } else if (name === "return" || name === "enter") {
+    if (hostKeyDialog.challenge.canTrust && hostKeyCursor === 0) {
+      void acceptHostKey()
+    } else {
+      closeHostKeyDialog()
+    }
     return
   }
   uiDirty()
@@ -1050,13 +1641,28 @@ function renderPalette(): void {
     return
   }
   paletteOverlay.visible = true
-  const lines = ["", "  Comandos", ""]
+  const lines = ["", "  Paleta de Comandos", ""]
+  const regions: OverlayRegion[] = []
   for (let index = 0; index < paletteCommands.length; index++) {
-    const marker = index === paletteCursor ? ">" : " "
-    lines.push(`  ${marker} ${paletteCommands[index]}`)
+    const selected = index === paletteCursor
+    const line = lines.length
+    lines.push(`  ${selected ? "▸" : " "} ${paletteCommands[index]}`)
+    regions.push({
+      line,
+      onHover: () => {
+        paletteCursor = index
+      },
+      onClick: () => executePalette(index),
+    })
   }
-  lines.push("", "  ↑↓←→ mover · Enter ejecutar · Esc cerrar")
-  paletteOverlay.content = padOverlay(lines)
+  lines.push(
+    "",
+    `  ${paletteDescriptions[paletteCursor] ?? ""}`,
+    "",
+    "  ↑↓←→ mover · Enter ejecutar · Esc cerrar · clic para elegir",
+  )
+  setOverlayRegions("palette", regions)
+  paletteOverlay.content = styledOverlay(lines, 3 + paletteCursor, [1])
 }
 
 function openPalette(): void {
@@ -1130,6 +1736,10 @@ function handlePaletteKey(key: KeyEvent): void {
   const name = key.name.toLowerCase()
   if (name === "up" || name === "left") paletteCursor = Math.max(0, paletteCursor - 1)
   else if (name === "down" || name === "right") paletteCursor = Math.min(paletteCommands.length - 1, paletteCursor + 1)
+  else if (name === "pageup") paletteCursor = Math.max(0, paletteCursor - 6)
+  else if (name === "pagedown") paletteCursor = Math.min(paletteCommands.length - 1, paletteCursor + 6)
+  else if (name === "home") paletteCursor = 0
+  else if (name === "end") paletteCursor = paletteCommands.length - 1
   else if (name === "escape") {
     closePalette()
     return
@@ -1334,8 +1944,8 @@ function createTerminalView(
   phase: SessionPhase = "connected",
   route = "SSH directo",
 ): SessionView {
-  const cols = Math.max(20, Math.floor(terminalArea.width) || renderer.width - hostPanelWidth)
-  const rows = Math.max(5, renderer.height - 2)
+  const cols = Math.max(20, Math.floor(terminalArea.width) || renderer.width - hostPanelWidth - 2)
+  const rows = Math.max(5, (terminalArea.height || renderer.height - 3) - 1)
   const terminal = new EmbeddedTerminalRenderable(renderer, {
     id: `terminal-${sessionId}`,
     position: "absolute",
@@ -1421,6 +2031,21 @@ async function connectHost(
     flushPending(opened.sessionId, view)
     scheduleResize(opened.sessionId, view.terminal.width || 80, view.terminal.height || 24)
   } catch (error) {
+    if (error instanceof IpcRemoteError && error.code === RPC_CODE_HOST_KEY_UNKNOWN) {
+      const data = error.data as HostKeyChallenge | undefined
+      if (data && typeof data.fingerprint === "string" && typeof data.keyType === "string") {
+        hostKeyDialog = { challenge: { ...data, canTrust: data.canTrust !== false }, host, options }
+        hostKeyCursor = 0
+        transientText = `Host key nueva para ${host.alias}`
+        uiDirty()
+        return
+      }
+    }
+    if (error instanceof IpcRemoteError && error.code === RPC_CODE_HOST_KEY_CHANGED) {
+      transientText = `La host key de ${host.alias} ha cambiado. Revisa known_hosts antes de continuar.`
+      uiDirty()
+      return
+    }
     transientText = `No se pudo abrir ${host.alias}: ${String(error)}`
     uiDirty()
   }
@@ -1611,10 +2236,8 @@ async function handleLabelsKey(key: KeyEvent): Promise<void> {
   if (name === "escape") {
     labelsEditing = false
   } else if (name === "return" || name === "enter") {
-    const labels = labelsInput.split(/\s+/).filter(Boolean)
-    const hostID = labelsHostID
-    labelsEditing = false
-    await applyHostOverride(hostID, { labels })
+    await saveLabels()
+    return
   } else if (name === "backspace" || name === "delete") {
     labelsInput = name === "delete" ? "" : labelsInput.slice(0, -1)
   } else if (!key.ctrl && !key.meta && key.sequence) {
@@ -1640,6 +2263,7 @@ function closeHostMenu(): void {
 function openDeleteConfirm(host: HostProfile): void {
   hostMenuVisible = false
   deleteConfirmAlias = host.alias
+  deleteConfirmCursor = 0
   deleteConfirmVisible = true
   uiDirty()
 }
@@ -1665,16 +2289,10 @@ function handleHostMenuKey(key: KeyEvent): void {
   }
   if (name === "up") hostMenuCursor = Math.max(0, hostMenuCursor - 1)
   else if (name === "down") hostMenuCursor = Math.min(2, hostMenuCursor + 1)
+  else if (name === "home") hostMenuCursor = 0
+  else if (name === "end") hostMenuCursor = 2
   else if (name === "return" || name === "enter") {
-    const host = hosts.find((item) => item.alias === hostMenuAlias)
-    hostMenuVisible = false
-    if (!host) {
-      uiDirty()
-      return
-    }
-    if (hostMenuCursor === 0) void connectHost(host)
-    else if (hostMenuCursor === 1) openHostEditor(host)
-    else openDeleteConfirm(host)
+    executeHostMenuItem(hostMenuCursor)
     return
   }
   uiDirty()
@@ -1687,9 +2305,18 @@ function handleDeleteConfirmKey(key: KeyEvent): void {
     uiDirty()
     return
   }
-  if (name === "return" || name === "enter") {
-    void deleteHostAlias(deleteConfirmAlias)
+  if (name === "up" || name === "left") {
+    deleteConfirmCursor = Math.max(0, deleteConfirmCursor - 1)
+  } else if (name === "down" || name === "right") {
+    deleteConfirmCursor = Math.min(1, deleteConfirmCursor + 1)
+  } else if (name === "return" || name === "enter") {
+    if (deleteConfirmCursor === 0) void deleteHostAlias(deleteConfirmAlias)
+    else {
+      deleteConfirmVisible = false
+      uiDirty()
+    }
   }
+  uiDirty()
 }
 
 function handleHostKey(key: KeyEvent): void {
@@ -1811,6 +2438,11 @@ renderer.keyInput.on("keypress", (key) => {
       welcomeVisible = false
       uiDirty()
     }
+    return
+  }
+  if (hostKeyDialog) {
+    key.stopPropagation()
+    handleHostKeyDialogKey(key)
     return
   }
   if (name === "f1") {
@@ -2064,7 +2696,7 @@ renderer.keyInput.on("paste", (event: { bytes: Uint8Array }) => {
   }
   if (
     helpVisible || diagVisible || preferencesVisible || paletteVisible || actionsMenuVisible ||
-    closeDialogVisible || transferVisible || frpVisible || workspacePickerVisible ||
+    closeDialogVisible || hostKeyDialog !== null || transferVisible || frpVisible || workspacePickerVisible ||
     hostMenuVisible || deleteConfirmVisible
   ) {
     return
@@ -2226,23 +2858,52 @@ function renderWorkspacePicker(): void {
     return
   }
   workspaceOverlay.visible = true
-  const lines = [
-    "",
-    "  Workspaces",
-    "",
-  ]
+  const regions: OverlayRegion[] = []
+  const lines = ["", workspaceNewMode ? "  Nuevo workspace" : "  Workspaces", ""]
   if (workspaceNewMode) {
-    lines.push(`  Nuevo: ${workspaceInput}▌`, "", "  Enter crear/abrir · Esc volver")
-  } else {
-    for (let index = 0; index < workspaceNames.length; index++) {
-      const marker = index === workspacePickerCursor ? ">" : " "
-      const current = workspaceNames[index] === currentWorkspace ? "  (actual)" : ""
-      lines.push(`  ${marker} ${workspaceNames[index]}${current}`)
-    }
-    const marker = workspacePickerCursor === workspaceNames.length ? ">" : " "
-    lines.push(`  ${marker} + Nuevo workspace…`, "", "  ↑↓←→ mover · Enter abrir · n nuevo · Esc cerrar")
+    lines.push(`  Nombre: ${workspaceInput}▌`, "")
+    regions.push(...addActionLine(lines, "Acciones", [
+      { label: "Crear y abrir", run: () => { if (workspaceInput.trim()) void switchWorkspace(workspaceInput) } },
+      { label: "Cancelar", run: () => { workspaceNewMode = false; workspaceInput = ""; uiDirty() } },
+    ]))
+    lines.push("", "  Escribe un nombre · Enter crear/abrir · Esc volver")
+    setOverlayRegions("workspace", regions)
+    workspaceOverlay.content = styledOverlay(lines, 3, [1])
+    return
   }
-  workspaceOverlay.content = padOverlay(lines)
+  for (let index = 0; index < workspaceNames.length; index++) {
+    const line = lines.length
+    const current = workspaceNames[index] === currentWorkspace ? "  (actual)" : ""
+    lines.push(`  ${index === workspacePickerCursor ? "▸" : " "} ${workspaceNames[index]}${current}`)
+    regions.push({
+      line,
+      onHover: () => {
+        workspacePickerCursor = index
+      },
+      onClick: () => void switchWorkspace(workspaceNames[index]),
+    })
+  }
+  const newLine = lines.length
+  lines.push(`  ${workspacePickerCursor === workspaceNames.length ? "▸" : " "} + Nuevo workspace…`)
+  regions.push({
+    line: newLine,
+    onHover: () => {
+      workspacePickerCursor = workspaceNames.length
+    },
+    onClick: () => {
+      workspaceNewMode = true
+      workspaceInput = ""
+      uiDirty()
+    },
+  })
+  lines.push("")
+  regions.push(...addActionLine(lines, "Acciones", [
+    { label: "Nuevo", run: () => { workspaceNewMode = true; workspaceInput = ""; uiDirty() } },
+    { label: "Cerrar", run: closeWorkspacePicker },
+  ]))
+  lines.push("", "  ↑↓←→ mover · Enter abrir · n nuevo · Esc cerrar · clic para elegir")
+  setOverlayRegions("workspace", regions)
+  workspaceOverlay.content = styledOverlay(lines, 3 + workspacePickerCursor, [1])
 }
 
 function openWorkspacePicker(): void {
@@ -2307,6 +2968,10 @@ function handleWorkspaceKey(key: KeyEvent): void {
   if (name === "up" || name === "left") workspacePickerCursor = Math.max(0, workspacePickerCursor - 1)
   else if (name === "down" || name === "right") {
     workspacePickerCursor = Math.min(workspaceNames.length, workspacePickerCursor + 1)
+  } else if (name === "home") {
+    workspacePickerCursor = 0
+  } else if (name === "end") {
+    workspacePickerCursor = workspaceNames.length
   } else if (name === "escape") {
     closeWorkspacePicker()
     return
@@ -2328,7 +2993,7 @@ function handleWorkspaceKey(key: KeyEvent): void {
 function renderActionBar(): void {
   for (let index = 0; index < actionBarButtons.length; index++) {
     const button = actionBarButtons[index]
-    const selected = actionBarFocused && index === actionBarCursor
+    const selected = (actionBarFocused && index === actionBarCursor) || actionBarHover === index
     button.node.fg = selected ? RGBA.fromInts(15, 18, 24) : RGBA.fromInts(215, 222, 235)
     button.node.bg = selected ? RGBA.fromInts(120, 190, 255) : RGBA.fromInts(38, 44, 58)
   }
@@ -2337,10 +3002,20 @@ function renderActionBar(): void {
 function renderActionsMenu(): void {
   actionsMenuBox.visible = actionsMenuVisible
   if (!actionsMenuVisible) return
-  actionsMenuBox.height = Math.min(actionsMenuItems.length + 5, 33)
+  const maxHeight = Math.max(8, renderer.height - 6)
+  const visibleRows = Math.max(4, Math.min(actionsMenuItems.length, maxHeight - 3))
+  if (actionsMenuCursor < actionsMenuScroll) actionsMenuScroll = actionsMenuCursor
+  if (actionsMenuCursor >= actionsMenuScroll + visibleRows) {
+    actionsMenuScroll = actionsMenuCursor - visibleRows + 1
+  }
+  actionsMenuScroll = Math.max(0, Math.min(actionsMenuScroll, actionsMenuItems.length - visibleRows))
+  actionsMenuBox.height = visibleRows + 3
+  actionsMenuTitle.content = ` Acciones · ${actionsMenuCursor + 1}/${actionsMenuItems.length}`
   for (let index = 0; index < actionsMenuRows.length; index++) {
     const selected = index === actionsMenuCursor
-    actionsMenuRows[index].content = `  ${selected ? ">" : " "} ${actionsMenuItems[index].label}`
+    const visible = index >= actionsMenuScroll && index < actionsMenuScroll + visibleRows
+    actionsMenuRows[index].visible = visible
+    actionsMenuRows[index].content = `  ${selected ? "▸" : " "} ${actionsMenuItems[index].label}`
     actionsMenuRows[index].fg = selected ? RGBA.fromInts(15, 18, 24) : RGBA.fromInts(219, 226, 238)
     actionsMenuRows[index].bg = selected ? RGBA.fromInts(120, 190, 255) : RGBA.fromInts(18, 22, 30)
   }
@@ -2373,6 +3048,8 @@ function handleActionsMenuKey(key: KeyEvent): void {
   if (name === "escape") closeActionsMenu()
   else if (name === "up" || name === "left") actionsMenuCursor = Math.max(0, actionsMenuCursor - 1)
   else if (name === "down" || name === "right") actionsMenuCursor = Math.min(actionsMenuItems.length - 1, actionsMenuCursor + 1)
+  else if (name === "pageup") actionsMenuCursor = Math.max(0, actionsMenuCursor - 8)
+  else if (name === "pagedown") actionsMenuCursor = Math.min(actionsMenuItems.length - 1, actionsMenuCursor + 8)
   else if (name === "home") actionsMenuCursor = 0
   else if (name === "end") actionsMenuCursor = actionsMenuItems.length - 1
   else if (name === "return" || name === "enter") executeActionsMenu()
@@ -2398,9 +3075,9 @@ function renderNewHost(): void {
   }
   newHostOverlay.visible = true
   const form = newHostForm
-  const marker = (index: number) => (index === form.field ? ">" : " ")
+  const marker = (index: number) => (index === form.field ? "▸" : " ")
   const masked = form.password ? "•".repeat(Math.min(form.password.length, 24)) : ""
-  newHostOverlay.content = padOverlay([
+  const lines = [
     "",
     form.mode === "edit" ? `  Editar host · ${form.editingAlias ?? form.alias}` : "  Nuevo host",
     "",
@@ -2412,8 +3089,31 @@ function renderNewHost(): void {
     `  ${marker(5)} Contraseña:   ${withCaret(masked, form.field === 5)}`,
     "",
     form.error ? `  ⚠ ${form.error}` : "  La contraseña se guarda codificada (#!! encPassword) en ssh_config",
-    "  ↑↓/Tab campo · ←→ mover cursor · Enter guardar · Ctrl+S sin conectar · Esc cancelar",
-  ])
+    "",
+  ]
+  const regions: OverlayRegion[] = []
+  for (let field = 0; field < 6; field++) {
+    regions.push({
+      line: 3 + field,
+      onHover: () => {
+        form.field = field
+      },
+      onClick: () => {
+        form.field = field
+        form.error = ""
+        caretPos = newHostValue(form, field).length
+        uiDirty()
+      },
+    })
+  }
+  regions.push(...addActionLine(lines, "Acciones", [
+    { label: form.mode === "edit" ? "Guardar y conectar" : "Crear y conectar", run: () => void saveNewHost(true) },
+    { label: "Guardar sin conectar", run: () => void saveNewHost(false) },
+    { label: "Cancelar", run: () => { newHostVisible = false; newHostForm = null; uiDirty() } },
+  ]))
+  lines.push("  ↑↓/Tab campo · ←→ cursor · Enter guardar · Ctrl+S sin conectar · Esc cancelar")
+  setOverlayRegions("newhost", regions)
+  newHostOverlay.content = styledOverlay(lines, 3 + form.field, [1])
 }
 
 function openNewHost(alias = ""): void {
@@ -2608,7 +3308,7 @@ function renderHelp(): void {
     return
   }
   helpOverlay.visible = true
-  helpOverlay.content = padOverlay([
+  const lines = [
     "",
     "  Ayuda · atajos",
     "",
@@ -2618,9 +3318,12 @@ function renderHelp(): void {
     "  F2 favorito         F3 color             F4 etiquetas",
     "  F10 salir           F1 ayuda             F6 barra de acciones",
     "",
+    "  Ratón: clic en hosts, pestañas, botones y filas de menú",
+    "  Rueda del ratón: desplaza la lista de hosts",
     "  En hosts: ↑↓ mover · ← menú superior · → acciones del host",
     "  Acciones del host (→): Conectar · Editar · Eliminar",
-    "  Enter conecta · escribir busca · / comandos (/connect, /conn, /help)",
+    "  Enter conecta · doble clic conecta · clic derecho abre acciones",
+    "  Escribir busca · / comandos (/connect, /conn, /help)",
     "  El alta/edición admite contraseña; se guarda como #!! encPassword",
     "  Pegar (Ctrl+Shift+V) en búsqueda, formularios y terminal según el foco",
     "  En menús y formularios: ↑↓←→ mover · Enter aceptar · Esc volver",
@@ -2629,8 +3332,20 @@ function renderHelp(): void {
     "  En Nmap: Enter confirma el escaneo · Esc cancela",
     "  La bienvenida se cierra con Enter; SSH05_NO_WELCOME=1 la omite",
     "",
-    "  Esc/Enter cerrar",
+  ]
+  const regions = addActionLine(lines, "Acciones", [
+    { label: "Cerrar", run: () => { helpVisible = false; uiDirty() } },
   ])
+  lines.push("", "  Esc/Enter cerrar · clic en [ Cerrar ] o en el título")
+  regions.push({
+    line: 1,
+    onClick: () => {
+      helpVisible = false
+      uiDirty()
+    },
+  })
+  setOverlayRegions("help", regions)
+  helpOverlay.content = styledOverlay(lines, -1, [1])
 }
 
 function renderNmapConfirm(): void {
@@ -2640,7 +3355,7 @@ function renderNmapConfirm(): void {
   }
   nmapOverlay.visible = true
   const host = currentFormHost()
-  nmapOverlay.content = padOverlay([
+  const lines = [
     "",
     "  Escaneo Nmap optativo",
     "",
@@ -2648,8 +3363,15 @@ function renderNmapConfirm(): void {
     `  Puertos: ${nmapPorts}▌`,
     "",
     "  Solo úsalo en redes autorizadas. Se ejecutará nmap -sT -Pn.",
-    "  Enter escanear · Esc cancelar · edita los puertos",
+    "",
+  ]
+  const regions = addActionLine(lines, "Acciones", [
+    { label: "Escanear", run: () => void runNmapScan() },
+    { label: "Cancelar", run: () => { nmapConfirmVisible = false; uiDirty() } },
   ])
+  lines.push("", "  Enter escanear · Esc cancelar · edita los puertos con el teclado · clic para elegir")
+  setOverlayRegions("nmap", regions)
+  nmapOverlay.content = styledOverlay(lines, 4, [1])
 }
 
 function openNmapConfirm(): void {
@@ -2765,28 +3487,75 @@ function renderTransfers(): void {
       `  ${form.direction === "upload" ? "Subir" : "Descargar"} archivo`,
       "",
       ...rows.map(([label, value], index) =>
-        `  ${form.field === index ? ">" : " "} ${label}: ${value}${form.field === index && caretOn ? "▌" : ""}`,
+        `  ${form.field === index ? "▸" : " "} ${label}: ${value}${form.field === index && caretOn ? "▌" : ""}`,
       ),
       "",
-      "  ↑↓←→ campo · Espacio cambia · Enter iniciar · Esc cancelar",
-      "  Ctrl+P protocolo · Ctrl+R recursivo",
     ]
-    transferOverlay.content = padOverlay(lines)
+    const regions: OverlayRegion[] = rows.map((_, index) => ({
+      line: 3 + index,
+      onHover: () => {
+        form.field = index
+      },
+      onClick: () => {
+        form.field = index
+        uiDirty()
+      },
+    }))
+    regions.push(...addActionLine(lines, "Acciones", [
+      { label: "Iniciar", run: () => void startTransferForm() },
+      { label: "Cancelar", run: () => { transferForm = null; uiDirty() } },
+    ]))
+    lines.push("  ↑↓←→ campo · Espacio cambia · Enter iniciar · Esc cancelar · clic para elegir")
+    lines.push("  Ctrl+P protocolo · Ctrl+R recursivo")
+    setOverlayRegions("transfer", regions)
+    transferOverlay.content = styledOverlay(lines, 3 + form.field, [1])
     return
   }
   const lines = ["", "  Transferencias", ""]
-  if (transfers.length === 0) lines.push("  Sin transferencias")
-  for (let index = 0; index < Math.min(transfers.length, 8); index++) {
+  const regions: OverlayRegion[] = []
+  const count = Math.min(transfers.length, 8)
+  if (count === 0) lines.push("  Sin transferencias")
+  for (let index = 0; index < count; index++) {
     const item = transfers[index]
-    const marker = index === transferCursor ? ">" : " "
     const arrow = item.direction === "upload" ? "→" : "←"
     const error = item.errorLabel ? ` · ${item.errorLabel}` : ""
+    const line = lines.length
     lines.push(
-      `  ${marker} ${item.state} ${item.protocol} ${item.localPath} ${arrow} ${item.remotePath}${error}`,
+      `  ${index === transferCursor ? "▸" : " "} ${item.state} ${item.protocol} ${item.localPath} ${arrow} ${item.remotePath}${error}`,
     )
+    regions.push({
+      line,
+      onHover: () => {
+        transferCursor = index
+      },
+      onClick: () => {
+        transferCursor = index
+        uiDirty()
+      },
+    })
   }
-  lines.push("", "  ↑↓←→ mover · u subir · d descargar · c cancelar · Esc cerrar")
-  transferOverlay.content = padOverlay(lines)
+  lines.push("")
+  regions.push(...addActionLine(lines, "Acciones", [
+    { label: "Subir", run: () => openTransferForm("upload") },
+    { label: "Descargar", run: () => openTransferForm("download") },
+    { label: "Cancelar", run: () => void cancelSelectedTransfer() },
+    { label: "Cerrar", run: closeTransfers },
+  ]))
+  lines.push("", "  ↑↓←→ mover · u subir · d descargar · c cancelar · Esc cerrar · clic para elegir")
+  setOverlayRegions("transfer", regions)
+  transferOverlay.content = styledOverlay(lines, count > 0 ? 3 + transferCursor : -1, [1])
+}
+
+async function cancelSelectedTransfer(): Promise<void> {
+  const item = transfers[transferCursor]
+  if (!item || !client) return
+  try {
+    await client.call("transfers.cancel", { transferId: item.transferId }, { timeoutMs: 5000 })
+    await refreshTransfers()
+  } catch (error) {
+    transientText = `Cancelar transferencia: ${String(error)}`
+    uiDirty()
+  }
 }
 
 async function refreshTransfers(): Promise<void> {
@@ -2924,17 +3693,16 @@ async function handleTransferKey(key: KeyEvent): Promise<void> {
     transferCursor = Math.max(0, transferCursor - 1)
   } else if (name === "down" || name === "right") {
     transferCursor = Math.min(Math.max(0, transfers.length - 1), transferCursor + 1)
-  } else if (name === "c" && transfers[transferCursor] && client) {
-    try {
-      await client.call(
-        "transfers.cancel",
-        { transferId: transfers[transferCursor].transferId },
-        { timeoutMs: 5000 },
-      )
-      await refreshTransfers()
-    } catch (error) {
-      transientText = `Cancelar transferencia: ${String(error)}`
-    }
+  } else if (name === "home") {
+    transferCursor = 0
+  } else if (name === "end") {
+    transferCursor = Math.max(0, transfers.length - 1)
+  } else if (name === "pageup") {
+    transferCursor = Math.max(0, transferCursor - 5)
+  } else if (name === "pagedown") {
+    transferCursor = Math.min(Math.max(0, transfers.length - 1), transferCursor + 5)
+  } else if (name === "c") {
+    await cancelSelectedTransfer()
   }
   uiDirty()
 }
@@ -2951,17 +3719,32 @@ function renderPreferences(): void {
     return
   }
   prefsOverlay.visible = true
-  const marker = (index: number) => (index === preferencesCursor ? ">" : " ")
-  prefsOverlay.content = padOverlay([
+  const marker = (index: number) => (index === preferencesCursor ? "▸" : " ")
+  const lines = [
     "",
     "  Preferencias",
     "",
-    `  ${marker(0)} Ancho del panel: ${preferences.hostPanelWidth}  (←/→)`,
-    `  ${marker(1)} Densidad: ${preferences.density}  (←/→)`,
-    `  ${marker(2)} Posición de pestañas: ${preferences.tabPosition}  (←/→)`,
+    `  ${marker(0)} Ancho del panel:      ◀ ${preferences.hostPanelWidth} ▶`,
+    `  ${marker(1)} Densidad:            ◀ ${preferences.density} ▶`,
+    `  ${marker(2)} Posición de pestañas: ◀ ${preferences.tabPosition} ▶`,
     "",
-    "  ↑↓←→ mover y ajustar · w ancho · d densidad · t pestañas · Enter/Esc cerrar",
-  ])
+    "  ↑↓←→ mover y ajustar · clic izquierda/derecha ajusta · w/d/t · Enter/Esc cerrar",
+  ]
+  setOverlayRegions(
+    "prefs",
+    [0, 1, 2].map((index) => ({
+      line: 3 + index,
+      onHover: () => {
+        preferencesCursor = index
+      },
+      onClick: (event) => {
+        preferencesCursor = index
+        const delta = event.x - prefsOverlay.x < renderer.width / 2 ? -1 : 1
+        adjustPreferences(index, delta)
+      },
+    })),
+  )
+  prefsOverlay.content = styledOverlay(lines, 3 + preferencesCursor, [1])
 }
 
 function applyTabPosition(): void {
@@ -2979,8 +3762,8 @@ function persistPreferences(): void {
 }
 
 function resizeTerminals(): void {
-  const cols = Math.max(20, renderer.width - hostPanelWidth)
-  const rows = Math.max(5, renderer.height - 2)
+  const cols = Math.max(20, renderer.width - hostPanelWidth - 2)
+  const rows = Math.max(5, renderer.height - 4)
   for (const view of sessions.values()) {
     scheduleResize(view.sessionId, cols, view.terminal.height || rows)
   }
@@ -3013,6 +3796,10 @@ function handlePreferencesKey(key: KeyEvent): void {
     preferencesCursor = (preferencesCursor + 2) % 3
   } else if (name === "down") {
     preferencesCursor = (preferencesCursor + 1) % 3
+  } else if (name === "home") {
+    preferencesCursor = 0
+  } else if (name === "end") {
+    preferencesCursor = 2
   } else if (name === "left") {
     adjustPreferences(preferencesCursor, -1)
   } else if (name === "right") {
@@ -3033,7 +3820,15 @@ function renderDiagnostics(): void {
     return
   }
   diagOverlay.visible = true
-  diagOverlay.content = padOverlay(diagContent.split("\n"))
+  const lines = diagContent.split("\n")
+  const titleLine = lines.findIndex((line) => line.trim().startsWith("Diagnóstico") || line.trim().startsWith("Red ·"))
+  lines.push("")
+  const regions = addActionLine(lines, "Acciones", [
+    { label: "Cerrar", run: () => { diagVisible = false; uiDirty() } },
+  ])
+  lines.push("", "  Esc/Enter cerrar · clic en [ Cerrar ]")
+  setOverlayRegions("diag", regions)
+  diagOverlay.content = styledOverlay(lines, -1, titleLine >= 0 ? [titleLine] : [1])
 }
 
 function renderLabelsEditor(): void {
@@ -3042,14 +3837,23 @@ function renderLabelsEditor(): void {
     return
   }
   labelsOverlay.visible = true
-  labelsOverlay.content = padOverlay([
-    "",
-    "  Etiquetas del host",
-    "",
-    `  ${labelsInput}▌`,
-    "",
-    "  Enter guardar · Esc cancelar",
+  const lines = ["", "  Etiquetas del host", "", `  ${labelsInput}▌`, ""]
+  const regions = addActionLine(lines, "Acciones", [
+    { label: "Guardar", run: () => void saveLabels() },
+    { label: "Cancelar", run: () => { labelsEditing = false; uiDirty() } },
   ])
+  lines.push("", "  Enter guardar · Esc cancelar · clic para elegir")
+  setOverlayRegions("labels", regions)
+  labelsOverlay.content = styledOverlay(lines, 3, [1])
+}
+
+async function saveLabels(): Promise<void> {
+  if (!client) return
+  const labels = labelsInput.split(/\s+/).filter(Boolean)
+  const hostID = labelsHostID
+  labelsEditing = false
+  await applyHostOverride(hostID, { labels })
+  uiDirty()
 }
 
 function renderFRP(): void {
@@ -3061,22 +3865,41 @@ function renderFRP(): void {
   if (frpForm) {
     const form = frpForm
     const fields = [
-      `  Nombre: ${form.name}`,
-      `  Tipo: ${form.type}  (Espacio/t)`,
-      `  Service port: ${form.servicePort}`,
-      `  Remote port: ${form.remotePort}`,
-      `  Bind port (visitor STCP/XTCP): ${form.bindPort}`,
-      `  Exposición: ${form.type === "tcp" || form.type === "udp" ? "PÚBLICA en frps" : "privada (visitor)"}`,
+      `Nombre: ${form.name}`,
+      `Tipo: ${form.type}  (Espacio/t)`,
+      `Service port: ${form.servicePort}`,
+      `Remote port: ${form.remotePort}`,
+      `Bind port (visitor STCP/XTCP): ${form.bindPort}`,
+      `Exposición: ${form.type === "tcp" || form.type === "udp" ? "PÚBLICA en frps" : "privada (visitor)"}`,
     ]
     const lines = ["", "  Nuevo proxy FRP", ""]
-    fields.forEach((line, index) =>
-      lines.push(`  ${index === form.field ? ">" : " "}${line}${index === form.field && caretOn ? "▌" : ""}`),
-    )
-    lines.push("", "  ↑↓←→ campo · Espacio cambia tipo · Enter aplicar · Esc cancelar")
-    frpOverlay.content = padOverlay(lines)
+    const regions: OverlayRegion[] = []
+    fields.forEach((line, index) => {
+      const row = lines.length
+      lines.push(`  ${index === form.field ? "▸" : " "} ${line}${index === form.field && caretOn ? "▌" : ""}`)
+      regions.push({
+        line: row,
+        onHover: () => {
+          form.field = index
+        },
+        onClick: () => {
+          form.field = index
+          uiDirty()
+        },
+      })
+    })
+    lines.push("")
+    regions.push(...addActionLine(lines, "Acciones", [
+      { label: "Aplicar", run: () => void applyFrpForm() },
+      { label: "Cancelar", run: () => { frpForm = null; uiDirty() } },
+    ]))
+    lines.push("", "  ↑↓←→ campo · Espacio cambia tipo · Enter aplicar · Esc cancelar · clic para elegir")
+    setOverlayRegions("frp", regions)
+    frpOverlay.content = styledOverlay(lines, 3 + form.field, [1])
     return
   }
   const lines = ["", "  FRP · endpoints", ""]
+  const regions: OverlayRegion[] = []
   if (frpEndpoints.length === 0) lines.push("  Sin endpoints configurados")
   for (const endpoint of frpEndpoints) {
     const kind = endpoint.managed ? "local" : "remoto"
@@ -3087,10 +3910,10 @@ function renderFRP(): void {
     lines.push(`   ${state} ${kind} ${endpoint.address}:${endpoint.port}${stats}`)
   }
   lines.push("", "  FRP · proxies", "")
+  let proxyStart = lines.length
   if (frpProxies.length === 0) lines.push("  Sin proxies configurados")
   for (let index = 0; index < frpProxies.length; index++) {
     const proxy = frpProxies[index]
-    const marker = index === frpCursor ? ">" : " "
     const target =
       proxy.type === "stcp" || proxy.type === "xtcp"
         ? proxy.bindPort
@@ -3099,10 +3922,33 @@ function renderFRP(): void {
         : `${proxy.servicePort} → ${proxy.remotePort}`
     const stats = proxy.pid ? ` pid=${proxy.pid} up=${proxy.uptimeSeconds ?? 0}s` : ""
     const error = proxy.lastErrorLabel ? ` · ${proxy.lastErrorLabel}` : ""
-    lines.push(`  ${marker} ${proxy.state} ${proxy.name} [${proxy.type}] ${target}${stats}${error}`)
+    const line = lines.length
+    lines.push(`  ${index === frpCursor ? "▸" : " "} ${proxy.state} ${proxy.name} [${proxy.type}] ${target}${stats}${error}`)
+    regions.push({
+      line,
+      onHover: () => {
+        frpCursor = index
+        frpDeleteArmed = ""
+      },
+      onClick: () => {
+        frpCursor = index
+        frpDeleteArmed = ""
+        uiDirty()
+      },
+    })
   }
-  lines.push("", "  ↑↓←→ mover · n nuevo · d parar · x eliminar · s iniciar/parar frps · r rotar token · Esc cerrar")
-  frpOverlay.content = padOverlay(lines)
+  lines.push("")
+  regions.push(...addActionLine(lines, "Acciones", [
+    { label: "Nuevo", run: openFRPForm },
+    { label: "Parar", run: () => void stopSelectedFRP() },
+    { label: "Eliminar", run: () => void removeSelectedFRP() },
+    { label: "frps", run: () => void toggleLocalFrps() },
+    { label: "Rotar token", run: () => void rotateFRPToken() },
+    { label: "Cerrar", run: closeFRP },
+  ]))
+  lines.push("", "  ↑↓←→ mover · n nuevo · d parar · x eliminar · s frps · r rotar · Esc cerrar · clic para elegir")
+  setOverlayRegions("frp", regions)
+  frpOverlay.content = styledOverlay(lines, frpProxies.length > 0 ? proxyStart + frpCursor : -1, [1])
 }
 
 async function refreshFRP(): Promise<void> {
@@ -3129,6 +3975,87 @@ function closeFRP(): void {
   frpVisible = false
   frpForm = null
   uiDirty()
+}
+
+function openFRPForm(): void {
+  const host = currentFormHost()
+  frpForm = {
+    field: 0,
+    name: host ? `proxy-${host.alias}` : "proxy",
+    type: "tcp",
+    servicePort: host ? String(host.target.port) : "22",
+    remotePort: "",
+    bindPort: "",
+  }
+  uiDirty()
+}
+
+async function stopSelectedFRP(): Promise<void> {
+  const proxy = frpProxies[frpCursor]
+  if (!proxy || !client) return
+  try {
+    await client.call("frp.proxies.stop", { proxyId: proxy.id }, { timeoutMs: 5000 })
+    await refreshFRP()
+  } catch (error) {
+    transientText = `FRP stop: ${String(error)}`
+    uiDirty()
+  }
+}
+
+async function removeSelectedFRP(): Promise<void> {
+  const proxy = frpProxies[frpCursor]
+  if (!proxy || !client) return
+  if (frpDeleteArmed !== proxy.id) {
+    frpDeleteArmed = proxy.id
+    transientText = `FRP: pulsa Eliminar otra vez para borrar ${proxy.name}`
+    uiDirty()
+    return
+  }
+  try {
+    await client.call("frp.proxies.remove", { proxyId: proxy.id }, { timeoutMs: 8000 })
+    frpDeleteArmed = ""
+    await refreshFRP()
+    transientText = `FRP: ${proxy.name} eliminado`
+  } catch (error) {
+    transientText = `FRP remove: ${String(error)}`
+  }
+  uiDirty()
+}
+
+async function toggleLocalFrps(): Promise<void> {
+  if (!client) return
+  const endpoint = frpEndpoints.find((item) => item.managed)
+  if (!endpoint) {
+    transientText = "FRP: no hay frps local gestionado"
+    uiDirty()
+    return
+  }
+  try {
+    if (endpoint.state === "online") {
+      await client.call("frp.servers.stop", { endpointId: endpoint.id }, { timeoutMs: 10_000 })
+      transientText = "FRP: frps detenido"
+    } else {
+      await client.call("frp.servers.start", { endpointId: endpoint.id }, { timeoutMs: 15_000 })
+      transientText = "FRP: frps iniciado"
+    }
+    await refreshFRP()
+  } catch (error) {
+    transientText = `FRP frps: ${String(error)}`
+    uiDirty()
+  }
+}
+
+async function rotateFRPToken(): Promise<void> {
+  const endpoint = frpEndpoints[0]
+  if (!endpoint || !client) return
+  try {
+    await client.call("frp.tokens.rotate", { endpointId: endpoint.id }, { timeoutMs: 15_000 })
+    await refreshFRP()
+    transientText = "FRP: token rotado"
+  } catch (error) {
+    transientText = `FRP rotate: ${String(error)}`
+    uiDirty()
+  }
 }
 
 function currentFormHost(): HostProfile | undefined {
@@ -3213,64 +4140,28 @@ async function handleFRPKey(key: KeyEvent): Promise<void> {
   } else if (name === "down" || name === "right") {
     frpCursor = Math.min(Math.max(0, frpProxies.length - 1), frpCursor + 1)
     frpDeleteArmed = ""
+  } else if (name === "home") {
+    frpCursor = 0
+    frpDeleteArmed = ""
+  } else if (name === "end") {
+    frpCursor = Math.max(0, frpProxies.length - 1)
+    frpDeleteArmed = ""
+  } else if (name === "pageup") {
+    frpCursor = Math.max(0, frpCursor - 5)
+    frpDeleteArmed = ""
+  } else if (name === "pagedown") {
+    frpCursor = Math.min(Math.max(0, frpProxies.length - 1), frpCursor + 5)
+    frpDeleteArmed = ""
   } else if (name === "n") {
-    const host = currentFormHost()
-    frpForm = {
-      field: 0,
-      name: host ? `proxy-${host.alias}` : "proxy",
-      type: "tcp",
-      servicePort: host ? String(host.target.port) : "22",
-      remotePort: "",
-      bindPort: "",
-    }
+    openFRPForm()
   } else if (name === "x" && frpProxies[frpCursor] && client) {
-    const proxy = frpProxies[frpCursor]
-    if (frpDeleteArmed !== proxy.id) {
-      frpDeleteArmed = proxy.id
-      transientText = `FRP: pulsa x otra vez para eliminar ${proxy.name}`
-    } else {
-      try {
-        await client.call("frp.proxies.remove", { proxyId: proxy.id }, { timeoutMs: 8000 })
-        frpDeleteArmed = ""
-        await refreshFRP()
-        transientText = `FRP: ${proxy.name} eliminado`
-      } catch (error) {
-        transientText = `FRP remove: ${String(error)}`
-      }
-    }
+    await removeSelectedFRP()
   } else if (name === "d" && frpProxies[frpCursor] && client) {
-    try {
-      await client.call("frp.proxies.stop", { proxyId: frpProxies[frpCursor].id }, { timeoutMs: 5000 })
-      await refreshFRP()
-    } catch (error) {
-      transientText = `FRP stop: ${String(error)}`
-    }
+    await stopSelectedFRP()
   } else if (name === "s" && client) {
-    const endpoint = frpEndpoints.find((item) => item.managed)
-    if (!endpoint) {
-      transientText = "FRP: no hay frps local gestionado"
-    } else {
-      try {
-        if (endpoint.state === "online") {
-          await client.call("frp.servers.stop", { endpointId: endpoint.id }, { timeoutMs: 10_000 })
-          transientText = "FRP: frps detenido"
-        } else {
-          await client.call("frp.servers.start", { endpointId: endpoint.id }, { timeoutMs: 15_000 })
-          transientText = "FRP: frps iniciado"
-        }
-        await refreshFRP()
-      } catch (error) {
-        transientText = `FRP frps: ${String(error)}`
-      }
-    }
+    await toggleLocalFrps()
   } else if (name === "r" && frpEndpoints[0] && client) {
-    try {
-      await client.call("frp.tokens.rotate", { endpointId: frpEndpoints[0].id }, { timeoutMs: 15_000 })
-      await refreshFRP()
-      transientText = "FRP: token rotado"
-    } catch (error) {
-      transientText = `FRP rotate: ${String(error)}`
-    }
+    await rotateFRPToken()
   }
   uiDirty()
 }

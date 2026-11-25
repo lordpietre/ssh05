@@ -78,6 +78,19 @@ func tmuxSessionExists(client ssh05.SshClient, sessionName string) bool {
 	return err == nil
 }
 
+// supervisorHostKeyPrompt never reads /dev/tty. It converts an unknown key
+// into a typed IPC challenge for the UI, even when ssh05d was started from a
+// terminal.
+func supervisorHostKeyPrompt(host string, key ssh.PublicKey, knownHostsPath string) error {
+	return &ssh05.HostKeyUnknownError{
+		Host:           host,
+		KeyType:        ssh05.HostKeyType(key),
+		Fingerprint:    ssh.FingerprintSHA256(key),
+		KnownHostsPath: knownHostsPath,
+		CanTrust:       true,
+	}
+}
+
 // SSHRunner starts sessions with the in-repo Go SSH client.
 type SSHRunner struct {
 	Config SSHConfig
@@ -94,8 +107,10 @@ func (r *SSHRunner) Start(ctx context.Context, profileID string, cols, rows int,
 	}
 
 	client, err := ssh05.SshLogin(&ssh05.SshArgs{
-		Destination: destination,
-		ConfigFile:  r.Config.ConfigPath,
+		Destination:    destination,
+		ConfigFile:     r.Config.ConfigPath,
+		HostKeyPrompt:  supervisorHostKeyPrompt,
+		NonInteractive: true,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("supervisor: ssh login %q: %w", profileID, err)

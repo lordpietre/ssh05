@@ -260,12 +260,12 @@ send C-1
 sleep 0.3
 send 'echo UI_TAB1_ALIVE; stty size' Enter
 assert_contains "UI_TAB1_ALIVE" "tab 1 accepts commands"
-assert_contains "33 90" "tab 1 PTY size is 90x33"
+assert_contains "30 88" "tab 1 PTY size is 88x30"
 
 "$TMUX" resize-window -t "$SESSION" -x 100 -y 30
 sleep 0.8
 send 'stty size' Enter
-assert_contains "27 70" "resize reaches the SSH PTY through the supervisor"
+assert_contains "24 68" "resize reaches the SSH PTY through the supervisor"
 
 send C-2
 sleep 0.3
@@ -280,7 +280,7 @@ assert_contains "UI_TAB1_SURVIVES" "background tab 1 survived tab 2"
 send C-2
 sleep 0.3
 send C-w
-assert_contains "Cerrar pestaña" "close dialog shows the close intents"
+assert_contains "Cerrar conexión" "close dialog shows the close intents"
 send Enter
 assert_not_contains "[2 ● ssh05-ui-2]" "closing tab 2 removes only that tab"
 assert_contains "1 ● ssh05-ui-1" "tab 1 remains in the tab bar"

@@ -559,12 +559,12 @@ func connectViaProxyJump(param *sshParam, config *ssh.ClientConfig) (SshClient, 
 	network, _, _ := getNetworkAddressFamily(param.args)
 	conn, err := param.proxy.client.DialTimeout(network, param.addr, config.Timeout)
 	if err != nil {
-		return nil, fmt.Errorf("proxy jump [%s] dial [%s] [%s] failed: %v", param.proxy.name, network, param.addr, err)
+		return nil, fmt.Errorf("proxy jump [%s] dial [%s] [%s] failed: %w", param.proxy.name, network, param.addr, err)
 	}
 	param.setNetworkAddressFamily(conn)
 	ncc, chans, reqs, err := ssh.NewClientConn(&connWithTimeout{conn, config.Timeout, true}, param.addr, config)
 	if err != nil {
-		return nil, fmt.Errorf("proxy jump [%s] new conn [%s] failed: %v", param.proxy.name, param.addr, err)
+		return nil, fmt.Errorf("proxy jump [%s] new conn [%s] failed: %w", param.proxy.name, param.addr, err)
 	}
 	debug("login to [%s] via proxy jump [%s] success", param.args.Destination, param.proxy.name)
 	addOnExitFunc(func() {
@@ -582,7 +582,7 @@ func connectViaProxyCommand(param *sshParam, config *ssh.ClientConfig) (SshClien
 	}
 	ncc, chans, reqs, err := ssh.NewClientConn(conn, param.addr, config)
 	if err != nil {
-		return nil, fmt.Errorf("proxy command [%s] new conn [%s] failed: %v", cmd, param.addr, err)
+		return nil, fmt.Errorf("proxy command [%s] new conn [%s] failed: %w", cmd, param.addr, err)
 	}
 	debug("login to [%s] via proxy command [%s] success", param.args.Destination, cmd)
 	return sshNewClient(ncc, chans, reqs), nil
@@ -597,12 +597,12 @@ func connectDirectly(param *sshParam, config *ssh.ClientConfig) (SshClient, erro
 	network, _, _ := getNetworkAddressFamily(param.args)
 	conn, err := dialer.Dial(network, param.addr)
 	if err != nil {
-		return nil, fmt.Errorf("login to [%s] dial [%s] [%s] failed: %v", param.args.Destination, network, param.addr, err)
+		return nil, fmt.Errorf("login to [%s] dial [%s] [%s] failed: %w", param.args.Destination, network, param.addr, err)
 	}
 	param.setNetworkAddressFamily(conn)
 	ncc, chans, reqs, err := ssh.NewClientConn(&connWithTimeout{conn, config.Timeout, true}, param.addr, config)
 	if err != nil {
-		return nil, fmt.Errorf("login to [%s] new conn [%s] failed: %v", param.args.Destination, param.addr, err)
+		return nil, fmt.Errorf("login to [%s] new conn [%s] failed: %w", param.args.Destination, param.addr, err)
 	}
 	debug("login to [%s] success", param.args.Destination)
 	return sshNewClient(ncc, chans, reqs), nil
@@ -646,7 +646,7 @@ func tcpLogin(param *sshParam, proxy *proxyJump, requireUDP udpModeType) (SshCli
 	// has proxies
 	udpModes := make([]udpModeType, len(param.proxies))
 	for i := len(param.proxies) - 1; i >= 0; i-- { // init proxy udp mode
-		proxyArgs := &sshArgs{Destination: param.proxies[i]}
+		proxyArgs := &sshArgs{Destination: param.proxies[i], hostKeyPrompt: param.args.hostKeyPrompt}
 		udpMode := getUdpMode(proxyArgs)
 		if requireUDP != kUdpModeNo && udpMode == kUdpModeNo {
 			udpMode = requireUDP
@@ -658,7 +658,7 @@ func tcpLogin(param *sshParam, proxy *proxyJump, requireUDP udpModeType) (SshCli
 		udpModes[i] = udpMode
 	}
 	for i, proxyName := range param.proxies { // proxy login
-		proxyParam, err := getSshParam(&sshArgs{Destination: proxyName}, true)
+		proxyParam, err := getSshParam(&sshArgs{Destination: proxyName, hostKeyPrompt: param.args.hostKeyPrompt}, true)
 		if err != nil {
 			return nil, err
 		}

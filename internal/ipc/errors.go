@@ -15,6 +15,11 @@ const (
 	CodeInternal        = -32603
 	CodeUnauthorized    = -32000
 	CodeVersionMismatch = -32001
+	// CodeHostKeyUnknown asks the UI to confirm a new server host key.
+	CodeHostKeyUnknown = -32010
+	// CodeHostKeyChanged reports a key that differs from known_hosts. It must
+	// never be auto-trusted.
+	CodeHostKeyChanged = -32011
 )
 
 var (

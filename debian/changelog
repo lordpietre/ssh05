@@ -1,4 +1,18 @@
-ssh05 (0.3.30) unstable; urgency=medium
+ssh05 (0.40.0) unstable; urgency=medium
+
+  * Host keys: el supervisor ya no usa /dev/tty; una clave nueva se confirma
+    desde la UI y solo se guarda la huella aprobada con hosts.trustKey.
+  * Host keys cambiadas se rechazan y nunca se sobrescribe known_hosts.
+  * UI: navegación completa con ratón en hosts, pestañas, menús, formularios y
+    botones; doble clic conecta y la rueda desplaza.
+  * Cada sesión SSH se muestra en una ventana con cabecera y botón × para
+    cerrar la conexión; clic derecho en × ofrece las opciones de cierre.
+  * Menús más visuales: filas resaltadas, iconos, descripciones, acciones
+    clicables, scroll y navegación con Home/End/PageUp/PageDown.
+
+ -- Dinámicas Electrónicas <dinamicas.electronicas@gmail.com>  Wed, 25 Nov 2026 19:00:00 +0100
+
+
 
   * El alias se puede renombrar desde Editar; hosts.update acepta
     previousAlias y reescribe el bloque Host.

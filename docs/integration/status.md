@@ -2,8 +2,8 @@
 
 | Campo | Valor |
 |---|---|
-| Fecha | 23/11/2026 |
-| Commit base | `fd1d78a` |
+| Fecha | 25/11/2026 |
+| Commit base | `a437e79` + cambios 0.40.0 |
 | Documento | `SSH05_SDD_v0.3.md` |
 | Fase actual | **P0 + P1 cerrados**; **P2 funcional cerrado** |
 
@@ -101,6 +101,11 @@
 | Alta de hosts desde la UI | **Hecho** | `hosts.create`, `Ctrl+N` |
 | Servicio de usuario y Docker opt-in | **Hecho** | `ssh05d.service`, `--docker` |
 | tmux solo se reengancha si existe | **Hecho** | `TmuxCreate=false`, sonda `has-session`, prueba real |
+| Host key nueva sin TTY | **Hecho** | `host_key_unknown` + diálogo UI; `hosts.trustKey` fija la huella y escribe `known_hosts` |
+| Host key cambiada | **Hecho** | `host_key_changed`; nunca se sobrescribe `known_hosts` |
+| Ratón en hosts y pestañas | **Hecho** | clic/doble clic/clic derecho/rueda; `tabBarHitTest` con tests |
+| Ratón en menús y formularios | **Hecho** | regiones clicables, hover, botones `[ Acción ]` y scroll |
+| Ventana SSH con `×` | **Hecho** | cabecera con estado; cierre directo y menú de cierre con clic derecho |
 | FRP real de extremo a extremo | **Hecho** | `scripts/ssh05d-frp-smoke.sh`: TCP/UDP/STCP; XTCP condicional a STUN |
 | `SessionBackend` y `TabStore` | Definidos | `contracts/session.go`, `contracts/ts/index.ts` |
 | Envelope IPC y métodos del Anexo B | Definidos | `contracts/ipc.go`, `contracts/ts/index.ts` |
@@ -113,7 +118,7 @@
 
 Releases publicados: <https://github.com/lordpietre/ssh05/releases> (`v0.3.18`
 identidad, `v0.3.19` trzsz/Zmodem, `v0.3.20` paquete autosuficiente,
-`v0.3.21` Docker opt-in, `v0.3.22` flechas, `v0.3.23` overlays opacos, `v0.3.24` solo flechas, `v0.3.25` pegado, `v0.3.26` contraseña enc, `v0.3.27` UI por defecto, `v0.3.28` menú/agrupación/bienvenida/`/connect`, `v0.3.29` edición/borrado, `v0.3.30` renombrado/cursor).
+`v0.3.21` Docker opt-in, `v0.3.22` flechas, `v0.3.23` overlays opacos, `v0.3.24` solo flechas, `v0.3.25` pegado, `v0.3.26` contraseña enc, `v0.3.27` UI por defecto, `v0.3.28` menú/agrupación/bienvenida/`/connect`, `v0.3.29` edición/borrado, `v0.3.30` renombrado/cursor, `v0.40.0` host keys sin TTY, ventana SSH y navegación con ratón).
 
 ## Invariantes que no se negocian
 

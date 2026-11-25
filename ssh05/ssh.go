@@ -208,6 +208,15 @@ type SshArgs struct {
 
 	// TsshdPort specifies the port or port range that tsshd listens on
 	TsshdPort string
+
+	// HostKeyPrompt handles an unknown host key without using /dev/tty.
+	// The supervisor uses it to request an explicit decision from the UI.
+	HostKeyPrompt HostKeyPrompt
+
+	// NonInteractive forbids reading /dev/tty for passwords, passphrases,
+	// host keys or keyboard-interactive questions. Configured secrets and
+	// commands remain available. The supervisor always sets it.
+	NonInteractive bool
 }
 
 // SshLogin logs in to the remote server and creates a Client.
@@ -229,23 +238,27 @@ func SshLogin(args *SshArgs) (SshClient, error) {
 	}
 	defer releaseConfig()
 
+	releaseInput := enterNonInteractive(args.NonInteractive)
+	defer releaseInput()
+
 	sshConn, err := sshConnect(&sshArgs{
-		NoCommand:   true,
-		Destination: args.Destination,
-		IPv4Only:    args.IPv4Only,
-		IPv6Only:    args.IPv6Only,
-		Port:        args.Port,
-		LoginName:   args.LoginName,
-		Identity:    multiStr{args.Identity},
-		CipherSpec:  args.CipherSpec,
-		ConfigFile:  args.ConfigFile,
-		ProxyJump:   args.ProxyJump,
-		Option:      sshOption{options},
-		Debug:       args.Debug,
-		UDP:         args.UDP,
-		KCP:         args.KCP,
-		TsshdPath:   args.TsshdPath,
-		TsshdPort:   args.TsshdPort,
+		NoCommand:     true,
+		Destination:   args.Destination,
+		IPv4Only:      args.IPv4Only,
+		IPv6Only:      args.IPv6Only,
+		Port:          args.Port,
+		LoginName:     args.LoginName,
+		Identity:      multiStr{args.Identity},
+		CipherSpec:    args.CipherSpec,
+		ConfigFile:    args.ConfigFile,
+		ProxyJump:     args.ProxyJump,
+		Option:        sshOption{options},
+		Debug:         args.Debug,
+		UDP:           args.UDP,
+		KCP:           args.KCP,
+		TsshdPath:     args.TsshdPath,
+		TsshdPort:     args.TsshdPort,
+		hostKeyPrompt: args.HostKeyPrompt,
 	})
 	if err != nil {
 		return nil, err

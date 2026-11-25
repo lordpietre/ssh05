@@ -107,6 +107,7 @@ type sshArgs struct {
 	DownloadPath   string      `arg:"--download-path" placeholder:"path" help:"[tools] the local saving path for downloading"`
 	ConfigHelp     bool        `arg:"--help-config" help:"show ~/.tssh.conf configuration reference"`
 	originalDest   string
+	hostKeyPrompt  HostKeyPrompt
 }
 
 func (sshArgs) Description() string {

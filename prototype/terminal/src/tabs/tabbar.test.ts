@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test"
 import type { TabState } from "../../../../contracts/ts/index.ts"
-import { renderTabBar, renderTabBarStyled } from "./tabbar.ts"
+import { renderTabBar, renderTabBarStyled, tabBarHitTest } from "./tabbar.ts"
 import { StyledText } from "@opentui/core"
 import { resetColorLevel } from "../theme/color.ts"
 
@@ -94,5 +94,35 @@ describe("renderTabBarStyled", () => {
       else process.env.NO_COLOR = previous
       resetColorLevel()
     }
+  })
+})
+
+describe("tabBarHitTest", () => {
+  test("maps a click to the tab under the cursor", () => {
+    const options = { tabs: tabs(3), activeId: "tab-2", width: 120 }
+    const text = renderTabBar(options)
+    const column = text.indexOf("[2 ● host-2]") + 2
+    expect(tabBarHitTest(options, column)).toEqual({ kind: "tab", id: "tab-2" })
+  })
+
+  test("maps overflow counters", () => {
+    const options = { tabs: tabs(10), activeId: "tab-6", width: 80 }
+    const text = renderTabBar(options)
+    expect(tabBarHitTest(options, text.indexOf("‹"))).toEqual({ kind: "hidden-left" })
+    expect(tabBarHitTest(options, text.indexOf("›"))).toEqual({ kind: "hidden-right" })
+  })
+
+  test("returns undefined outside tabs and for an empty bar", () => {
+    const options = { tabs: tabs(1), activeId: "tab-1", width: 80 }
+    expect(tabBarHitTest(options, 0)).toBeUndefined()
+    expect(tabBarHitTest({ tabs: [], width: 80 }, 10)).toBeUndefined()
+  })
+
+  test("hits a truncated active tab on very narrow terminals", () => {
+    const list = tabs(1)
+    list[0].title = "a".repeat(100)
+    const options = { tabs: list, activeId: "tab-1", width: 24 }
+    const text = renderTabBar(options)
+    expect(tabBarHitTest(options, text.indexOf("["))).toEqual({ kind: "tab", id: "tab-1" })
   })
 })

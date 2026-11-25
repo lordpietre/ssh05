@@ -130,7 +130,8 @@ func main() {
 	defer transferManager.Close()
 	service := supervisor.NewService(backend, inventory,
 		supervisor.WithAudit(logger), supervisor.WithFRP(frpManager),
-		supervisor.WithTransfers(transferManager), supervisor.WithNmap(*nmapBin))
+		supervisor.WithTransfers(transferManager), supervisor.WithNmap(*nmapBin),
+		supervisor.WithSSHConfig(*sshConfig))
 	server, err := ipc.Listen(*socket, service)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "ssh05d: %v\n", err)

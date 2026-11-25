@@ -251,6 +251,10 @@ export interface RpcError {
   data?: unknown
 }
 
+/** Typed IPC error codes shared with internal/ipc/errors.go. */
+export const RPC_CODE_HOST_KEY_UNKNOWN = -32010
+export const RPC_CODE_HOST_KEY_CHANGED = -32011
+
 export interface RpcRequest<P = unknown> {
   protocolVersion: ProtocolVersion
   requestId: RequestId
@@ -326,6 +330,29 @@ export interface HostUpdateParams {
 
 export interface HostDeleteParams {
   alias: string
+}
+
+/** Returned when a server host key is not in known_hosts. */
+export interface HostKeyChallenge {
+  host: string
+  keyType: string
+  fingerprint: string
+  knownHostsPath?: string
+  /** False when StrictHostKeyChecking=yes forbids adding the key. */
+  canTrust: boolean
+}
+
+/** Pins the exact fingerprint the user approved. */
+export interface HostsTrustKeyParams {
+  hostProfileId: string
+  fingerprint: string
+}
+
+export interface HostsTrustKeyResult {
+  host: string
+  keyType: string
+  fingerprint: string
+  knownHostsPath?: string
 }
 
 export interface HostOverridePatch {
@@ -632,6 +659,7 @@ export interface MethodContracts {
   "hosts.create": { params: HostCreateParams; result: HostProfile }
   "hosts.update": { params: HostUpdateParams; result: HostProfile }
   "hosts.delete": { params: HostDeleteParams; result: void }
+  "hosts.trustKey": { params: HostsTrustKeyParams; result: HostsTrustKeyResult }
   "hosts.resolve": { params: HostsListParams; result: RoutesPlanResult }
   "sessions.open": { params: SessionsOpenParams; result: SessionsOpenResult }
   "sessions.write": { params: SessionsWriteParams; result: void }
@@ -675,6 +703,9 @@ export const IPC_METHODS = [
   "hosts.resolve",
   "hosts.overrides.set",
   "hosts.create",
+  "hosts.update",
+  "hosts.delete",
+  "hosts.trustKey",
   "sessions.open",
   "sessions.write",
   "sessions.resize",

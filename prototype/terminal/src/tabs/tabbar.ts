@@ -121,8 +121,7 @@ export function renderTabBar(options: TabBarOptions): string {
  * the terminal palette (truecolor → 256 → 16) and `NO_COLOR`/`SSH05_THEME=mono`
  * yield a plain, monochrome string.
  */
-export function renderTabBarStyled(options: TabBarOptions): StyledText | string {
-  const level = colorLevel()
+export function renderTabBarStyled(options: TabBarOptions): StyledText | string {  const level = colorLevel()
   if (level === "none") return renderTabBar(options)
   const window = computeWindow(options)
   if (!window) return renderTabBar(options)
@@ -195,6 +194,7 @@ function computeWindow(options: TabBarOptions): TabBarWindow | undefined {
   const budget = Math.max(4, width - widthOf(prefix) - widthOf(suffix) - 2)
   const active = tabs[activeIndex]
   const label = `[${activeIndex + 1} ${phaseIcon(active.phase)} ${truncateTabTitle(active.title, budget - 4)}]`
+  labels[activeIndex] = label
   return {
     prefix,
     suffix,
@@ -210,4 +210,37 @@ function computeWindow(options: TabBarOptions): TabBarWindow | undefined {
 function fit(value: string, width: number): string {
   if (widthOf(value) <= width) return value
   return Array.from(value).slice(0, width).join("")
+}
+
+export type TabBarHit =
+  | { kind: "tab"; id: TabId }
+  | { kind: "hidden-left" }
+  | { kind: "hidden-right" }
+
+/**
+ * Maps a mouse column in the tab bar to a tab or to the hidden-tab counters.
+ * It uses the same window layout as renderTabBarStyled.
+ */
+export function tabBarHitTest(options: TabBarOptions, x: number): TabBarHit | undefined {
+  const window = computeWindow(options)
+  if (!window) return undefined
+  let cursor = widthOf(window.prefix)
+  const leftWidth = widthOf(window.leftHidden)
+  if (leftWidth > 0) {
+    if (x >= cursor && x < cursor + leftWidth) return { kind: "hidden-left" }
+    cursor += leftWidth
+  }
+  for (let index = window.start; index <= window.end; index++) {
+    if (index > window.start) cursor += 1
+    const label = window.labels[index] ?? ""
+    const labelWidth = widthOf(label)
+    if (x >= cursor && x < cursor + labelWidth) {
+      const tab = options.tabs[index]
+      return tab ? { kind: "tab", id: tab.id } : undefined
+    }
+    cursor += labelWidth
+  }
+  const rightWidth = widthOf(window.rightHidden)
+  if (rightWidth > 0 && x >= cursor && x < cursor + rightWidth) return { kind: "hidden-right" }
+  return undefined
 }

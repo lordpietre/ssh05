@@ -24,6 +24,7 @@ const (
 	MethodHostsCreate        Method = "hosts.create"
 	MethodHostsUpdate        Method = "hosts.update"
 	MethodHostsDelete        Method = "hosts.delete"
+	MethodHostsTrustKey      Method = "hosts.trustKey"
 	MethodSessionsOpen       Method = "sessions.open"
 	MethodSessionsWrite      Method = "sessions.write"
 	MethodSessionsResize     Method = "sessions.resize"
@@ -64,6 +65,7 @@ var validMethods = map[Method]struct{}{
 	MethodHostsCreate:        {},
 	MethodHostsUpdate:        {},
 	MethodHostsDelete:        {},
+	MethodHostsTrustKey:      {},
 	MethodSessionsOpen:       {},
 	MethodSessionsWrite:      {},
 	MethodSessionsResize:     {},
@@ -198,6 +200,31 @@ type HostUpdateParams struct {
 
 type HostDeleteParams struct {
 	Alias string `json:"alias"`
+}
+
+// HostKeyChallenge is returned when the supervisor cannot verify a server
+// host key. The UI must show the fingerprint and ask the user before calling
+// hosts.trustKey. It never contains private key material.
+type HostKeyChallenge struct {
+	Host           string `json:"host"`
+	KeyType        string `json:"keyType"`
+	Fingerprint    string `json:"fingerprint"`
+	KnownHostsPath string `json:"knownHostsPath,omitempty"`
+	CanTrust       bool   `json:"canTrust"`
+}
+
+// HostsTrustKeyParams pins the exact fingerprint the user approved. The
+// supervisor re-probes the server and refuses to write a different key.
+type HostsTrustKeyParams struct {
+	HostProfileID string `json:"hostProfileId"`
+	Fingerprint   string `json:"fingerprint"`
+}
+
+type HostsTrustKeyResult struct {
+	Host           string `json:"host"`
+	KeyType        string `json:"keyType"`
+	Fingerprint    string `json:"fingerprint"`
+	KnownHostsPath string `json:"knownHostsPath,omitempty"`
 }
 
 type HostOverridePatch struct {

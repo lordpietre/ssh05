@@ -18,6 +18,7 @@ import (
 	frpmanager "github.com/lordpietre/ssh05/internal/frp"
 	"github.com/lordpietre/ssh05/internal/ipc"
 	transfermanager "github.com/lordpietre/ssh05/internal/transfer"
+	"github.com/lordpietre/ssh05/ssh05"
 )
 
 // HostProvider supplies the current non-secret host inventory.
@@ -46,6 +47,7 @@ type Service struct {
 	frp       *frpmanager.Manager
 	transfers *transfermanager.Manager
 	nmapPath  string
+	sshConfig string
 }
 
 // ServiceOption configures optional service integrations.
@@ -69,6 +71,11 @@ func WithTransfers(manager *transfermanager.Manager) ServiceOption {
 // WithNmap enables the explicit, opt-in Nmap diagnostic binary.
 func WithNmap(path string) ServiceOption {
 	return func(service *Service) { service.nmapPath = path }
+}
+
+// WithSSHConfig sets the ssh_config used to re-probe and trust host keys.
+func WithSSHConfig(path string) ServiceOption {
+	return func(service *Service) { service.sshConfig = path }
 }
 
 // NewService creates the IPC handler for a supervisor backend.
@@ -97,6 +104,8 @@ func (s *Service) Handle(ctx context.Context, conn *ipc.Conn, req contracts.RPCR
 		return s.updateHost(ctx, req)
 	case contracts.MethodHostsDelete:
 		return s.deleteHost(ctx, req)
+	case contracts.MethodHostsTrustKey:
+		return s.trustHostKey(ctx, req)
 	case contracts.MethodSessionsOpen:
 		return s.openSession(ctx, conn, req)
 	case contracts.MethodSessionsWrite:
@@ -216,6 +225,34 @@ func (s *Service) deleteHost(ctx context.Context, req contracts.RPCRequest) (jso
 	}
 	s.log(audit.Event{Action: "host.delete", HostProfileID: params.Alias, Result: "ok"})
 	return marshal(map[string]bool{"deleted": true})
+}
+
+func (s *Service) trustHostKey(ctx context.Context, req contracts.RPCRequest) (json.RawMessage, *contracts.RPCError) {
+	params, rpcError := decodeParams[contracts.HostsTrustKeyParams](req)
+	if rpcError != nil {
+		return nil, rpcError
+	}
+	if params.Fingerprint == "" {
+		return nil, &contracts.RPCError{Code: ipc.CodeInvalidParams, Message: "fingerprint is required"}
+	}
+	destination := s.destinationFor(ctx, params.HostProfileID)
+	info, err := ssh05.TrustHostKey(destination, s.sshConfig, params.Fingerprint)
+	if err != nil {
+		s.log(audit.Event{
+			Action:        "host.trustKey",
+			HostProfileID: params.HostProfileID,
+			Result:        "error",
+			ErrorCode:     hostKeyErrorCode(err),
+		})
+		return nil, hostKeyError(err)
+	}
+	s.log(audit.Event{Action: "host.trustKey", HostProfileID: params.HostProfileID, Result: "ok"})
+	return marshal(contracts.HostsTrustKeyResult{
+		Host:           info.Host,
+		KeyType:        info.KeyType,
+		Fingerprint:    info.Fingerprint,
+		KnownHostsPath: info.KnownHostsPath,
+	})
 }
 
 func (s *Service) setHostOverride(ctx context.Context, req contracts.RPCRequest) (json.RawMessage, *contracts.RPCError) {
@@ -547,8 +584,13 @@ func (s *Service) openSession(ctx context.Context, conn *ipc.Conn, req contracts
 		Destination: destination,
 	})
 	if err != nil {
-		s.log(audit.Event{Action: "session.open", HostProfileID: params.HostProfileID, Result: "error", ErrorCode: "internal"})
-		return nil, internalError(err)
+		s.log(audit.Event{
+			Action:        "session.open",
+			HostProfileID: params.HostProfileID,
+			Result:        "error",
+			ErrorCode:     hostKeyErrorCode(err),
+		})
+		return nil, hostKeyError(err)
 	}
 	s.log(audit.Event{Action: "session.open", HostProfileID: params.HostProfileID, SessionID: string(id), Result: "ok"})
 	s.attach(conn, id)
@@ -858,7 +900,13 @@ func (s *Service) connectRoute(ctx context.Context, conn *ipc.Conn, req contract
 		Destination: s.destinationForRoute(ctx, params.HostProfileID, params.RouteID),
 	})
 	if err != nil {
-		return nil, internalError(err)
+		s.log(audit.Event{
+			Action:        "route.connect",
+			HostProfileID: params.HostProfileID,
+			Result:        "error",
+			ErrorCode:     hostKeyErrorCode(err),
+		})
+		return nil, hostKeyError(err)
 	}
 	s.attach(conn, id)
 	return marshal(contracts.SessionsOpenResult{SessionID: id})
@@ -1040,6 +1088,52 @@ func marshal(value any) (json.RawMessage, *contracts.RPCError) {
 
 func internalError(err error) *contracts.RPCError {
 	return &contracts.RPCError{Code: ipc.CodeInternal, Message: err.Error()}
+}
+
+func hostKeyError(err error) *contracts.RPCError {
+	var unknown *ssh05.HostKeyUnknownError
+	if errors.As(err, &unknown) {
+		data, _ := json.Marshal(contracts.HostKeyChallenge{
+			Host:           unknown.Host,
+			KeyType:        unknown.KeyType,
+			Fingerprint:    unknown.Fingerprint,
+			KnownHostsPath: unknown.KnownHostsPath,
+			CanTrust:       unknown.CanTrust,
+		})
+		return &contracts.RPCError{
+			Code:    ipc.CodeHostKeyUnknown,
+			Message: "host key is not trusted",
+			Data:    data,
+		}
+	}
+	var changed *ssh05.HostKeyChangedError
+	if errors.As(err, &changed) {
+		data, _ := json.Marshal(contracts.HostKeyChallenge{
+			Host:           changed.Host,
+			KeyType:        changed.KeyType,
+			Fingerprint:    changed.Fingerprint,
+			KnownHostsPath: changed.KnownHostsPath,
+			CanTrust:       false,
+		})
+		return &contracts.RPCError{
+			Code:    ipc.CodeHostKeyChanged,
+			Message: "host key has changed",
+			Data:    data,
+		}
+	}
+	return internalError(err)
+}
+
+func hostKeyErrorCode(err error) string {
+	var unknown *ssh05.HostKeyUnknownError
+	if errors.As(err, &unknown) {
+		return "host_key_unknown"
+	}
+	var changed *ssh05.HostKeyChangedError
+	if errors.As(err, &changed) {
+		return "host_key_changed"
+	}
+	return "internal"
 }
 
 func notImplemented() *contracts.RPCError {

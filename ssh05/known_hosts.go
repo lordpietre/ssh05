@@ -99,7 +99,13 @@ func addHostKey(path, host string, key ssh.PublicKey, ask bool) error {
 
 		stdin, closer, err := getKeyboardInput()
 		if err != nil {
-			return err
+			return &HostKeyUnknownError{
+				Host:           host,
+				KeyType:        shortKeyType(key.Type()),
+				Fingerprint:    ssh.FingerprintSHA256(key),
+				KnownHostsPath: path,
+				CanTrust:       true,
+			}
 		}
 		defer closer()
 
@@ -213,15 +219,37 @@ func getHostKeyCallback(param *sshParam) (ssh.HostKeyCallback, []string, error) 
 				"Please contact your system administrator.\r\n"+
 				"Add correct host key in %s to get rid of this message.\r\n",
 				shortKeyType(key.Type()), ssh.FingerprintSHA256(key), path)
+			switch strictHostKeyChecking {
+			case "no", "off", "false":
+				return nil
+			default:
+				return &HostKeyChangedError{
+					Host:           host,
+					KeyType:        shortKeyType(key.Type()),
+					Fingerprint:    ssh.FingerprintSHA256(key),
+					KnownHostsPath: path,
+				}
+			}
 		} else if knownhosts.IsHostUnknown(err) && primaryPath != "" {
-			ask := true
 			switch strictHostKeyChecking {
 			case "yes", "true":
-				return err
+				return &HostKeyUnknownError{
+					Host:           host,
+					KeyType:        shortKeyType(key.Type()),
+					Fingerprint:    ssh.FingerprintSHA256(key),
+					KnownHostsPath: primaryPath,
+					CanTrust:       false,
+				}
 			case "accept-new", "no", "off", "false":
-				ask = false
+				return addHostKey(primaryPath, host, key, false)
 			}
-			return addHostKey(primaryPath, host, key, ask)
+			if param.args.hostKeyPrompt != nil {
+				if promptErr := param.args.hostKeyPrompt(host, key, primaryPath); promptErr != nil {
+					return promptErr
+				}
+				return addHostKey(primaryPath, host, key, false)
+			}
+			return addHostKey(primaryPath, host, key, true)
 		}
 		switch strictHostKeyChecking {
 		case "no", "off", "false":

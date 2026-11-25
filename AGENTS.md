@@ -91,6 +91,11 @@ make install                   # copies ./bin/ssh05 y ./bin/ssh05d to /usr/bin
   - Barra de acciones visible (`Menú`, `Hosts`, `Nuevo`, `WS`, `Rutas`,
     `Diag`, `Transferir`, `FRP`, `Prefs`, `Ayuda`, `Salir`). `Tab` la enfoca,
     `←/→` navega, `Enter` activa, `Esc` sale; también acepta ratón.
+  - Ratón: hosts (clic selecciona, doble clic conecta, clic derecho acciones,
+    rueda), pestañas (clic activa, derecho/central cierra, rueda cambia),
+    barra, filas de menú y botones `[ Acción ]`; hover resalta.
+  - Cada sesión SSH vive en una ventana con cabecera de estado; `×` cierra la
+    conexión y el clic derecho en `×` abre las opciones de cierre.
   - `Menú` abre la lista completa de acciones navegable y clicable.
   - Menús, submenús, listas y formularios se navegan con `↑↓←→` (`←/↑`
     anterior, `→/↓` siguiente); `Espacio` cambia opciones y `Enter` acepta.

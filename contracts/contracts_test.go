@@ -42,6 +42,7 @@ func TestCloseIntents(t *testing.T) {
 func TestMethods(t *testing.T) {
 	methods := []Method{
 		MethodHostsList, MethodHostsImport, MethodHostsResolve, MethodHostsOverridesSet, MethodHostsCreate,
+		MethodHostsUpdate, MethodHostsDelete, MethodHostsTrustKey,
 		MethodSessionsOpen, MethodSessionsWrite, MethodSessionsResize,
 		MethodSessionsClose, MethodSessionsDetachTmux, MethodSessionsAttachTmux,
 		MethodSessionsSignal,
