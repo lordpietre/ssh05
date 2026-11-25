@@ -196,6 +196,7 @@ hostList.onMouseDown = (event) => {
   const hit = hostLineMap.find((item) => item.line === row)
   if (!hit) return
   hostFocused = true
+  actionBarFocused = false
   cursor = hit.index
   if (event.button === MouseButton.RIGHT) {
     event.stopPropagation()
@@ -1027,7 +1028,7 @@ function renderDeleteConfirm(): void {
       },
       onClick: () => {
         deleteConfirmVisible = false
-        uiDirty()
+        focusHosts()
       },
     },
   ])
@@ -1053,7 +1054,7 @@ setInterval(() => {
 
 function welcomeActions(): { label: string; run: () => void }[] {
   return [
-    { label: "Empezar", run: () => { welcomeVisible = false; focusHosts() } },
+    { label: "Empezar", run: () => { welcomeVisible = false; focusActionBar() } },
     { label: "Nuevo host", run: () => { welcomeVisible = false; openNewHost() } },
     { label: "Ayuda", run: () => { welcomeVisible = false; helpVisible = true; uiDirty() } },
     { label: "Salir", run: () => void quit() },
@@ -1206,7 +1207,7 @@ function renderHosts(): void {
   hostHint.content =
     hosts.length === 0
       ? " Ctrl+N nuevo host · /connect · Ctrl+I KeePass"
-      : " Enter conectar · ←/→ menú · / comandos · Ctrl+N nuevo"
+      : " Enter conectar · Tab menú · → host · / comandos · Ctrl+N nuevo"
 
   if (hosts.length === 0) {
     hostList.content =
@@ -1389,6 +1390,10 @@ function renderStatus(): void {
   }
   if (transientText) {
     status.content = ` ${transientText}`
+    return
+  }
+  if (actionBarFocused) {
+    status.content = ` Menú · ←/→ elegir · Enter abrir · ↓ o Esc hosts · F10 salir`
     return
   }
   if (hostFocused) {
@@ -1608,7 +1613,7 @@ function openCloseDialog(): void {
 
 function closeCloseDialog(): void {
   closeDialogVisible = false
-  uiDirty()
+  focusHosts()
 }
 
 function executeCloseDialog(): void {
@@ -1690,7 +1695,7 @@ function closeHostKeyDialog(): void {
   hostKeyDialog = null
   hostKeyCursor = 0
   transientText = "Conexión cancelada"
-  uiDirty()
+  focusHosts()
 }
 
 async function acceptHostKey(): Promise<void> {
@@ -1776,7 +1781,7 @@ function openPalette(): void {
 
 function closePalette(): void {
   paletteVisible = false
-  uiDirty()
+  focusHosts()
 }
 
 function executePalette(index: number): void {
@@ -1960,7 +1965,15 @@ async function restoreWorkspace(
 }
 
 function focusHosts(): void {
+  actionBarFocused = false
   hostFocused = true
+  uiDirty()
+}
+
+function focusActionBar(): void {
+  hostFocused = false
+  actionBarFocused = true
+  actionBarCursor = 0
   uiDirty()
 }
 
@@ -1970,6 +1983,7 @@ function focusTerminal(): void {
     focusHosts()
     return
   }
+  actionBarFocused = false
   hostFocused = false
   sessions.get(active.sessionId)?.terminal.focus()
   uiDirty()
@@ -2396,7 +2410,7 @@ async function deleteHostAlias(alias: string): Promise<void> {
     showError(`No se pudo eliminar ${alias}: ${String(error)}`)
   }
   deleteConfirmVisible = false
-  uiDirty()
+  focusHosts()
 }
 
 function handleHostMenuKey(key: KeyEvent): void {
@@ -2420,7 +2434,7 @@ function handleDeleteConfirmKey(key: KeyEvent): void {
   const name = key.name.toLowerCase()
   if (name === "escape") {
     deleteConfirmVisible = false
-    uiDirty()
+    focusHosts()
     return
   }
   if (name === "up" || name === "left") {
@@ -2431,7 +2445,7 @@ function handleDeleteConfirmKey(key: KeyEvent): void {
     if (deleteConfirmCursor === 0) void deleteHostAlias(deleteConfirmAlias)
     else {
       deleteConfirmVisible = false
-      uiDirty()
+      focusHosts()
     }
   }
   uiDirty()
@@ -2563,7 +2577,7 @@ renderer.keyInput.on("keypress", (key) => {
       executeWelcomeAction()
     } else if (name === "escape") {
       welcomeVisible = false
-      focusHosts()
+      focusActionBar()
     }
     return
   }
@@ -2580,7 +2594,11 @@ renderer.keyInput.on("keypress", (key) => {
   }
   if (helpVisible) {
     key.stopPropagation()
-    if (name === "escape" || name === "return" || name === "enter") helpVisible = false
+    if (name === "escape" || name === "return" || name === "enter") {
+      helpVisible = false
+      focusHosts()
+      return
+    }
     uiDirty()
     return
   }
@@ -2595,8 +2613,13 @@ renderer.keyInput.on("keypress", (key) => {
     key.stopPropagation()
     if (name === "left" || name === "backtab") actionBarCursor = (actionBarCursor + actionBarButtons.length - 1) % actionBarButtons.length
     else if (name === "right" || name === "tab") actionBarCursor = (actionBarCursor + 1) % actionBarButtons.length
-    else if (name === "escape") actionBarFocused = false
-    else if (name === "return" || name === "enter") {
+    else if (name === "down") {
+      focusHosts()
+      return
+    } else if (name === "escape") {
+      focusHosts()
+      return
+    } else if (name === "return" || name === "enter") {
       const button = actionBarButtons[actionBarCursor]
       actionBarFocused = false
       button?.run()
@@ -2646,7 +2669,11 @@ renderer.keyInput.on("keypress", (key) => {
   }
   if (diagVisible) {
     key.stopPropagation()
-    if (name === "escape" || name === "return" || name === "enter") diagVisible = false
+    if (name === "escape" || name === "return" || name === "enter") {
+      diagVisible = false
+      focusHosts()
+      return
+    }
     uiDirty()
     return
   }
@@ -2752,9 +2779,7 @@ renderer.keyInput.on("keypress", (key) => {
   }
   if (hostFocused && name === "tab") {
     key.stopPropagation()
-    actionBarFocused = true
-    actionBarCursor = 0
-    uiDirty()
+    focusActionBar()
     return
   }
   if (hostFocused) {
@@ -3040,7 +3065,7 @@ function closeWorkspacePicker(): void {
   workspacePickerVisible = false
   workspaceNewMode = false
   workspaceInput = ""
-  uiDirty()
+  focusHosts()
 }
 
 async function switchWorkspace(name: string): Promise<void> {
@@ -3148,8 +3173,7 @@ function openActionsMenu(): void {
 
 function closeActionsMenu(): void {
   actionsMenuVisible = false
-  actionBarFocused = false
-  uiDirty()
+  focusHosts()
 }
 
 function executeActionsMenu(): void {
@@ -3157,7 +3181,7 @@ function executeActionsMenu(): void {
   actionsMenuVisible = false
   actionBarFocused = false
   if (item) item.run()
-  uiDirty()
+  if (!quitting) focusHosts()
 }
 
 function handleActionsMenuKey(key: KeyEvent): void {
@@ -3225,7 +3249,7 @@ function renderNewHost(): void {
   regions.push(...addActionLine(lines, "", [
     { label: form.mode === "edit" ? "Guardar y conectar" : "Crear y conectar", run: () => void saveNewHost(true) },
     { label: "Guardar sin conectar", run: () => void saveNewHost(false) },
-    { label: "Cancelar", run: () => { newHostVisible = false; newHostForm = null; uiDirty() } },
+    { label: "Cancelar", run: () => { newHostVisible = false; newHostForm = null; focusHosts() } },
   ]))
   lines.push("  ↑↓/Tab campo · ←→ cursor · Enter guardar · Ctrl+S sin conectar · Esc cancelar")
   setOverlayRegions("newhost", regions)
@@ -3324,6 +3348,8 @@ async function handleNewHostKey(key: KeyEvent): Promise<void> {
   if (name === "escape") {
     newHostVisible = false
     newHostForm = null
+    focusHosts()
+    return
   } else if (name === "tab" || name === "down") {
     moveField(1)
   } else if (name === "up" || name === "backtab") {
@@ -3411,7 +3437,7 @@ async function saveNewHost(connect: boolean): Promise<void> {
     transientText =
       form.mode === "edit" ? `Host ${profile.alias} actualizado` : `Host ${profile.alias} guardado`
     if (connect && form.mode === "new") await connectHost(profile)
-    else uiDirty()
+    else focusHosts()
   } catch (error) {
     form.error = `No se pudo guardar: ${String(error)}`
     uiDirty()
@@ -3450,14 +3476,14 @@ function renderHelp(): void {
     "",
   ]
   const regions = addActionLine(lines, "", [
-    { label: "Cerrar", run: () => { helpVisible = false; uiDirty() } },
+    { label: "Cerrar", run: () => { helpVisible = false; focusHosts() } },
   ])
   lines.push("", "  Esc/Enter cerrar · clic en [ Cerrar ] o en el título")
   regions.push({
     line: 1,
     onClick: () => {
       helpVisible = false
-      uiDirty()
+      focusHosts()
     },
   })
   setOverlayRegions("help", regions)
@@ -3515,7 +3541,7 @@ function renderNmapConfirm(): void {
     : [
         { label: "Escanear red", run: () => void runNmapScan() },
         { label: "Todo", run: () => { nmapOptions = { services: true, scripts: true, os: true, trace: true, allPorts: true, sudo: true }; nmapOptionCursor = 0; uiDirty() } },
-        { label: "Cancelar", run: () => { nmapConfirmVisible = false; uiDirty() } },
+        { label: "Cancelar", run: () => { nmapConfirmVisible = false; focusHosts() } },
       ]
   regions.push(...addActionLine(lines, "", actions))
   lines.push("", "  ↑↓←→ elegir · Espacio cambia · v/s/o/t/p/r · f todo · Enter escanear · Esc")
@@ -3619,7 +3645,7 @@ function renderNmapResults(): void {
     { label: "Añadir host", run: () => void addNmapHost() },
     { label: "Ver todo", run: showNmapDetails },
     { label: "Reintentar", run: () => { nmapView = "form"; uiDirty() } },
-    { label: "Cerrar", run: () => { nmapConfirmVisible = false; uiDirty() } },
+    { label: "Cerrar", run: () => { nmapConfirmVisible = false; focusHosts() } },
   ]))
   lines.push("", "  ↑↓ elegir host · Enter/A añadir · D ver todo · R reintentar · Esc cerrar · clic para elegir")
   setOverlayRegions("nmap", regions)
@@ -3669,6 +3695,8 @@ function handleNmapKey(key: KeyEvent): void {
   if (nmapView === "results") {
     if (name === "escape") {
       nmapConfirmVisible = false
+      focusHosts()
+      return
     } else if (name === "up" || name === "left") {
       nmapCursor = Math.max(0, nmapCursor - 1)
     } else if (name === "down" || name === "right") {
@@ -3690,6 +3718,8 @@ function handleNmapKey(key: KeyEvent): void {
   const space = name === "space" || key.sequence === " "
   if (name === "escape") {
     nmapConfirmVisible = false
+    focusHosts()
+    return
   } else if (name === "up" || name === "left") {
     nmapOptionCursor = Math.max(0, nmapOptionCursor - 1)
   } else if (name === "down" || name === "right") {
@@ -3742,7 +3772,7 @@ function cancelNmapScan(): void {
   nmapScanning = false
   nmapConfirmVisible = false
   transientText = "Nmap: escaneo cancelado en la UI"
-  uiDirty()
+  focusHosts()
 }
 
 async function runNmapScan(): Promise<void> {
@@ -3988,7 +4018,7 @@ function closeTransfers(): void {
   transferVisible = false
   transferForm = null
   stopTransferPoll()
-  uiDirty()
+  focusHosts()
 }
 
 function stopTransferPoll(): void {
@@ -4146,7 +4176,7 @@ function renderPreferences(): void {
     },
   }))
   regions.push(...addActionLine(lines, "", [
-    { label: "Cerrar", run: () => { preferencesVisible = false; uiDirty() } },
+    { label: "Cerrar", run: () => { preferencesVisible = false; focusHosts() } },
   ]))
   lines.push("", "  ↑↓←→ mover/ajustar · clic ajusta · w/d/t · Esc o [ Cerrar ]")
   setOverlayRegions("prefs", regions)
@@ -4198,6 +4228,8 @@ function handlePreferencesKey(key: KeyEvent): void {
   const name = key.name.toLowerCase()
   if (name === "escape" || name === "return" || name === "enter") {
     preferencesVisible = false
+    focusHosts()
+    return
   } else if (name === "up") {
     preferencesCursor = (preferencesCursor + 2) % 3
   } else if (name === "down") {
@@ -4230,7 +4262,7 @@ function renderDiagnostics(): void {
   const titleLine = lines.findIndex((line) => line.trim().startsWith("Diagnóstico") || line.trim().startsWith("Red ·"))
   lines.push("")
   const regions = addActionLine(lines, "", [
-    { label: "Cerrar", run: () => { diagVisible = false; uiDirty() } },
+    { label: "Cerrar", run: () => { diagVisible = false; focusHosts() } },
   ])
   lines.push("", "  Esc/Enter cerrar · clic en [ Cerrar ]")
   setOverlayRegions("diag", regions)
@@ -4246,7 +4278,7 @@ function renderLabelsEditor(): void {
   const lines = ["", "  Etiquetas del host", "", `  ${labelsInput}▌`, ""]
   const regions = addActionLine(lines, "", [
     { label: "Guardar", run: () => void saveLabels() },
-    { label: "Cancelar", run: () => { labelsEditing = false; uiDirty() } },
+    { label: "Cancelar", run: () => { labelsEditing = false; focusHosts() } },
   ])
   lines.push("", "  Enter guardar · Esc cancelar · clic para elegir")
   setOverlayRegions("labels", regions)
@@ -4259,7 +4291,7 @@ async function saveLabels(): Promise<void> {
   const hostID = labelsHostID
   labelsEditing = false
   await applyHostOverride(hostID, { labels })
-  uiDirty()
+  focusHosts()
 }
 
 function renderFRP(): void {
@@ -4381,7 +4413,7 @@ async function openFRP(): Promise<void> {
 function closeFRP(): void {
   frpVisible = false
   frpForm = null
-  uiDirty()
+  focusHosts()
 }
 
 function openFRPForm(): void {

@@ -1,3 +1,14 @@
+ssh05 (0.42.3) unstable; urgency=medium
+
+  * Al empezar, la barra de menús queda enfocada: ←/→ navega, Enter abre el
+    submenú y ↓ o Esc devuelve a la lista de hosts.
+  * Cerrar menús y paneles restaura el foco en hosts para poder escribir,
+    buscar y usar los atajos.
+  * Se mantiene la navegación direccional en todos los menús y formularios.
+  * Pruebas de humo actualizadas para el nuevo foco inicial.
+
+ -- Dinámicas Electrónicas <dinamicas.electronicas@gmail.com>  Wed, 25 Nov 2026 23:00:00 +0100
+
 ssh05 (0.42.2) unstable; urgency=medium
 
   * Nueva bienvenida extensa con guía de qué puede hacer el usuario, atajos y

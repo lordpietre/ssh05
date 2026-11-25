@@ -101,6 +101,8 @@ done
 assert_contains "Bienvenido" "welcome message appears"
 send Enter
 sleep 0.3
+send Down
+sleep 0.3
 assert_contains "Hosts SSH (3)" "hosts are grouped by category"
 assert_contains "Hosts (3)" "UI loads the real host inventory"
 send Right

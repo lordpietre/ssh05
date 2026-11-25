@@ -4,7 +4,7 @@ Cliente SSH de escritorio y terminal, compatible con OpenSSH, con gestor visual 
 hosts, supervisor local (`ssh05d`) y frontend OpenTUI. Fork de
 [trzsz-ssh](https://github.com/trzsz/trzsz-ssh) orientado a escritorios Linux.
 
-**Versión:** `0.42.2` · **Licencia:** MIT · **Desarrollado por Dinámicas Electrónicas**
+**Versión:** `0.42.3` · **Licencia:** MIT · **Desarrollado por Dinámicas Electrónicas**
 Soporte: `dinamicas.electronicas@gmail.com` · [Repositorio](https://github.com/lordpietre/ssh05)
 
 > Identidad actual: binario `ssh05`, supervisor `ssh05d`, UI `ssh05-ui`.
@@ -306,7 +306,7 @@ Descarga el paquete de tu arquitectura desde
 <https://github.com/lordpietre/ssh05/releases/latest>:
 
 ```sh
-VERSION=0.42.2
+VERSION=0.42.3
 wget "https://github.com/lordpietre/ssh05/releases/download/v${VERSION}/ssh05_${VERSION}_ubuntu_amd64.deb"
 wget "https://github.com/lordpietre/ssh05/releases/download/v${VERSION}/ssh05_${VERSION}_ubuntu_amd64.deb.sha256"
 sha256sum -c "ssh05_${VERSION}_ubuntu_amd64.deb.sha256"
@@ -340,7 +340,7 @@ tiene repositorio, así que `apt upgrade` no mostrará ninguna actualización de
 ssh05. Para actualizar usa el paquete descargado:
 
 ```sh
-sudo apt install --reinstall ./ssh05_0.42.2_ubuntu_amd64.deb
+sudo apt install --reinstall ./ssh05_0.42.3_ubuntu_amd64.deb
 ```
 
 Si quieres que `apt upgrade` gestione ssh05 automáticamente, hace falta
@@ -367,7 +367,7 @@ Paquete local:
 
 ```sh
 make deb
-sudo apt install ./dist/ssh05_0.42.2_ubuntu_amd64.deb
+sudo apt install ./dist/ssh05_0.42.3_ubuntu_amd64.deb
 ```
 
 ---
@@ -389,7 +389,7 @@ ssh05 --list-hosts            # inventario JSON desde ~/.ssh/config
 
 Resultado esperado:
 
-- `ssh05` y `ssh05d` muestran la misma versión (`0.42.2`).
+- `ssh05` y `ssh05d` muestran la misma versión (`0.42.3`).
 - `ssh05d` está `enabled` y `active`; el socket existe con permisos `srw-------`.
 - `ssh05 --list-hosts` devuelve un array JSON (aunque esté vacío).
 - `ssh05-ui` en una terminal real dibuja la interfaz y conecta con el socket.
@@ -493,6 +493,18 @@ activar `sudo -n`, que falla de forma controlada si sudo pide contraseña.
 
 El escaneo usa una conexión IPC separada, así que no bloquea la apertura de
 sesiones ni el resto de la UI. Se puede cancelar con `Esc`.
+
+### Enfoque inicial y navegación
+
+Al cerrar la bienvenida con **Empezar**, la barra de menús queda enfocada:
+
+- `←/→` navega por los botones del menú superior.
+- `Enter` abre el submenú del botón seleccionado.
+- `↓` o `Esc` baja a la lista de hosts.
+- `Tab` desde hosts vuelve a la barra de menús.
+
+Al cerrar cualquier menú, panel o diálogo, el foco vuelve a hosts para poder
+escribir, buscar y usar atajos sin pasos extra.
 
 ### Atajos de la UI OpenTUI
 
