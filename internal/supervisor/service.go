@@ -663,6 +663,12 @@ func (s *Service) closeSession(ctx context.Context, req contracts.RPCRequest) (j
 		return nil, rpcError
 	}
 	if err := s.backend.RequestClose(ctx, params.SessionID, params.Intent); err != nil {
+		// Closing is idempotent: a session that already exited (for example
+		// after the remote shell closed) must not surface as an internal error.
+		if errors.Is(err, ErrSessionNotFound) {
+			s.log(audit.Event{Action: "session.close", SessionID: string(params.SessionID), Result: "ok", Detail: string(params.Intent) + " (already closed)"})
+			return json.RawMessage(`{}`), nil
+		}
 		s.log(audit.Event{Action: "session.close", SessionID: string(params.SessionID), Result: "error", ErrorCode: "internal", Detail: string(params.Intent)})
 		return nil, internalError(err)
 	}

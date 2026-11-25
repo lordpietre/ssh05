@@ -106,7 +106,7 @@ currentWorkspace = safeWorkspaceName(currentWorkspace)
 const renderer = await createCliRenderer({
   exitOnCtrlC: false,
   useMouse: true,
-  enableMouseMovement: true,
+  enableMouseMovement: false,
 })
 
 const root = new BoxRenderable(renderer, {
@@ -213,16 +213,6 @@ hostList.onMouseDown = (event) => {
   uiDirty()
 }
 
-hostList.onMouseMove = (event) => {
-  const row = event.y - hostList.y
-  const hit = hostLineMap.find((item) => item.line === row)
-  if (!hit) return
-  if (cursor === hit.index && hostFocused) return
-  cursor = hit.index
-  hostFocused = true
-  uiDirty()
-}
-
 hostList.onMouseScroll = (event) => {
   if (event.scroll?.direction === "up") cursor = Math.max(0, cursor - 3)
   else if (event.scroll?.direction === "down") {
@@ -277,16 +267,6 @@ const sessionClose = new TextRenderable(renderer, {
       return
     }
     if (event.button === MouseButton.LEFT) void closeActive("close-view")
-  },
-  onMouseOver: () => {
-    sessionClose.bg = RGBA.fromInts(190, 62, 62)
-    sessionClose.fg = RGBA.fromInts(255, 255, 255)
-    uiDirty()
-  },
-  onMouseOut: () => {
-    sessionClose.bg = RGBA.fromInts(24, 29, 40)
-    sessionClose.fg = RGBA.fromInts(255, 122, 122)
-    uiDirty()
   },
 })
 
@@ -595,6 +575,38 @@ const newHostOverlay = new TextRenderable(renderer, {
 
 renderer.root.add(newHostOverlay)
 
+const noticeBox = new BoxRenderable(renderer, {
+  id: "notice-box",
+  position: "absolute",
+  top: "28%",
+  left: "10%",
+  width: "80%",
+  height: 6,
+  border: true,
+  borderStyle: "rounded",
+  borderColor: RGBA.fromInts(190, 62, 62),
+  backgroundColor: RGBA.fromInts(32, 18, 20),
+  zIndex: 160,
+  visible: false,
+  onMouseDown: () => dismissNotice(),
+})
+
+const noticeText = new TextRenderable(renderer, {
+  id: "notice-text",
+  content: "",
+  width: "100%",
+  height: "100%",
+  paddingLeft: 1,
+  paddingRight: 1,
+  paddingTop: 1,
+  wrapMode: "word",
+  fg: RGBA.fromInts(255, 210, 210),
+  bg: RGBA.fromInts(32, 18, 20),
+})
+
+noticeBox.add(noticeText)
+renderer.root.add(noticeBox)
+
 const pendingPlaceholder = new TextRenderable(renderer, {
   id: "pending-view",
   position: "absolute",
@@ -652,6 +664,8 @@ let tmuxMode = false
 let quitting = false
 let errorText = ""
 let transientText = ""
+let notice: { message: string } | null = null
+let noticeTimer: ReturnType<typeof setTimeout> | undefined
 let restoringWorkspace = false
 let saveTimer: ReturnType<typeof setTimeout> | undefined
 let workspacePickerVisible = false
@@ -732,7 +746,6 @@ let deleteConfirmAlias = ""
 let deleteConfirmCursor = 0
 let actionBarFocused = false
 let actionBarCursor = 0
-let actionBarHover = -1
 let actionsMenuVisible = false
 let actionsMenuCursor = 0
 let actionsMenuScroll = 0
@@ -774,15 +787,6 @@ function addActionButton(label: string, run: () => void): void {
       actionBarCursor = index
       run()
       actionBarFocused = false
-      actionBarHover = -1
-      uiDirty()
-    },
-    onMouseOver: () => {
-      actionBarHover = index
-      uiDirty()
-    },
-    onMouseOut: () => {
-      if (actionBarHover === index) actionBarHover = -1
       uiDirty()
     },
   })
@@ -859,10 +863,6 @@ for (let index = 0; index < actionsMenuItems.length; index++) {
     onMouseDown: () => {
       actionsMenuCursor = index
       executeActionsMenu()
-    },
-    onMouseOver: () => {
-      actionsMenuCursor = index
-      uiDirty()
     },
   })
   actionsMenuBox.add(row)
@@ -1271,6 +1271,62 @@ function renderSessionHeader(): void {
   sessionPane.borderColor = UI_COLORS.frame
 }
 
+function renderNotice(): void {
+  if (!notice) {
+    noticeBox.visible = false
+    return
+  }
+  noticeBox.visible = true
+  const width = Math.max(20, Math.floor(renderer.width * 0.8) - 4)
+  const lines = wrapText(notice.message, width)
+  noticeBox.height = Math.min(12, Math.max(5, lines.length + 4))
+  noticeText.content = ["⚠ Error", "", ...lines, "", "[ Cerrar ] · Esc o clic"].join("\n")
+}
+
+function showError(message: string): void {
+  notice = { message }
+  errorText = ""
+  transientText = ""
+  if (noticeTimer) clearTimeout(noticeTimer)
+  noticeTimer = setTimeout(() => {
+    noticeTimer = undefined
+    notice = null
+    uiDirty()
+  }, 12_000)
+  uiDirty()
+}
+
+function dismissNotice(): void {
+  if (noticeTimer) clearTimeout(noticeTimer)
+  noticeTimer = undefined
+  notice = null
+  uiDirty()
+}
+
+function wrapText(text: string, width: number): string[] {
+  const lines: string[] = []
+  let current = ""
+  for (let word of text.split(/\s+/).filter(Boolean)) {
+    while (word.length > width) {
+      if (current) {
+        lines.push(current)
+        current = ""
+      }
+      lines.push(word.slice(0, width))
+      word = word.slice(width)
+    }
+    if (!word) continue
+    if (!current) current = word
+    else if (current.length + 1 + word.length <= width) current += ` ${word}`
+    else {
+      lines.push(current)
+      current = word
+    }
+  }
+  if (current) lines.push(current)
+  return lines.length > 0 ? lines : [""]
+}
+
 function renderStatus(): void {
   if (errorText) {
     status.content = ` ${errorText}`
@@ -1308,6 +1364,7 @@ function uiDirty(): void {
   renderTabs()
   renderSessionHeader()
   renderStatus()
+  renderNotice()
   renderWorkspacePicker()
   renderPalette()
   renderCloseDialog()
@@ -1441,23 +1498,12 @@ function findOverlayRegion(name: string, row: number, col: number): OverlayRegio
 }
 
 function bindOverlayMouse(name: string, overlay: TextRenderable): void {
-  let lastHoverRow = -2
   overlay.onMouseDown = (event) => {
     if (event.button !== MouseButton.LEFT) return
     const region = findOverlayRegion(name, event.y - overlay.y, event.x - overlay.x)
     if (!region) return
     event.stopPropagation()
     region.onClick(event)
-  }
-  overlay.onMouseMove = (event) => {
-    const row = event.y - overlay.y
-    if (row === lastHoverRow) return
-    lastHoverRow = row
-    const region = findOverlayRegion(name, row, event.x - overlay.x)
-    if (region?.onHover) {
-      region.onHover()
-      uiDirty()
-    }
   }
 }
 
@@ -1608,7 +1654,7 @@ async function acceptHostKey(): Promise<void> {
     uiDirty()
     await connectHost(pending.host, pending.options)
   } catch (error) {
-    transientText = `No se pudo confiar en ${pending.host.alias}: ${String(error)}`
+    showError(`No se pudo confiar en ${pending.host.alias}: ${String(error)}`)
     uiDirty()
   }
 }
@@ -2046,7 +2092,7 @@ async function connectHost(
       uiDirty()
       return
     }
-    transientText = `No se pudo abrir ${host.alias}: ${String(error)}`
+    showError(`No se pudo abrir ${host.alias}: ${String(error)}`)
     uiDirty()
   }
 }
@@ -2101,7 +2147,7 @@ async function closeActive(intent: "close-view" | "disconnect-ssh" | "detach-rem
         { timeoutMs: 5000 },
       )
     } catch (error) {
-      transientText = `Cierre: ${String(error)}`
+      showError(`Cierre: ${String(error)}`)
     }
   }
 
@@ -2194,7 +2240,7 @@ async function applyHostOverride(
     if (index >= 0) cursor = index
     return true
   } catch (error) {
-    transientText = `Host: ${String(error)}`
+    showError(`Host: ${String(error)}`)
     return false
   } finally {
     uiDirty()
@@ -2275,7 +2321,7 @@ async function deleteHostAlias(alias: string): Promise<void> {
     await loadHosts()
     transientText = `Host ${alias} eliminado`
   } catch (error) {
-    transientText = `No se pudo eliminar ${alias}: ${String(error)}`
+    showError(`No se pudo eliminar ${alias}: ${String(error)}`)
   }
   deleteConfirmVisible = false
   uiDirty()
@@ -2548,6 +2594,11 @@ renderer.keyInput.on("keypress", (key) => {
     void handleFRPKey(key)
     return
   }
+  if (notice && name === "escape") {
+    key.stopPropagation()
+    dismissNotice()
+    return
+  }
   if (matchesAction(key, keybindings, "frp")) {
     key.stopPropagation()
     void openFRP()
@@ -2794,7 +2845,7 @@ async function diagnoseCurrentHost(): Promise<void> {
     ].join("\n")
     diagVisible = true
   } catch (error) {
-    transientText = `Diagnóstico: ${String(error)}`
+    showError(`Diagnóstico: ${String(error)}`)
   }
   uiDirty()
 }
@@ -2806,7 +2857,7 @@ async function exportDiagnosticsReport(): Promise<void> {
     const path = exportDiagnostics(report)
     transientText = `Diagnóstico: ${path}`
   } catch (error) {
-    transientText = `Diagnóstico: ${String(error)}`
+    showError(`Diagnóstico: ${String(error)}`)
   }
   uiDirty()
 }
@@ -2829,7 +2880,7 @@ async function probeCurrentHost(): Promise<void> {
     const detail = result.message ? ` · ${result.message}` : ""
     transientText = `Ruta ${result.kind} ${result.address}: ${result.state} (${result.latencyMs}ms)${detail}`
   } catch (error) {
-    transientText = `Ruta: ${String(error)}`
+    showError(`Ruta: ${String(error)}`)
   }
   uiDirty()
 }
@@ -2846,7 +2897,7 @@ async function importHosts(): Promise<void> {
     await loadVaultStatus()
     transientText = `KeePass: ${result.imported} hosts, ${result.conflicts?.length ?? 0} conflictos`
   } catch (error) {
-    transientText = `Importar KeePass: ${String(error)}`
+    showError(`Importar KeePass: ${String(error)}`)
   }
   uiDirty()
 }
@@ -2993,7 +3044,7 @@ function handleWorkspaceKey(key: KeyEvent): void {
 function renderActionBar(): void {
   for (let index = 0; index < actionBarButtons.length; index++) {
     const button = actionBarButtons[index]
-    const selected = (actionBarFocused && index === actionBarCursor) || actionBarHover === index
+    const selected = actionBarFocused && index === actionBarCursor
     button.node.fg = selected ? RGBA.fromInts(15, 18, 24) : RGBA.fromInts(215, 222, 235)
     button.node.bg = selected ? RGBA.fromInts(120, 190, 255) : RGBA.fromInts(38, 44, 58)
   }
@@ -3416,7 +3467,7 @@ async function runNmapScan(): Promise<void> {
     diagVisible = true
     transientText = ""
   } catch (error) {
-    transientText = `Nmap: ${String(error)}`
+    showError(`Nmap: ${String(error)}`)
   }
   uiDirty()
 }
@@ -3463,7 +3514,7 @@ async function showNetworkInfo(): Promise<void> {
     diagVisible = true
     transientText = ""
   } catch (error) {
-    transientText = `Red: ${String(error)}`
+    showError(`Red: ${String(error)}`)
   }
   uiDirty()
 }
@@ -3553,7 +3604,7 @@ async function cancelSelectedTransfer(): Promise<void> {
     await client.call("transfers.cancel", { transferId: item.transferId }, { timeoutMs: 5000 })
     await refreshTransfers()
   } catch (error) {
-    transientText = `Cancelar transferencia: ${String(error)}`
+    showError(`Cancelar transferencia: ${String(error)}`)
     uiDirty()
   }
 }
@@ -3637,7 +3688,7 @@ async function startTransferForm(): Promise<void> {
     transferForm = null
     await refreshTransfers()
   } catch (error) {
-    transientText = `Transferencia: ${String(error)}`
+    showError(`Transferencia: ${String(error)}`)
     uiDirty()
   }
 }
@@ -3757,7 +3808,7 @@ function persistPreferences(): void {
   try {
     savePreferences(preferences)
   } catch (error) {
-    transientText = `Preferencias: ${String(error)}`
+    showError(`Preferencias: ${String(error)}`)
   }
 }
 
@@ -3959,7 +4010,7 @@ async function refreshFRP(): Promise<void> {
     frpEndpoints = result.endpoints ?? []
     frpCursor = Math.min(frpCursor, Math.max(0, frpProxies.length - 1))
   } catch (error) {
-    transientText = `FRP: ${String(error)}`
+    showError(`FRP: ${String(error)}`)
   }
   uiDirty()
 }
@@ -3997,7 +4048,7 @@ async function stopSelectedFRP(): Promise<void> {
     await client.call("frp.proxies.stop", { proxyId: proxy.id }, { timeoutMs: 5000 })
     await refreshFRP()
   } catch (error) {
-    transientText = `FRP stop: ${String(error)}`
+    showError(`FRP stop: ${String(error)}`)
     uiDirty()
   }
 }
@@ -4017,7 +4068,7 @@ async function removeSelectedFRP(): Promise<void> {
     await refreshFRP()
     transientText = `FRP: ${proxy.name} eliminado`
   } catch (error) {
-    transientText = `FRP remove: ${String(error)}`
+    showError(`FRP remove: ${String(error)}`)
   }
   uiDirty()
 }
@@ -4040,7 +4091,7 @@ async function toggleLocalFrps(): Promise<void> {
     }
     await refreshFRP()
   } catch (error) {
-    transientText = `FRP frps: ${String(error)}`
+    showError(`FRP frps: ${String(error)}`)
     uiDirty()
   }
 }
@@ -4053,7 +4104,7 @@ async function rotateFRPToken(): Promise<void> {
     await refreshFRP()
     transientText = "FRP: token rotado"
   } catch (error) {
-    transientText = `FRP rotate: ${String(error)}`
+    showError(`FRP rotate: ${String(error)}`)
     uiDirty()
   }
 }
@@ -4089,7 +4140,7 @@ async function applyFrpForm(): Promise<void> {
     await refreshFRP()
     transientText = `FRP: ${proxy.name} aplicado`
   } catch (error) {
-    transientText = `FRP apply: ${String(error)}`
+    showError(`FRP apply: ${String(error)}`)
     uiDirty()
   }
 }
@@ -4221,7 +4272,7 @@ async function start(): Promise<void> {
   try {
     client = await IpcClient.connect(socketPath)
   } catch (error) {
-    errorText = `No se pudo conectar a ${SUPERVISOR} en ${socketPath}: ${String(error)}. Comprueba el servicio ssh05d`
+    showError(`No se pudo conectar a ${SUPERVISOR} en ${socketPath}: ${String(error)}. Comprueba el servicio ssh05d`)
     uiDirty()
     return
   }
@@ -4268,7 +4319,7 @@ async function start(): Promise<void> {
     await restoreWorkspace(listed.sessions, loadWorkspace(currentWorkspace))
     uiDirty()
   } catch (error) {
-    errorText = `hosts.list: ${String(error)}`
+    showError(`hosts.list: ${String(error)}`)
     uiDirty()
   }
 }

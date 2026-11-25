@@ -4,7 +4,7 @@ Cliente SSH de escritorio y terminal, compatible con OpenSSH, con gestor visual 
 hosts, supervisor local (`ssh05d`) y frontend OpenTUI. Fork de
 [trzsz-ssh](https://github.com/trzsz/trzsz-ssh) orientado a escritorios Linux.
 
-**Versión:** `0.40.0` · **Licencia:** MIT · **Desarrollado por Dinámicas Electrónicas**
+**Versión:** `0.40.1` · **Licencia:** MIT · **Desarrollado por Dinámicas Electrónicas**
 Soporte: `dinamicas.electronicas@gmail.com` · [Repositorio](https://github.com/lordpietre/ssh05)
 
 > Identidad actual: binario `ssh05`, supervisor `ssh05d`, UI `ssh05-ui`.
@@ -305,7 +305,7 @@ Descarga el paquete de tu arquitectura desde
 <https://github.com/lordpietre/ssh05/releases/latest>:
 
 ```sh
-VERSION=0.40.0
+VERSION=0.40.1
 wget "https://github.com/lordpietre/ssh05/releases/download/v${VERSION}/ssh05_${VERSION}_ubuntu_amd64.deb"
 wget "https://github.com/lordpietre/ssh05/releases/download/v${VERSION}/ssh05_${VERSION}_ubuntu_amd64.deb.sha256"
 sha256sum -c "ssh05_${VERSION}_ubuntu_amd64.deb.sha256"
@@ -330,6 +330,21 @@ Dependencias recomendadas: `tmux` (sesiones persistentes) y `zenity`
 `ssh05-ui` arranca `ssh05d` automáticamente si el socket todavía no existe, así
 que la primera ejecución tras instalar funciona sin pasos manuales.
 
+### Actualizar y `apt upgrade`
+
+`apt upgrade` solo actualiza paquetes que vienen de un repositorio APT. Si
+instalaste ssh05 desde un `.deb` local, el paquete figura en `dpkg` pero no
+tiene repositorio, así que `apt upgrade` no mostrará ninguna actualización de
+ssh05. Para actualizar usa el paquete descargado:
+
+```sh
+sudo apt install --reinstall ./ssh05_0.40.1_ubuntu_amd64.deb
+```
+
+Si quieres que `apt upgrade` gestione ssh05 automáticamente, hace falta
+publicar los `.deb` en un repositorio APT y añadirlo con `sources.list.d`;
+eso no se configura desde el propio paquete.
+
 ### Compilar desde el código
 
 ```sh
@@ -350,7 +365,7 @@ Paquete local:
 
 ```sh
 make deb
-sudo apt install ./dist/ssh05_0.40.0_ubuntu_amd64.deb
+sudo apt install ./dist/ssh05_0.40.1_ubuntu_amd64.deb
 ```
 
 ---
@@ -372,7 +387,7 @@ ssh05 --list-hosts            # inventario JSON desde ~/.ssh/config
 
 Resultado esperado:
 
-- `ssh05` y `ssh05d` muestran la misma versión (`0.40.0`).
+- `ssh05` y `ssh05d` muestran la misma versión (`0.40.1`).
 - `ssh05d` está `enabled` y `active`; el socket existe con permisos `srw-------`.
 - `ssh05 --list-hosts` devuelve un array JSON (aunque esté vacío).
 - `ssh05-ui` en una terminal real dibuja la interfaz y conecta con el socket.
@@ -426,12 +441,12 @@ La UI está pensada para alternar teclado y ratón sin perder el contexto:
 - **Pestañas:** un clic activa la pestaña; clic derecho o central abre el menú
   de cierre; la rueda cambia de pestaña; `‹N` y `N›` permiten recorrer las
   ocultas.
-- **Barra superior:** cada botón se resalta al pasar el ratón y se ejecuta con
-  un clic. Los botones siguen funcionando con `Tab`, flechas y `Enter`.
-- **Menús y paneles:** las filas se seleccionan al pasar el ratón y se activan
-  con un clic. Los formularios permiten clicar directamente en el campo.
-  Los paneles de Transferencias, FRP, Preferencias, Nmap, Ayuda y
-  Diagnóstico muestran botones `[ Acción ]` clicables.
+- **Barra superior:** cada botón se ejecuta con un clic. Los botones siguen
+  funcionando con `Tab`, flechas y `Enter`.
+- **Menús y paneles:** las filas se activan con un clic. Los formularios
+  permiten clicar directamente en el campo. Los paneles de Transferencias, FRP,
+  Preferencias, Nmap, Ayuda y Diagnóstico muestran botones `[ Acción ]`
+  clicables.
 - **Rueda:** desplaza la lista de hosts, el menú de acciones y los selectores
   largos.
 - **Ventana SSH:** cada sesión se muestra dentro de un marco con cabecera de

@@ -1,3 +1,14 @@
+ssh05 (0.40.1) unstable; urgency=medium
+
+  * Cerrar una sesión ya terminada es idempotente: deja de devolver
+    "internal error" y se registra como cierre correcto.
+  * Los errores se muestran en un aviso centrado, con botón Cerrar y Esc,
+    en lugar de perderse en la línea de estado.
+  * El ratón vuelve al modo estable: clic, doble clic, clic derecho y rueda,
+    sin selección por hover ni cambios de foco al mover el puntero.
+
+ -- Dinámicas Electrónicas <dinamicas.electronicas@gmail.com>  Wed, 25 Nov 2026 20:10:00 +0100
+
 ssh05 (0.40.0) unstable; urgency=medium
 
   * Host keys: el supervisor ya no usa /dev/tty; una clave nueva se confirma

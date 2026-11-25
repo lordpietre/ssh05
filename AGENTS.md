@@ -93,7 +93,7 @@ make install                   # copies ./bin/ssh05 y ./bin/ssh05d to /usr/bin
     `←/→` navega, `Enter` activa, `Esc` sale; también acepta ratón.
   - Ratón: hosts (clic selecciona, doble clic conecta, clic derecho acciones,
     rueda), pestañas (clic activa, derecho/central cierra, rueda cambia),
-    barra, filas de menú y botones `[ Acción ]`; hover resalta.
+    barra, filas de menú y botones `[ Acción ]`; sin selección por hover.
   - Cada sesión SSH vive en una ventana con cabecera de estado; `×` cierra la
     conexión y el clic derecho en `×` abre las opciones de cierre.
   - `Menú` abre la lista completa de acciones navegable y clicable.
